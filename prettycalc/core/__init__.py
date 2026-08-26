@@ -10,6 +10,10 @@ from prettycalc.core.operations import (
     get_add_multiple_metadata,
 )
 from prettycalc.core.tracer import CalculationStep, StepTracer
+from prettycalc.core.elimination import (
+    gaussian_elimination,
+    gauss_jordan_elimination,
+)
 
 __all__ = [
     "Matrix",
@@ -24,4 +28,6 @@ __all__ = [
     "get_add_multiple_metadata",
     "CalculationStep",
     "StepTracer",
+    "gaussian_elimination",
+    "gauss_jordan_elimination",
 ]
