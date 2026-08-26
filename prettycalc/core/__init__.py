@@ -9,6 +9,7 @@ from prettycalc.core.operations import (
     get_scale_metadata,
     get_add_multiple_metadata,
 )
+from prettycalc.core.tracer import CalculationStep, StepTracer
 
 __all__ = [
     "Matrix",
@@ -21,4 +22,6 @@ __all__ = [
     "get_swap_metadata",
     "get_scale_metadata",
     "get_add_multiple_metadata",
+    "CalculationStep",
+    "StepTracer",
 ]
