@@ -1,4 +1,4 @@
-"""Dashboard de Resultados y Verificación para PrettyCalc."""
+"""Dashboard de Resultados y Verificación con tipografía de alto contraste (#E0FBFC) y espaciado generoso."""
 
 from __future__ import annotations
 from typing import Optional, List
@@ -27,11 +27,12 @@ from prettycalc.ui.theme import (
     COLOR_INTERACTIVE_IDLE,
     COLOR_SURFACE_ELEVATED,
     FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
 )
 
 
 class ResultsDashboardCard(QFrame):
-    """Panel lateral o card que despliega el estado del sistema, variables y checklist de validación."""
+    """Panel lateral que despliega el estado del sistema, variables destacadas y checklist con respiro."""
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -41,12 +42,12 @@ class ResultsDashboardCard(QFrame):
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(14)
 
-        # 1. Título del Dashboard
-        title = QLabel("📊 Resultados y Clasificación")
-        title.setProperty("class", "title")
-        title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {COLOR_TEXT_PRIMARY};")
+        # 1. Encabezado del Dashboard
+        title = QLabel("📊 Resultados")
+        title.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; font-family: {FONT_FAMILY_SANS};")
         layout.addWidget(title)
 
         # 2. Badge de Estado del Sistema
@@ -56,8 +57,8 @@ class ResultsDashboardCard(QFrame):
             background-color: #3A3642;
             color: {COLOR_TEXT_PRIMARY};
             font-weight: bold;
-            font-size: 13px;
-            padding: 8px 12px;
+            font-size: 14px;
+            padding: 10px 14px;
             border-radius: 6px;
         """)
         layout.addWidget(self.status_badge)
@@ -65,25 +66,25 @@ class ResultsDashboardCard(QFrame):
         # 3. Resumen descriptivo
         self.summary_label = QLabel("")
         self.summary_label.setWordWrap(True)
-        self.summary_label.setStyleSheet(f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 12px;")
+        self.summary_label.setStyleSheet(f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 13px; margin-bottom: 6px;")
         layout.addWidget(self.summary_label)
 
-        # 4. Sección de Valores de Variables
-        var_title = QLabel("🔢 Valores de las Variables")
-        var_title.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {COLOR_TEXT_PRIMARY}; margin-top: 8px;")
+        # 4. Sección de Variables
+        var_title = QLabel("🔢 Solución del Sistema")
+        var_title.setStyleSheet(f"font-weight: bold; font-size: 15px; color: {COLOR_TEXT_PRIMARY}; margin-top: 4px;")
         layout.addWidget(var_title)
 
         self.var_container = QVBoxLayout()
-        self.var_container.setSpacing(4)
+        self.var_container.setSpacing(8)
         layout.addLayout(self.var_container)
 
-        # 5. Checklist de Verificación por Sustitución (✓)
-        check_title = QLabel("✅ Comprobación de Ecuaciones")
-        check_title.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {COLOR_TEXT_PRIMARY}; margin-top: 8px;")
+        # 5. Sección de Validación por Sustitución
+        check_title = QLabel("✅ Comprobación de Igualdad")
+        check_title.setStyleSheet(f"font-weight: bold; font-size: 15px; color: {COLOR_TEXT_PRIMARY}; margin-top: 8px;")
         layout.addWidget(check_title)
 
         self.checklist_container = QVBoxLayout()
-        self.checklist_container.setSpacing(4)
+        self.checklist_container.setSpacing(8)
         layout.addLayout(self.checklist_container)
 
         layout.addStretch(1)
@@ -93,19 +94,18 @@ class ResultsDashboardCard(QFrame):
         analysis: SystemAnalysis,
         verifications: Optional[List[EquationVerification]] = None,
     ) -> None:
-        """Actualiza el dashboard con los datos del análisis y la verificación."""
         # 1. Configurar Badge de Estado
         if analysis.system_type == SystemType.CONSISTENT_DETERMINED:
             badge_color = COLOR_FEEDBACK_SUCCESS
-            badge_text = "🟢 Consistente Determinado (Solución Única)"
+            badge_text = "🟢 Consistente Determinado"
             text_color = "#1A181B"
         elif analysis.system_type == SystemType.CONSISTENT_INDETERMINED:
             badge_color = COLOR_ACCENT_WARNING
-            badge_text = "🟡 Consistente Indeterminado (Infinitas Soluciones)"
+            badge_text = "🟡 Consistente Indeterminado"
             text_color = "#1A181B"
         else:
             badge_color = COLOR_FEEDBACK_ERROR
-            badge_text = "🔴 Inconsistente (Sin Solución)"
+            badge_text = "🔴 Sistema Inconsistente"
             text_color = "#E0FBFC"
 
         self.status_badge.setText(badge_text)
@@ -113,74 +113,134 @@ class ResultsDashboardCard(QFrame):
             background-color: {badge_color};
             color: {text_color};
             font-weight: bold;
-            font-size: 13px;
-            padding: 8px 12px;
+            font-size: 14px;
+            padding: 10px 14px;
             border-radius: 6px;
         """)
 
-        # 2. Resumen
         self.summary_label.setText(analysis.summary_message)
 
-        # 3. Limpiar variables anteriores
+        # 2. Limpiar variables anteriores
         while self.var_container.count():
             item = self.var_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Rellenar variables
+        # Rellenar variables con alta legibilidad y Light Cyan (#E0FBFC)
         if analysis.system_type == SystemType.CONSISTENT_DETERMINED and analysis.unique_solution:
             for idx, val in enumerate(analysis.unique_solution):
                 v_name = f"x{idx+1}"
                 val_str = format_scalar(val, mode="fraction")
                 dec_str = format_scalar(val, mode="decimal")
-                lbl = QLabel(f"• <b>{v_name}</b> = <span style='color:{COLOR_TEXT_PRIMARY}; font-family:{FONT_FAMILY_MONO}'>{val_str}</span> (≈ {dec_str})")
-                lbl.setTextFormat(Qt.RichText)
-                self.var_container.addWidget(lbl)
+
+                card = QFrame()
+                card.setStyleSheet(f"""
+                    QFrame {{
+                        background-color: #242028;
+                        border: 1px solid {COLOR_SURFACE_ELEVATED};
+                        border-radius: 6px;
+                        padding: 8px 12px;
+                    }}
+                """)
+                card_layout = QHBoxLayout(card)
+                card_layout.setContentsMargins(10, 8, 10, 8)
+
+                var_lbl = QLabel(f"<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:16px; font-weight:bold;'>{v_name}</span> = <span style='color:{COLOR_TEXT_PRIMARY}; font-size:17px; font-weight:bold; font-family:{FONT_FAMILY_MONO};'>{val_str}</span> <span style='color:#A09BA8; font-size:12px;'> (≈ {dec_str})</span>")
+                var_lbl.setTextFormat(Qt.RichText)
+                card_layout.addWidget(var_lbl)
+
+                self.var_container.addWidget(card)
 
         elif analysis.system_type == SystemType.CONSISTENT_INDETERMINED:
-            # Variables básicas parametrizadas
             if analysis.parametric_solutions:
                 for basic_var, expr in analysis.parametric_solutions.items():
                     v_name = f"x{basic_var+1}"
                     expr_str = expr.to_string()
-                    lbl = QLabel(f"• <b>{v_name}</b> = <span style='color:{COLOR_TEXT_PRIMARY}; font-family:{FONT_FAMILY_MONO}'>{expr_str}</span>")
-                    lbl.setTextFormat(Qt.RichText)
-                    self.var_container.addWidget(lbl)
 
-            # Variables libres con icono de llave 🔑
+                    card = QFrame()
+                    card.setStyleSheet(f"""
+                        QFrame {{
+                            background-color: #242028;
+                            border: 1px solid {COLOR_SURFACE_ELEVATED};
+                            border-radius: 6px;
+                            padding: 8px 12px;
+                        }}
+                    """)
+                    card_layout = QHBoxLayout(card)
+                    card_layout.setContentsMargins(10, 8, 10, 8)
+
+                    lbl = QLabel(f"<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:15px; font-weight:bold;'>{v_name}</span> = <span style='color:{COLOR_TEXT_PRIMARY}; font-size:16px; font-weight:bold; font-family:{FONT_FAMILY_MONO};'>{expr_str}</span>")
+                    lbl.setTextFormat(Qt.RichText)
+                    card_layout.addWidget(lbl)
+                    self.var_container.addWidget(card)
+
             for free_var in analysis.free_variables:
                 v_name = f"x{free_var+1}"
-                lbl = QLabel(f"• 🔑 <b>{v_name}</b> = Variable libre (t ∈ ℝ)")
-                lbl.setStyleSheet(f"color: {COLOR_ACCENT_WARNING};")
-                self.var_container.addWidget(lbl)
+                card = QFrame()
+                card.setStyleSheet(f"""
+                    QFrame {{
+                        background-color: #242028;
+                        border: 1px dashed {COLOR_ACCENT_WARNING};
+                        border-radius: 6px;
+                        padding: 8px 12px;
+                    }}
+                """)
+                card_layout = QHBoxLayout(card)
+                card_layout.setContentsMargins(10, 8, 10, 8)
+
+                lbl = QLabel(f"🔑 <span style='color:{COLOR_ACCENT_WARNING}; font-size:15px; font-weight:bold;'>{v_name}</span> <span style='color:{COLOR_TEXT_PRIMARY}; font-size:13px;'>es Variable Libre</span>")
+                lbl.setTextFormat(Qt.RichText)
+                card_layout.addWidget(lbl)
+                self.var_container.addWidget(card)
         else:
-            lbl = QLabel("No existen valores para las variables.")
-            lbl.setStyleSheet(f"color: {COLOR_FEEDBACK_ERROR}; font-style: italic;")
+            lbl = QLabel("Sin valores definidos (sistema inconsistente).")
+            lbl.setStyleSheet(f"color: {COLOR_FEEDBACK_ERROR}; font-style: italic; font-size: 13px;")
             self.var_container.addWidget(lbl)
 
-        # 4. Limpiar checklist anterior
+        # 3. Limpiar checklist anterior
         while self.checklist_container.count():
             item = self.checklist_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Rellenar checklist de verificación
+        # Rellenar checklist con respiro y padding
         if verifications and analysis.system_type != SystemType.INCONSISTENT:
             for v in verifications:
-                row_layout = QHBoxLayout()
+                card = QFrame()
+                card.setStyleSheet(f"""
+                    QFrame {{
+                        background-color: #242028;
+                        border-left: 3px solid {COLOR_FEEDBACK_SUCCESS if v.is_valid else COLOR_FEEDBACK_ERROR};
+                        border-radius: 4px;
+                        padding: 6px 10px;
+                    }}
+                """)
+                row_layout = QHBoxLayout(card)
+                row_layout.setContentsMargins(8, 6, 8, 6)
+                row_layout.setSpacing(10)
+
                 icon_lbl = QLabel("✓" if v.is_valid else "✗")
                 icon_color = COLOR_FEEDBACK_SUCCESS if v.is_valid else COLOR_FEEDBACK_ERROR
-                icon_lbl.setStyleSheet(f"color: {icon_color}; font-size: 16px; font-weight: bold;")
+                icon_lbl.setStyleSheet(f"color: {icon_color}; font-size: 18px; font-weight: bold;")
                 row_layout.addWidget(icon_lbl)
 
-                desc_lbl = QLabel(f"Ec. {v.equation_index+1}: {v.equation_str}")
-                desc_lbl.setStyleSheet(f"font-size: 12px; color: {COLOR_TEXT_PRIMARY};")
+                desc_lbl = QLabel(f"<span style='color:{COLOR_TEXT_PRIMARY}; font-size:13px;'>Ec. {v.equation_index+1}:</span> <span style='color:{COLOR_INTERACTIVE_IDLE}; font-family:{FONT_FAMILY_MONO}; font-size:13px;'>{v.equation_str}</span>")
+                desc_lbl.setTextFormat(Qt.RichText)
                 row_layout.addWidget(desc_lbl, stretch=1)
 
-                row_widget = QWidget()
-                row_widget.setLayout(row_layout)
-                self.checklist_container.addWidget(row_widget)
+                self.checklist_container.addWidget(card)
         elif analysis.system_type == SystemType.INCONSISTENT:
-            lbl = QLabel("⚠️ Sistema contradictorio (Lado Izquierdo = 0 ≠ Lado Derecho)")
-            lbl.setStyleSheet(f"color: {COLOR_FEEDBACK_ERROR}; font-size: 12px;")
-            self.checklist_container.addWidget(lbl)
+            card = QFrame()
+            card.setStyleSheet(f"""
+                QFrame {{
+                    background-color: #3E2426;
+                    border: 1px solid {COLOR_FEEDBACK_ERROR};
+                    border-radius: 6px;
+                    padding: 8px;
+                }}
+            """)
+            card_layout = QHBoxLayout(card)
+            lbl = QLabel(f"⚠️ <span style='color:{COLOR_FEEDBACK_ERROR}; font-weight:bold; font-size:13px;'>Contradicción: 0 = c (c ≠ 0)</span>")
+            lbl.setTextFormat(Qt.RichText)
+            card_layout.addWidget(lbl)
+            self.checklist_container.addWidget(card)
