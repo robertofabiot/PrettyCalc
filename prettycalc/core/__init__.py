@@ -14,6 +14,16 @@ from prettycalc.core.elimination import (
     gaussian_elimination,
     gauss_jordan_elimination,
 )
+from prettycalc.core.classifier import (
+    SystemType,
+    SystemAnalysis,
+    ParametricExpression,
+    classify_system,
+)
+from prettycalc.core.verifier import (
+    EquationVerification,
+    SolutionVerifier,
+)
 
 __all__ = [
     "Matrix",
@@ -30,4 +40,10 @@ __all__ = [
     "StepTracer",
     "gaussian_elimination",
     "gauss_jordan_elimination",
+    "SystemType",
+    "SystemAnalysis",
+    "ParametricExpression",
+    "classify_system",
+    "EquationVerification",
+    "SolutionVerifier",
 ]
