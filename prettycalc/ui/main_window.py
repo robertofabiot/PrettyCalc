@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PrettyCalc — Álgebra lineal")
-        self.resize(1240, 740)
+        self.resize(1320, 780)
         self.setStyleSheet(get_global_stylesheet())
         self._setup_ui()
 
@@ -61,10 +61,10 @@ class MainWindow(QMainWindow):
         title_box.setSpacing(2)
         title_lbl = QLabel("PrettyCalc")
         title_lbl.setStyleSheet(
-            f"font-size: 22px; font-weight: 600; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.02em;"
+            f"font-size: 28px; font-weight: 600; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.02em;"
         )
         sub_lbl = QLabel("Sistemas de ecuaciones lineales  ·  eliminación por filas")
-        sub_lbl.setStyleSheet(f"font-size: 12px; color: {COLOR_INTERACTIVE_IDLE}; font-style: italic;")
+        sub_lbl.setStyleSheet(f"font-size: 17px; color: {COLOR_INTERACTIVE_IDLE};")
         title_box.addWidget(title_lbl)
         title_box.addWidget(sub_lbl)
         header_layout.addLayout(title_box, stretch=1)
@@ -91,7 +91,7 @@ class MainWindow(QMainWindow):
 
         grid_title = QLabel("Matriz aumentada  [A | b]")
         grid_title.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: {COLOR_INTERACTIVE_IDLE};"
+            f"font-size: 19px; font-weight: 600; letter-spacing: 0.03em; color: {COLOR_TEXT_PRIMARY};"
         )
         left_layout.addWidget(grid_title)
 
@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
 
         samples_lbl = QLabel("Casos de prueba")
         samples_lbl.setStyleSheet(
-            f"font-size: 11px; color: {COLOR_INTERACTIVE_IDLE}; letter-spacing: 0.05em;"
+            f"font-size: 16px; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.03em;"
         )
         samples_layout.addWidget(samples_lbl)
 
@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
 
         steps_title = QLabel("Procedimiento")
         steps_title.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: {COLOR_INTERACTIVE_IDLE};"
+            f"font-size: 19px; font-weight: 600; letter-spacing: 0.03em; color: {COLOR_TEXT_PRIMARY};"
         )
         center_layout.addWidget(steps_title)
 
@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.dashboard_card)
         body_splitter.addWidget(right_pane)
 
-        body_splitter.setSizes([340, 560, 340])
+        body_splitter.setSizes([360, 540, 380])
         body_splitter.setStretchFactor(0, 2)
         body_splitter.setStretchFactor(1, 4)
         body_splitter.setStretchFactor(2, 2)

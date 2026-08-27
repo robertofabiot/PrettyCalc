@@ -62,7 +62,7 @@ def latex_to_book_html(latex: str) -> str:
         text_clean = text_clean.replace("\\mid", "|").replace("\\[", "[").replace("\\]", "]")
         text_clean = text_clean.replace("  ", " ").strip()
         return (
-            f"<span style='font-size:15px; font-style:italic; color:{COLOR_TEXT_PRIMARY}; "
+            f"<span style='font-size:20px; font-style:italic; color:{COLOR_TEXT_PRIMARY}; "
             f"font-family:{FONT_FAMILY_SANS};'>{text_clean}</span>"
         )
 
@@ -82,7 +82,7 @@ def latex_to_book_html(latex: str) -> str:
     result = result.replace("-", "−")
 
     return (
-        f"<span style='font-size:18px; font-weight:500; letter-spacing:0.04em; "
+        f"<span style='font-size:22px; font-weight:500; letter-spacing:0.04em; "
         f"color:{COLOR_TEXT_PRIMARY}; font-family:{FONT_FAMILY_SANS};'>{result}</span>"
     )
 

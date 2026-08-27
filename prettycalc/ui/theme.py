@@ -54,7 +54,7 @@ def get_global_stylesheet() -> str:
         background-color: {COLOR_BG_BASE};
         color: {COLOR_TEXT_PRIMARY};
         font-family: {FONT_FAMILY_SANS};
-        font-size: 13px;
+        font-size: 16px;
     }}
 
     QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
@@ -70,20 +70,20 @@ def get_global_stylesheet() -> str:
     }}
 
     QLabel.title {{
-        font-size: 20px;
+        font-size: 26px;
         font-weight: 600;
         color: {COLOR_TEXT_PRIMARY};
         letter-spacing: 0.02em;
     }}
 
     QLabel.subtitle {{
-        font-size: 12px;
+        font-size: 16px;
         color: {COLOR_INTERACTIVE_IDLE};
         font-style: italic;
     }}
 
     QLabel.section-title {{
-        font-size: 13px;
+        font-size: 17px;
         font-weight: 600;
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -95,7 +95,8 @@ def get_global_stylesheet() -> str:
         color: {COLOR_TEXT_PRIMARY};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
         border-radius: 6px;
-        padding: 7px 16px;
+        padding: 8px 16px;
+        font-size: 15px;
         font-weight: 600;
     }}
 
@@ -119,8 +120,8 @@ def get_global_stylesheet() -> str:
         background-color: {COLOR_FEEDBACK_SUCCESS};
         color: {COLOR_BG_BASE};
         border: none;
-        font-size: 13px;
-        padding: 8px 18px;
+        font-size: 16px;
+        padding: 10px 20px;
     }}
 
     QPushButton#primaryAction:hover {{
@@ -159,18 +160,21 @@ def get_global_stylesheet() -> str:
     }}
 
     QPushButton[class="ghost-cell"] {{
-        background-color: transparent;
-        color: transparent;
-        border: 1px dashed transparent;
+        background-color: rgba(152, 193, 217, 0.08);
+        color: {COLOR_INTERACTIVE_IDLE};
+        border: 1px dashed {COLOR_INTERACTIVE_IDLE};
         border-radius: 4px;
-        font-size: 16px;
+        font-size: 18px;
         font-weight: bold;
+        padding: 0px;
+        min-width: 28px;
+        min-height: 28px;
     }}
 
     QPushButton[class="ghost-cell"]:hover {{
-        background-color: rgba(152, 193, 217, 0.12);
-        color: {COLOR_INTERACTIVE_IDLE};
-        border: 1px dashed {COLOR_INTERACTIVE_IDLE};
+        background-color: rgba(152, 193, 217, 0.28);
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_TEXT_PRIMARY};
     }}
 
     QSplitter::handle:horizontal {{

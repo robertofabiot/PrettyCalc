@@ -9,6 +9,7 @@ try:
         QVBoxLayout,
         QLabel,
         QFrame,
+        QScrollArea,
     )
     from PySide6.QtCore import Qt
 except ImportError:
@@ -44,55 +45,69 @@ class ResultsDashboardCard(QFrame):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         apply_widget_class(self, "elevated-card")
-        self.setMinimumWidth(300)
+        self.setMinimumWidth(320)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(8, 8, 8, 8)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        outer.addWidget(scroll)
+
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(10, 10, 12, 10)
+        layout.setSpacing(14)
 
         title = QLabel("Resultados")
         title.setProperty("class", "section-title")
         title.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; letter-spacing: 0.08em; "
-            f"color: {COLOR_INTERACTIVE_IDLE};"
+            f"font-size: 20px; font-weight: 600; letter-spacing: 0.04em; "
+            f"color: {COLOR_TEXT_PRIMARY};"
         )
         layout.addWidget(title)
 
         self.status_badge = QLabel("Esperando cálculo")
         self.status_badge.setAlignment(Qt.AlignCenter)
+        self.status_badge.setWordWrap(True)
         self.status_badge.setStyleSheet(self._badge_style("#3A3642", COLOR_TEXT_PRIMARY))
         layout.addWidget(self.status_badge)
 
         self.summary_label = QLabel("")
         self.summary_label.setWordWrap(True)
         self.summary_label.setStyleSheet(
-            f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 12px; font-style: italic;"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px;"
         )
         layout.addWidget(self.summary_label)
 
         var_title = QLabel("Solución")
         var_title.setStyleSheet(
-            f"font-weight: 600; font-size: 13px; color: {COLOR_TEXT_PRIMARY}; margin-top: 4px;"
+            f"font-weight: 600; font-size: 18px; color: {COLOR_TEXT_PRIMARY}; margin-top: 6px;"
         )
         layout.addWidget(var_title)
 
         self.var_container = QVBoxLayout()
-        self.var_container.setSpacing(4)
+        self.var_container.setSpacing(6)
         layout.addLayout(self.var_container)
 
         check_title = QLabel("Comprobación")
         check_title.setStyleSheet(
-            f"font-weight: 600; font-size: 13px; color: {COLOR_TEXT_PRIMARY}; margin-top: 8px;"
+            f"font-weight: 600; font-size: 18px; color: {COLOR_TEXT_PRIMARY}; margin-top: 8px;"
         )
         layout.addWidget(check_title)
 
         self.checklist_container = QVBoxLayout()
-        self.checklist_container.setSpacing(6)
+        self.checklist_container.setSpacing(8)
         layout.addLayout(self.checklist_container)
 
         layout.addStretch(1)
+        scroll.setWidget(inner)
 
     def clear(self) -> None:
         """Restablece el panel al estado vacío inicial."""
@@ -145,14 +160,14 @@ class ResultsDashboardCard(QFrame):
                 names = ", ".join(variable_symbol(v) for v in analysis.free_variables)
                 free_lbl = QLabel(f"{names}  libres")
                 free_lbl.setStyleSheet(
-                    f"color: {COLOR_ACCENT_WARNING}; font-size: 13px; font-style: italic; "
+                    f"color: {COLOR_ACCENT_WARNING}; font-size: 16px; font-style: italic; "
                     f"font-family: {FONT_FAMILY_SANS}; padding: 4px 2px;"
                 )
                 self.var_container.addWidget(free_lbl)
         else:
             lbl = QLabel("No hay solución (el sistema es incompatible).")
             lbl.setStyleSheet(
-                f"color: {COLOR_FEEDBACK_ERROR}; font-style: italic; font-size: 13px;"
+                f"color: {COLOR_FEEDBACK_ERROR}; font-style: italic; font-size: 16px;"
             )
             self.var_container.addWidget(lbl)
 
@@ -164,17 +179,18 @@ class ResultsDashboardCard(QFrame):
         elif analysis.system_type == SystemType.INCONSISTENT:
             lbl = QLabel("Contradicción:  0 = c  con  c ≠ 0")
             lbl.setStyleSheet(
-                f"color: {COLOR_FEEDBACK_ERROR}; font-size: 13px; font-style: italic; "
-                f"padding: 8px; background-color: {COLOR_SURFACE_INNER};"
+                f"color: {COLOR_FEEDBACK_ERROR}; font-size: 16px; font-style: italic; "
+                f"padding: 10px; background-color: {COLOR_SURFACE_INNER};"
             )
             self.checklist_container.addWidget(lbl)
 
     def _equation_line(self, text: str) -> QLabel:
         lbl = QLabel(text)
+        lbl.setWordWrap(True)
         lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
         lbl.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px; font-family: {FONT_FAMILY_MONO}; "
-            f"padding: 4px 2px;"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO}; "
+            f"padding: 6px 2px;"
         )
         return lbl
 
@@ -191,21 +207,19 @@ class ResultsDashboardCard(QFrame):
         sub = format_substitution_book(v.substitution_str)
 
         head = QLabel(f"{mark}   ({v.equation_index + 1})   {eq}")
-        head.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 13px; font-family: {FONT_FAMILY_MONO};"
-        )
-        # Color only the mark via rich text
+        head.setWordWrap(True)
         head.setTextFormat(Qt.RichText)
         head.setText(
-            f"<span style='color:{mark_color}; font-weight:bold;'>{mark}</span>"
-            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_MUTED};'>({v.equation_index + 1})</span>"
-            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-family:{FONT_FAMILY_MONO};'>{eq}</span>"
+            f"<span style='color:{mark_color}; font-weight:bold; font-size:18px;'>{mark}</span>"
+            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_MUTED}; font-size:17px;'>({v.equation_index + 1})</span>"
+            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-size:17px; font-family:{FONT_FAMILY_MONO};'>{eq}</span>"
         )
         col.addWidget(head)
 
         sub_lbl = QLabel(sub)
+        sub_lbl.setWordWrap(True)
         sub_lbl.setStyleSheet(
-            f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 12px; font-style: italic; "
+            f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 16px; font-style: italic; "
             f"font-family: {FONT_FAMILY_MONO}; padding-left: 28px;"
         )
         col.addWidget(sub_lbl)
@@ -217,9 +231,9 @@ class ResultsDashboardCard(QFrame):
             background-color: {bg};
             color: {fg};
             font-weight: 600;
-            font-size: 13px;
-            letter-spacing: 0.03em;
-            padding: 10px 12px;
+            font-size: 17px;
+            letter-spacing: 0.02em;
+            padding: 12px 14px;
             border-radius: 4px;
         """
 

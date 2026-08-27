@@ -49,26 +49,26 @@ class AlgorithmStepperCarousel(QFrame):
         nav_layout.setSpacing(8)
 
         self.prev_btn = QPushButton("Anterior")
-        self.prev_btn.setFixedWidth(100)
+        self.prev_btn.setFixedWidth(118)
         self.prev_btn.clicked.connect(self.prev_step)
         nav_layout.addWidget(self.prev_btn)
 
         self.step_label = QLabel("Paso 0 de 0")
         self.step_label.setAlignment(Qt.AlignCenter)
-        self.step_label.setMinimumWidth(120)
+        self.step_label.setMinimumWidth(140)
         self.step_label.setStyleSheet(
-            f"font-weight: 600; font-size: 13px; letter-spacing: 0.04em; color: {COLOR_TEXT_PRIMARY};"
+            f"font-weight: 600; font-size: 17px; letter-spacing: 0.04em; color: {COLOR_TEXT_PRIMARY};"
         )
         nav_layout.addWidget(self.step_label, stretch=1)
 
         self.next_btn = QPushButton("Siguiente")
-        self.next_btn.setFixedWidth(100)
+        self.next_btn.setFixedWidth(118)
         self.next_btn.clicked.connect(self.next_step)
         nav_layout.addWidget(self.next_btn)
 
         self.mode_btn = QPushButton("Fracciones")
         self.mode_btn.setToolTip("Alternar entre fracciones y decimales")
-        self.mode_btn.setFixedWidth(110)
+        self.mode_btn.setFixedWidth(128)
         self.mode_btn.clicked.connect(self._toggle_mode)
         nav_layout.addWidget(self.mode_btn)
 
@@ -83,7 +83,7 @@ class AlgorithmStepperCarousel(QFrame):
             }}
         """)
         formula_layout = QVBoxLayout(formula_box)
-        formula_layout.setContentsMargins(12, 10, 12, 10)
+        formula_layout.setContentsMargins(14, 12, 14, 12)
 
         self.formula_label = QLabel("")
         self.formula_label.setAlignment(Qt.AlignCenter)
@@ -105,7 +105,7 @@ class AlgorithmStepperCarousel(QFrame):
             }}
         """)
         heuristic_layout = QHBoxLayout(heuristic_box)
-        heuristic_layout.setContentsMargins(12, 8, 12, 8)
+        heuristic_layout.setContentsMargins(14, 12, 14, 12)
 
         self.heuristic_label = QLabel("")
         self.heuristic_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -113,9 +113,10 @@ class AlgorithmStepperCarousel(QFrame):
         self.heuristic_label.setStyleSheet(f"""
             QLabel {{
                 color: {COLOR_TEXT_PRIMARY};
-                font-size: 13px;
+                font-size: 18px;
                 font-style: italic;
                 font-family: {FONT_FAMILY_SANS};
+                font-weight: 500;
             }}
         """)
         heuristic_layout.addWidget(self.heuristic_label)
@@ -147,7 +148,7 @@ class AlgorithmStepperCarousel(QFrame):
         if not self._steps:
             self.step_label.setText("Sin pasos")
             self.formula_label.setText(
-                f"<span style='color:{COLOR_TEXT_MUTED}; font-style:italic;'>Esperando resolución</span>"
+                f"<span style='color:{COLOR_TEXT_MUTED}; font-style:italic; font-size:16px;'>Esperando resolución</span>"
             )
             self.heuristic_label.setText("Ingresa el sistema y pulsa Resolver.")
             self.matrix_view.clear()
