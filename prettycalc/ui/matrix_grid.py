@@ -15,9 +15,10 @@ try:
         QFrame,
         QSpacerItem,
         QSizePolicy,
+        QMenu,
     )
-    from PySide6.QtCore import Qt, Signal, QRect
-    from PySide6.QtGui import QKeyEvent, QFont, QPainter, QColor, QPaintEvent
+    from PySide6.QtCore import Qt, Signal, QRect, QPoint, QTimer
+    from PySide6.QtGui import QKeyEvent, QFont, QPainter, QColor, QPaintEvent, QAction, QFocusEvent
 except ImportError:
     QWidget = object  # type: ignore
     Signal = lambda *args: None  # type: ignore
@@ -56,8 +57,13 @@ class MatrixCellEdit(QLineEdit):
         self.setFont(QFont("Fira Code", 12))
         self.setFrame(False)
         apply_widget_class(self, "matrix-cell")
+        self.setContextMenuPolicy(Qt.NoContextMenu)
         self.textChanged.connect(self._on_text_changed)
         self._is_valid = True
+
+    def focusInEvent(self, event: QFocusEvent) -> None:
+        super().focusInEvent(event)
+        QTimer.singleShot(0, self.selectAll)
 
     def _on_text_changed(self, text: str) -> None:
         cleaned = text.strip()
@@ -112,13 +118,16 @@ class DynamicMatrixGrid(QFrame):
 
     def __init__(self, initial_rows: int = 2, initial_cols: int = 2, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        apply_widget_class(self, "elevated-card")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet("background: transparent;")
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
         self.num_rows = initial_rows
         self.num_vars = initial_cols
         self.cells: List[List[MatrixCellEdit]] = []
 
         self._outer_layout = QVBoxLayout(self)
-        self._outer_layout.setContentsMargins(28, 20, 28, 16)
+        self._outer_layout.setContentsMargins(8, 4, 8, 4)
 
         self._center_container = QWidget()
         self._center_container.setAttribute(Qt.WA_TranslucentBackground, True)
@@ -223,6 +232,63 @@ class DynamicMatrixGrid(QFrame):
         self._grid_layout.addWidget(self.ghost_row_btn, self.num_rows + 1, 0, 1, total_cols)
 
         self.update()
+
+    def _cell_at(self, pos: QPoint) -> Optional[MatrixCellEdit]:
+        """Localiza la celda bajo un punto en coordenadas del contenedor."""
+        for row in self.cells:
+            for cell in row:
+                top_left = cell.mapTo(self, cell.rect().topLeft())
+                if QRect(top_left, cell.size()).contains(pos):
+                    return cell
+        return None
+
+    def _show_context_menu(self, pos: QPoint) -> None:
+        cell = self._cell_at(pos)
+        if cell is None:
+            return
+
+        menu = QMenu(self)
+        delete_row = QAction("Eliminar fila", menu)
+        delete_col = QAction("Eliminar columna", menu)
+
+        can_delete_row = self.num_rows > 1
+        can_delete_col = self.num_vars > 1 and cell.col < self.num_vars
+        delete_row.setEnabled(can_delete_row)
+        delete_col.setEnabled(can_delete_col)
+        if cell.col >= self.num_vars:
+            delete_col.setToolTip("La columna de términos independientes no se puede eliminar.")
+        elif self.num_vars <= 1:
+            delete_col.setToolTip("Debe quedar al menos una variable.")
+        if self.num_rows <= 1:
+            delete_row.setToolTip("Debe quedar al menos una ecuación.")
+
+        delete_row.triggered.connect(lambda: self.remove_row(cell.row))
+        delete_col.triggered.connect(lambda: self.remove_column(cell.col))
+        menu.addAction(delete_row)
+        menu.addAction(delete_col)
+        menu.exec(self.mapToGlobal(pos))
+
+    def remove_row(self, index: int) -> None:
+        """Elimina una ecuación. No permite dejar la matriz sin filas."""
+        if self.num_rows <= 1 or index < 0 or index >= self.num_rows:
+            return
+        data = self.get_raw_strings()
+        del data[index]
+        self.num_rows -= 1
+        self._build_grid()
+        self.set_raw_strings(data)
+        self.matrixChanged.emit()
+
+    def remove_column(self, index: int) -> None:
+        """Elimina una columna de variable. No elimina b ni deja el sistema sin incógnitas."""
+        if index < 0 or index >= self.num_vars or self.num_vars <= 1:
+            return
+        data = self.get_raw_strings()
+        trimmed = [row[:index] + row[index + 1 :] for row in data]
+        self.num_vars -= 1
+        self._build_grid()
+        self.set_raw_strings(trimmed)
+        self.matrixChanged.emit()
 
     def _handle_cell_navigation(self, r: int, c: int, direction: str) -> None:
         target_r, target_c = r, c
