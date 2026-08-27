@@ -88,3 +88,53 @@ def test_ghost_buttons_visible_for_rows_and_columns(qtbot):
     assert grid.num_vars == 3
     assert grid.ghost_col_btn.text() == "+"
     assert grid.ghost_row_btn.text() == "+"
+
+
+def test_remove_row_and_column_keep_minimum(qtbot):
+    """El menú contextual puede recortar filas y columnas sin dejar la matriz vacía."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    grid = window.matrix_grid
+
+    grid.add_row()
+    grid.add_column()
+    assert grid.num_rows == 3
+    assert grid.num_vars == 3
+
+    grid.remove_row(1)
+    assert grid.num_rows == 2
+    grid.remove_column(0)
+    assert grid.num_vars == 2
+
+    grid.remove_row(0)
+    grid.remove_column(0)
+    assert grid.num_rows == 1
+    assert grid.num_vars == 1
+
+    grid.remove_row(0)
+    grid.remove_column(0)
+    assert grid.num_rows == 1
+    assert grid.num_vars == 1
+
+
+def test_cell_selects_all_on_focus(qtbot):
+    """Al enfocar una celda se selecciona el valor, no se borra el cero."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    cell = window.matrix_grid.cells[0][0]
+    assert cell.text() == "0"
+    cell.setFocus()
+    qtbot.wait(20)
+    assert cell.text() == "0"
+    assert cell.hasSelectedText()
+    assert cell.selectedText() == "0"
+
+
+def test_action_buttons_live_in_matrix_card(qtbot):
+    """Resolver y Reiniciar están junto a la matriz, no en el encabezado."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    assert window.solve_btn.parentWidget() is not window.centralWidget()
+    assert window.reset_btn.objectName() == "secondaryAction"
+    assert window.solve_btn.objectName() == "primaryAction"
