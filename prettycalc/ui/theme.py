@@ -129,6 +129,37 @@ def get_global_stylesheet() -> str:
         color: {COLOR_BG_BASE};
     }}
 
+    QPushButton#secondaryAction {{
+        background-color: transparent;
+        color: {COLOR_INTERACTIVE_IDLE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        font-size: 15px;
+        padding: 10px 18px;
+    }}
+
+    QPushButton#secondaryAction:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+    }}
+
+    QMenu {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        padding: 6px;
+        font-size: 15px;
+    }}
+    QMenu::item {{
+        padding: 8px 18px;
+        border-radius: 4px;
+    }}
+    QMenu::item:selected {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+    }}
+    QMenu::item:disabled {{
+        color: {COLOR_TEXT_MUTED};
+    }}
+
     QLineEdit[class="matrix-cell"] {{
         background-color: transparent;
         color: {COLOR_TEXT_PRIMARY};

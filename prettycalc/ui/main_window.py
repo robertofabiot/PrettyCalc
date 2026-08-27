@@ -15,6 +15,8 @@ try:
         QSplitter,
         QFrame,
         QApplication,
+        QSpacerItem,
+        QSizePolicy,
     )
     from PySide6.QtCore import Qt
 except ImportError:
@@ -68,16 +70,6 @@ class MainWindow(QMainWindow):
         title_box.addWidget(title_lbl)
         title_box.addWidget(sub_lbl)
         header_layout.addLayout(title_box, stretch=1)
-
-        self.solve_btn = QPushButton("Resolver sistema")
-        self.solve_btn.setObjectName("primaryAction")
-        self.solve_btn.clicked.connect(self.solve_system)
-        header_layout.addWidget(self.solve_btn)
-
-        self.reset_btn = QPushButton("Reiniciar")
-        self.reset_btn.clicked.connect(self.reset_matrix)
-        header_layout.addWidget(self.reset_btn)
-
         main_layout.addLayout(header_layout)
 
         body_splitter = QSplitter(Qt.Horizontal)
@@ -89,14 +81,37 @@ class MainWindow(QMainWindow):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(8)
 
+        matrix_card = QFrame()
+        apply_widget_class(matrix_card, "elevated-card")
+        card_layout = QVBoxLayout(matrix_card)
+        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(12)
+
         grid_title = QLabel("Matriz aumentada  [A | b]")
         grid_title.setStyleSheet(
             f"font-size: 19px; font-weight: 600; letter-spacing: 0.03em; color: {COLOR_TEXT_PRIMARY};"
         )
-        left_layout.addWidget(grid_title)
+        card_layout.addWidget(grid_title)
 
         self.matrix_grid = DynamicMatrixGrid(initial_rows=2, initial_cols=2)
-        left_layout.addWidget(self.matrix_grid, stretch=1)
+        card_layout.addWidget(self.matrix_grid, stretch=1)
+
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
+        actions.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
+
+        self.reset_btn = QPushButton("Reiniciar")
+        self.reset_btn.setObjectName("secondaryAction")
+        self.reset_btn.clicked.connect(self.reset_matrix)
+        actions.addWidget(self.reset_btn)
+
+        self.solve_btn = QPushButton("Resolver sistema")
+        self.solve_btn.setObjectName("primaryAction")
+        self.solve_btn.clicked.connect(self.solve_system)
+        actions.addWidget(self.solve_btn)
+
+        card_layout.addLayout(actions)
+        left_layout.addWidget(matrix_card, stretch=1)
 
         samples_box = QFrame()
         apply_widget_class(samples_box, "elevated-card")
