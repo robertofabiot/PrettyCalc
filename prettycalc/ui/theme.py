@@ -16,9 +16,12 @@ from typing import Any
 
 try:
     from PySide6.QtCore import Qt as _Qt
+    from PySide6.QtGui import QColor, QPalette
     _WA_STYLED_BG = _Qt.WA_StyledBackground
 except ImportError:
     _WA_STYLED_BG = 0  # type: ignore
+    QColor = object  # type: ignore
+    QPalette = object  # type: ignore
 
 # Constantes de Color
 COLOR_BG_BASE = "#1A181B"
@@ -45,6 +48,67 @@ def apply_widget_class(widget: Any, class_name: str) -> None:
     if style is not None:
         style.unpolish(widget)
         style.polish(widget)
+
+
+def get_message_box_stylesheet() -> str:
+    """Estilos para diálogos nativos: el QSS global pinta las etiquetas claras sobre fondo blanco."""
+    return f"""
+    QMessageBox {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+        font-family: {FONT_FAMILY_SANS};
+        font-size: 15px;
+    }}
+    QMessageBox QLabel {{
+        color: {COLOR_TEXT_PRIMARY};
+        background-color: transparent;
+        font-size: 15px;
+    }}
+    QMessageBox QPushButton {{
+        background-color: {COLOR_BG_BASE};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
+        padding: 8px 16px;
+        min-width: 88px;
+        font-size: 15px;
+        font-weight: 600;
+    }}
+    QMessageBox QPushButton:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+    }}
+    """
+
+
+def apply_message_box_theme(box: Any) -> None:
+    """Fondo Vintage Grape y texto Light Cyan; sin esto el diálogo nativo queda blanco sobre blanco."""
+    box.setAttribute(_WA_STYLED_BG, True)
+    box.setAutoFillBackground(True)
+    pal = box.palette()
+    bg = QColor(COLOR_SURFACE_ELEVATED)
+    fg = QColor(COLOR_TEXT_PRIMARY)
+    btn = QColor(COLOR_BG_BASE)
+    for group in (QPalette.Active, QPalette.Inactive, QPalette.Disabled):
+        pal.setColor(group, QPalette.Window, bg)
+        pal.setColor(group, QPalette.Base, bg)
+        pal.setColor(group, QPalette.Light, bg)
+        pal.setColor(group, QPalette.Mid, bg)
+        pal.setColor(group, QPalette.Dark, btn)
+        pal.setColor(group, QPalette.WindowText, fg)
+        pal.setColor(group, QPalette.Text, fg)
+        pal.setColor(group, QPalette.ButtonText, fg)
+        pal.setColor(group, QPalette.Button, btn)
+    box.setPalette(pal)
+    box.setStyleSheet(get_message_box_stylesheet())
+    try:
+        from PySide6.QtWidgets import QLabel
+        for label in box.findChildren(QLabel):
+            label.setStyleSheet(
+                f"color: {COLOR_TEXT_PRIMARY}; background-color: transparent;"
+            )
+    except Exception:
+        pass
 
 
 def get_global_stylesheet() -> str:
@@ -249,4 +313,4 @@ def get_global_stylesheet() -> str:
         width: 0;
         height: 0;
     }}
-    """
+    """ + get_message_box_stylesheet()
