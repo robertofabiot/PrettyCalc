@@ -32,6 +32,16 @@ from prettycalc.ui.theme import (
 )
 
 
+def _make_ghost_button(tooltip: str) -> QPushButton:
+    """Botón fantasma permanente para expandir la matriz."""
+    btn = QPushButton("+")
+    apply_widget_class(btn, "ghost-cell")
+    btn.setToolTip(tooltip)
+    btn.setCursor(Qt.PointingHandCursor)
+    btn.setFlat(True)
+    return btn
+
+
 class MatrixCellEdit(QLineEdit):
     """Celda editable con validación en tiempo real y navegación por teclado."""
 
@@ -178,7 +188,7 @@ class DynamicMatrixGrid(QFrame):
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setFixedHeight(22)
             lbl.setStyleSheet(
-                f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 13px; background: transparent;"
+                f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
             )
             self._grid_layout.addWidget(lbl, 0, c)
 
@@ -186,7 +196,7 @@ class DynamicMatrixGrid(QFrame):
         lbl_b.setAlignment(Qt.AlignCenter)
         lbl_b.setFixedHeight(22)
         lbl_b.setStyleSheet(
-            f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 13px; background: transparent;"
+            f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
         )
         self._grid_layout.addWidget(lbl_b, 0, self.num_vars)
 
@@ -200,19 +210,17 @@ class DynamicMatrixGrid(QFrame):
                 row_cells.append(cell)
             self.cells.append(row_cells)
 
-        ghost_col_btn = QPushButton("+")
-        apply_widget_class(ghost_col_btn, "ghost-cell")
-        ghost_col_btn.setToolTip("Agregar variable")
-        ghost_col_btn.setFixedSize(28, 38 * self.num_rows + 8 * (self.num_rows - 1))
-        ghost_col_btn.clicked.connect(self.add_column)
-        self._grid_layout.addWidget(ghost_col_btn, 1, total_cols, self.num_rows, 1, Qt.AlignVCenter)
+        self.ghost_col_btn = _make_ghost_button("Agregar variable")
+        col_h = 38 * self.num_rows + 8 * (self.num_rows - 1)
+        self.ghost_col_btn.setMinimumWidth(36)
+        self.ghost_col_btn.setFixedSize(36, max(col_h, 38))
+        self.ghost_col_btn.clicked.connect(self.add_column)
+        self._grid_layout.addWidget(self.ghost_col_btn, 1, total_cols, self.num_rows, 1, Qt.AlignVCenter)
 
-        ghost_row_btn = QPushButton("+")
-        apply_widget_class(ghost_row_btn, "ghost-cell")
-        ghost_row_btn.setToolTip("Agregar ecuación")
-        ghost_row_btn.setFixedHeight(26)
-        ghost_row_btn.clicked.connect(self.add_row)
-        self._grid_layout.addWidget(ghost_row_btn, self.num_rows + 1, 0, 1, total_cols)
+        self.ghost_row_btn = _make_ghost_button("Agregar ecuación")
+        self.ghost_row_btn.setFixedHeight(32)
+        self.ghost_row_btn.clicked.connect(self.add_row)
+        self._grid_layout.addWidget(self.ghost_row_btn, self.num_rows + 1, 0, 1, total_cols)
 
         self.update()
 

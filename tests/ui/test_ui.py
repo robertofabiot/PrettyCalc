@@ -66,3 +66,24 @@ def test_book_matrix_widget_accepts_augmented_matrix(qtbot):
     assert widget._matrix == mat
     assert widget._split_col == 2
     assert widget._pivot == (1, 1)
+
+
+def test_ghost_buttons_visible_for_rows_and_columns(qtbot):
+    """Las celdas fantasma de fila y columna muestran el símbolo + de forma permanente."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    grid = window.matrix_grid
+
+    assert grid.ghost_row_btn.text() == "+"
+    assert grid.ghost_col_btn.text() == "+"
+    assert not grid.ghost_row_btn.isHidden()
+    assert not grid.ghost_col_btn.isHidden()
+    assert grid.ghost_col_btn.minimumWidth() >= 28 or grid.ghost_col_btn.width() >= 28
+
+    grid.ghost_row_btn.click()
+    assert grid.num_rows == 3
+    grid.ghost_col_btn.click()
+    assert grid.num_vars == 3
+    assert grid.ghost_col_btn.text() == "+"
+    assert grid.ghost_row_btn.text() == "+"
