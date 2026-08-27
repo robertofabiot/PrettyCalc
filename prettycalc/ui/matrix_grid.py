@@ -211,11 +211,11 @@ class DynamicMatrixGrid(QFrame):
             self.cells.append(row_cells)
 
         self.ghost_col_btn = _make_ghost_button("Agregar variable")
-        col_h = 38 * self.num_rows + 8 * (self.num_rows - 1)
+        self.ghost_col_btn.setFixedWidth(36)
         self.ghost_col_btn.setMinimumWidth(36)
-        self.ghost_col_btn.setFixedSize(36, max(col_h, 38))
+        self.ghost_col_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self.ghost_col_btn.clicked.connect(self.add_column)
-        self._grid_layout.addWidget(self.ghost_col_btn, 1, total_cols, self.num_rows, 1, Qt.AlignVCenter)
+        self._grid_layout.addWidget(self.ghost_col_btn, 1, total_cols, self.num_rows, 1)
 
         self.ghost_row_btn = _make_ghost_button("Agregar ecuación")
         self.ghost_row_btn.setFixedHeight(32)

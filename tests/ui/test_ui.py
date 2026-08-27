@@ -83,6 +83,7 @@ def test_ghost_buttons_visible_for_rows_and_columns(qtbot):
 
     grid.ghost_row_btn.click()
     assert grid.num_rows == 3
+    assert grid.ghost_col_btn.height() >= 38 * grid.num_rows
     grid.ghost_col_btn.click()
     assert grid.num_vars == 3
     assert grid.ghost_col_btn.text() == "+"
