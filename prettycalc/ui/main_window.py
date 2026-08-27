@@ -31,6 +31,7 @@ from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
 from prettycalc.ui.theme import (
     get_global_stylesheet,
+    apply_message_box_theme,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
     apply_widget_class,
@@ -169,11 +170,21 @@ class MainWindow(QMainWindow):
         body_splitter.setStretchFactor(2, 2)
         main_layout.addWidget(body_splitter, stretch=1)
 
+    def _show_alert(self, icon: QMessageBox.Icon, title: str, text: str) -> None:
+        box = QMessageBox(self)
+        box.setIcon(icon)
+        box.setWindowTitle(title)
+        box.setText(text)
+        box.setStandardButtons(QMessageBox.Ok)
+        box.setDefaultButton(QMessageBox.Ok)
+        apply_message_box_theme(box)
+        box.exec()
+
     def solve_system(self) -> None:
         """Ejecuta escalonamiento, clasificación y verificación."""
         if not self.matrix_grid.is_all_valid():
-            QMessageBox.warning(
-                self,
+            self._show_alert(
+                QMessageBox.Warning,
                 "Entrada inválida",
                 "Corrige las celdas marcadas. Se admiten enteros, fracciones (a/b) y decimales.",
             )
@@ -197,7 +208,11 @@ class MainWindow(QMainWindow):
             self.dashboard_card.display_results(analysis, verifications)
 
         except Exception as e:
-            QMessageBox.critical(self, "Error matemático", f"No se pudo resolver el sistema:\n{e}")
+            self._show_alert(
+                QMessageBox.Critical,
+                "Error matemático",
+                f"No se pudo resolver el sistema:\n{e}",
+            )
 
     def reset_matrix(self) -> None:
         """Restablece la cuadrícula a un estado 2×2 inicial."""
@@ -238,6 +253,7 @@ class MainWindow(QMainWindow):
 def run_app():
     """Arranque de la aplicación GUI."""
     app = QApplication(sys.argv)
+    app.setStyleSheet(get_global_stylesheet())
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

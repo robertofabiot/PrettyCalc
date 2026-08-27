@@ -222,3 +222,46 @@ def test_next_step_highlights_actor_and_affected_rows(qtbot):
             found = True
             break
     assert found
+
+
+def test_invalid_input_dialog_is_readable(qtbot):
+    """El aviso de entrada inválida no puede ser blanco sobre blanco."""
+    from PySide6.QtCore import QTimer, Qt
+    from PySide6.QtGui import QColor
+    from PySide6.QtWidgets import QApplication, QMessageBox, QLabel
+    from prettycalc.ui.theme import COLOR_SURFACE_ELEVATED, COLOR_TEXT_PRIMARY
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    window.matrix_grid.cells[0][0].setText("abc")
+    assert not window.matrix_grid.is_all_valid()
+
+    captured = {}
+
+    def inspect_and_close() -> None:
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, QMessageBox) and widget.isVisible():
+                captured["title"] = widget.windowTitle()
+                captured["sheet"] = widget.styleSheet()
+                captured["styled"] = widget.testAttribute(Qt.WA_StyledBackground)
+                window_color = widget.palette().color(widget.backgroundRole())
+                captured["window"] = window_color.name().upper()
+                labels = [lbl for lbl in widget.findChildren(QLabel) if lbl.text().strip()]
+                if labels:
+                    captured["label"] = labels[0].palette().color(labels[0].foregroundRole()).name().upper()
+                    captured["label_sheet"] = labels[0].styleSheet()
+                widget.accept()
+                return
+
+    QTimer.singleShot(20, inspect_and_close)
+    window.solve_system()
+
+    assert captured.get("title") == "Entrada inválida"
+    assert captured.get("styled") is True
+    assert COLOR_SURFACE_ELEVATED.upper() in captured.get("sheet", "").upper()
+    assert COLOR_TEXT_PRIMARY in captured.get("label_sheet", "")
+    bg = QColor(captured["window"])
+    fg = QColor(captured.get("label") or COLOR_TEXT_PRIMARY)
+    assert bg.lightness() < 140
+    assert fg.lightness() > 180

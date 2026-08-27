@@ -15,6 +15,7 @@ except ImportError:
 from prettycalc.core.types import Matrix, format_scalar
 from prettycalc.ui.mathtext import variable_symbol
 from prettycalc.ui.theme import (
+    COLOR_BG_BASE,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
     COLOR_FEEDBACK_SUCCESS,
@@ -293,6 +294,7 @@ class BookMatrixWidget(QWidget):
                 QColor(COLOR_INTERACTIVE_IDLE),
             )
 
+        pivot_r, pivot_c = self._pivot if self._pivot is not None else (-1, -1)
         painter.setFont(mono)
 
         for r in range(rows):
@@ -319,5 +321,17 @@ class BookMatrixWidget(QWidget):
             for c in range(cols):
                 x = col_left(c)
                 cell = QRect(x, y, col_widths[c], row_h)
-                fg = QColor(COLOR_INTERACTIVE_IDLE) if split is not None and c >= split else QColor(COLOR_TEXT_PRIMARY)
+
+                if r == pivot_r and c == pivot_c:
+                    painter.save()
+                    painter.setPen(Qt.NoPen)
+                    painter.setBrush(QColor(COLOR_FEEDBACK_SUCCESS))
+                    painter.drawRoundedRect(cell.adjusted(4, 6, -4, -6), 4, 4)
+                    painter.restore()
+                    fg = QColor(COLOR_BG_BASE)
+                elif split is not None and c >= split:
+                    fg = QColor(COLOR_INTERACTIVE_IDLE)
+                else:
+                    fg = QColor(COLOR_TEXT_PRIMARY)
+
                 paint_book_scalar(painter, cell, texts[r][c], fg, mono)
