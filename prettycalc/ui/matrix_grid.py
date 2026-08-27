@@ -1,4 +1,4 @@
-"""Cuadrícula interactiva DynamicMatrixGrid con soporte de Ghosting, validación en tiempo real y centrado armónico."""
+"""Cuadrícula interactiva DynamicMatrixGrid: matriz aumentada de libro, ghosting y teclado."""
 
 from __future__ import annotations
 from typing import List, Optional
@@ -11,30 +11,29 @@ try:
         QLineEdit,
         QPushButton,
         QVBoxLayout,
-        QHBoxLayout,
         QLabel,
         QFrame,
         QSpacerItem,
         QSizePolicy,
     )
-    from PySide6.QtCore import Qt, Signal
-    from PySide6.QtGui import QKeyEvent, QFont
+    from PySide6.QtCore import Qt, Signal, QRect
+    from PySide6.QtGui import QKeyEvent, QFont, QPainter, QColor, QPaintEvent
 except ImportError:
     QWidget = object  # type: ignore
     Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.types import Matrix, parse_scalar, format_scalar
+from prettycalc.ui.mathtext import variable_symbol
+from prettycalc.ui.book_matrix import draw_square_brackets, draw_split_bar
 from prettycalc.ui.theme import (
     COLOR_INTERACTIVE_IDLE,
-    COLOR_FEEDBACK_ERROR,
     COLOR_TEXT_PRIMARY,
-    COLOR_SURFACE_ELEVATED,
-    FONT_FAMILY_MONO,
+    apply_widget_class,
 )
 
 
 class MatrixCellEdit(QLineEdit):
-    """Celda editable individual con tamaño ergonómico, validación y navegación por teclado."""
+    """Celda editable con validación en tiempo real y navegación por teclado."""
 
     navigate = Signal(int, int, str)
 
@@ -42,23 +41,11 @@ class MatrixCellEdit(QLineEdit):
         super().__init__(default_val, parent)
         self.row = row
         self.col = col
-        self.setFixedSize(56, 36)
+        self.setFixedSize(58, 38)
         self.setAlignment(Qt.AlignCenter)
-        self.setFont(QFont("Fira Code", 11))
-        self.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: #2A262E;
-                color: {COLOR_TEXT_PRIMARY};
-                border: 1px solid {COLOR_INTERACTIVE_IDLE};
-                border-radius: 5px;
-                font-family: {FONT_FAMILY_MONO};
-                font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border: 2px solid {COLOR_TEXT_PRIMARY};
-                background-color: #35303B;
-            }}
-        """)
+        self.setFont(QFont("Fira Code", 12))
+        self.setFrame(False)
+        apply_widget_class(self, "matrix-cell")
         self.textChanged.connect(self._on_text_changed)
         self._is_valid = True
 
@@ -76,32 +63,7 @@ class MatrixCellEdit(QLineEdit):
 
     def _set_error_state(self, has_error: bool) -> None:
         self._is_valid = not has_error
-        if has_error:
-            self.setStyleSheet(f"""
-                QLineEdit {{
-                    border: 2px solid {COLOR_FEEDBACK_ERROR};
-                    background-color: #3E2426;
-                    color: {COLOR_TEXT_PRIMARY};
-                    border-radius: 5px;
-                    font-family: {FONT_FAMILY_MONO};
-                    font-size: 13px;
-                }}
-            """)
-        else:
-            self.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: #2A262E;
-                    color: {COLOR_TEXT_PRIMARY};
-                    border: 1px solid {COLOR_INTERACTIVE_IDLE};
-                    border-radius: 5px;
-                    font-family: {FONT_FAMILY_MONO};
-                    font-size: 13px;
-                }}
-                QLineEdit:focus {{
-                    border: 2px solid {COLOR_TEXT_PRIMARY};
-                    background-color: #35303B;
-                }}
-            """)
+        apply_widget_class(self, "matrix-cell-error" if has_error else "matrix-cell")
 
     @property
     def is_valid(self) -> bool:
@@ -134,63 +96,100 @@ class MatrixCellEdit(QLineEdit):
 
 
 class DynamicMatrixGrid(QFrame):
-    """Contenedor de cuadrícula matricial aumentada [A | b] centrada geométricamente."""
+    """Cuadrícula [A | b] con corchetes de libro, barra vertical y celdas fantasma."""
 
     matrixChanged = Signal()
 
     def __init__(self, initial_rows: int = 2, initial_cols: int = 2, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self.setProperty("class", "elevated-card")
+        apply_widget_class(self, "elevated-card")
         self.num_rows = initial_rows
         self.num_vars = initial_cols
         self.cells: List[List[MatrixCellEdit]] = []
 
-        # Layout exterior con espaciadores para centrar vertical y horizontalmente
         self._outer_layout = QVBoxLayout(self)
-        self._outer_layout.setContentsMargins(12, 12, 12, 12)
+        self._outer_layout.setContentsMargins(28, 20, 28, 16)
 
         self._center_container = QWidget()
+        self._center_container.setAttribute(Qt.WA_TranslucentBackground, True)
         self._grid_layout = QGridLayout(self._center_container)
-        self._grid_layout.setSpacing(6)
-        self._grid_layout.setVerticalSpacing(6)
-        self._grid_layout.setHorizontalSpacing(6)
-        self._grid_layout.setContentsMargins(0, 0, 0, 0)
+        self._grid_layout.setVerticalSpacing(8)
+        self._grid_layout.setHorizontalSpacing(8)
+        self._grid_layout.setContentsMargins(12, 8, 12, 8)
 
-        # Centrar la cuadrícula en el panel
         self._outer_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self._outer_layout.addWidget(self._center_container, 0, Qt.AlignCenter)
         self._outer_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self._build_grid()
 
+    def paintEvent(self, event: QPaintEvent) -> None:
+        super().paintEvent(event)
+        if not self.cells:
+            return
+
+        first = self.cells[0][0]
+        last = self.cells[-1][-1]
+        if not first.isVisible() or not last.isVisible():
+            return
+
+        top_left = first.mapTo(self, first.rect().topLeft())
+        bottom_right = last.mapTo(self, last.rect().bottomRight())
+        pad = 10
+        bracket_rect = QRect(
+            top_left.x() - pad,
+            top_left.y() - pad,
+            (bottom_right.x() - top_left.x()) + 2 * pad,
+            (bottom_right.y() - top_left.y()) + 2 * pad,
+        )
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        draw_square_brackets(painter, bracket_rect, QColor(COLOR_TEXT_PRIMARY), thickness=2)
+
+        b_cell = self.cells[0][-1]
+        b_top = b_cell.mapTo(self, b_cell.rect().topLeft())
+        last_b = self.cells[-1][-1]
+        b_bottom = last_b.mapTo(self, last_b.rect().bottomLeft())
+        bar_x = b_top.x() - 6
+        draw_split_bar(
+            painter,
+            bar_x,
+            bracket_rect.top() + 4,
+            bracket_rect.bottom() - 4,
+            QColor(COLOR_INTERACTIVE_IDLE),
+        )
+        painter.end()
+
     def _build_grid(self) -> None:
         while self._grid_layout.count():
             item = self._grid_layout.takeAt(0)
             widget = item.widget()
             if widget:
+                widget.hide()
+                widget.setParent(None)
                 widget.deleteLater()
 
         total_cols = self.num_vars + 1
         self.cells = []
 
-        # Encabezados de columnas (x1, x2, ..., | b)
         for c in range(self.num_vars):
-            lbl = QLabel(f"x{c+1}")
+            lbl = QLabel(variable_symbol(c))
             lbl.setAlignment(Qt.AlignCenter)
-            lbl.setFixedHeight(20)
-            lbl.setStyleSheet(f"color: {COLOR_INTERACTIVE_IDLE}; font-weight: bold; font-size: 12px;")
+            lbl.setFixedHeight(22)
+            lbl.setStyleSheet(
+                f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 13px; background: transparent;"
+            )
             self._grid_layout.addWidget(lbl, 0, c)
 
-        # Encabezado de la columna b (términos independientes)
         lbl_b = QLabel("b")
         lbl_b.setAlignment(Qt.AlignCenter)
-        lbl_b.setFixedHeight(20)
+        lbl_b.setFixedHeight(22)
         lbl_b.setStyleSheet(
-            f"color: {COLOR_INTERACTIVE_IDLE}; font-weight: bold; font-size: 13px; border-left: 2px solid {COLOR_INTERACTIVE_IDLE}; padding-left: 2px;"
+            f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 13px; background: transparent;"
         )
         self._grid_layout.addWidget(lbl_b, 0, self.num_vars)
 
-        # Celdas editables de la matriz
         for r in range(self.num_rows):
             row_cells: List[MatrixCellEdit] = []
             for c in range(total_cols):
@@ -201,49 +200,21 @@ class DynamicMatrixGrid(QFrame):
                 row_cells.append(cell)
             self.cells.append(row_cells)
 
-        # Celda fantasma en la derecha (+)
         ghost_col_btn = QPushButton("+")
-        ghost_col_btn.setProperty("class", "ghost-cell")
-        ghost_col_btn.setToolTip("Agregar columna (variable)")
-        ghost_col_btn.setFixedSize(30, 36 * self.num_rows + 6 * (self.num_rows - 1))
-        ghost_col_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {COLOR_INTERACTIVE_IDLE};
-                border: 1px dashed {COLOR_INTERACTIVE_IDLE};
-                border-radius: 5px;
-                font-size: 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: rgba(152, 193, 217, 0.2);
-                color: {COLOR_TEXT_PRIMARY};
-            }}
-        """)
+        apply_widget_class(ghost_col_btn, "ghost-cell")
+        ghost_col_btn.setToolTip("Agregar variable")
+        ghost_col_btn.setFixedSize(28, 38 * self.num_rows + 8 * (self.num_rows - 1))
         ghost_col_btn.clicked.connect(self.add_column)
         self._grid_layout.addWidget(ghost_col_btn, 1, total_cols, self.num_rows, 1, Qt.AlignVCenter)
 
-        # Celda fantasma inferior (+)
         ghost_row_btn = QPushButton("+")
-        ghost_row_btn.setProperty("class", "ghost-cell")
-        ghost_row_btn.setToolTip("Agregar fila (ecuación)")
-        ghost_row_btn.setFixedHeight(28)
-        ghost_row_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {COLOR_INTERACTIVE_IDLE};
-                border: 1px dashed {COLOR_INTERACTIVE_IDLE};
-                border-radius: 5px;
-                font-size: 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: rgba(152, 193, 217, 0.2);
-                color: {COLOR_TEXT_PRIMARY};
-            }}
-        """)
+        apply_widget_class(ghost_row_btn, "ghost-cell")
+        ghost_row_btn.setToolTip("Agregar ecuación")
+        ghost_row_btn.setFixedHeight(26)
         ghost_row_btn.clicked.connect(self.add_row)
         self._grid_layout.addWidget(ghost_row_btn, self.num_rows + 1, 0, 1, total_cols)
+
+        self.update()
 
     def _handle_cell_navigation(self, r: int, c: int, direction: str) -> None:
         target_r, target_c = r, c
@@ -262,6 +233,9 @@ class DynamicMatrixGrid(QFrame):
         elif direction == "right":
             if c < total_cols - 1:
                 target_c = c + 1
+            else:
+                self.add_column()
+                target_c = self.num_vars - 1
 
         if 0 <= target_r < len(self.cells) and 0 <= target_c < len(self.cells[target_r]):
             self.cells[target_r][target_c].setFocus()
