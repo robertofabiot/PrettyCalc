@@ -30,7 +30,6 @@ from prettycalc.ui.theme import (
     COLOR_ACCENT_WARNING,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
-    COLOR_TEXT_MUTED,
     COLOR_SURFACE_INNER,
     COLOR_BG_BASE,
     FONT_FAMILY_MONO,
@@ -211,7 +210,7 @@ class ResultsDashboardCard(QFrame):
         head.setTextFormat(Qt.RichText)
         head.setText(
             f"<span style='color:{mark_color}; font-weight:bold; font-size:18px;'>{mark}</span>"
-            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_MUTED}; font-size:17px;'>({v.equation_index + 1})</span>"
+            f"&nbsp;&nbsp;<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:17px;'>({v.equation_index + 1})</span>"
             f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-size:17px; font-family:{FONT_FAMILY_MONO};'>{eq}</span>"
         )
         col.addWidget(head)
@@ -219,7 +218,7 @@ class ResultsDashboardCard(QFrame):
         sub_lbl = QLabel(sub)
         sub_lbl.setWordWrap(True)
         sub_lbl.setStyleSheet(
-            f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 16px; font-style: italic; "
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 17px; "
             f"font-family: {FONT_FAMILY_MONO}; padding-left: 28px;"
         )
         col.addWidget(sub_lbl)

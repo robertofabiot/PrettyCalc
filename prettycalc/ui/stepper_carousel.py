@@ -67,9 +67,12 @@ class AlgorithmStepperCarousel(QFrame):
         nav_layout.addWidget(self.next_btn)
 
         self.mode_btn = QPushButton("Fracciones")
-        self.mode_btn.setToolTip("Alternar entre fracciones y decimales")
-        self.mode_btn.setFixedWidth(128)
-        self.mode_btn.clicked.connect(self._toggle_mode)
+        self.mode_btn.setObjectName("modeToggle")
+        self.mode_btn.setCheckable(True)
+        self.mode_btn.setChecked(True)
+        self.mode_btn.setToolTip("Interruptor: vista actual en fracciones o decimales")
+        self.mode_btn.setMinimumWidth(128)
+        apply_widget_class(self.mode_btn, "modeToggle")
         nav_layout.addWidget(self.mode_btn)
 
         layout.addLayout(nav_layout)
@@ -122,6 +125,7 @@ class AlgorithmStepperCarousel(QFrame):
         heuristic_layout.addWidget(self.heuristic_label)
         layout.addWidget(heuristic_box)
 
+        self.mode_btn.toggled.connect(self._on_mode_toggled)
         self._update_view()
 
     def set_steps(self, steps: List[CalculationStep]) -> None:
@@ -132,19 +136,19 @@ class AlgorithmStepperCarousel(QFrame):
     def prev_step(self) -> None:
         if self._current_index > 0:
             self._current_index -= 1
-            self._update_view()
+            self._update_view(animate=False)
 
     def next_step(self) -> None:
         if self._current_index < len(self._steps) - 1:
             self._current_index += 1
-            self._update_view()
+            self._update_view(animate=True)
 
-    def _toggle_mode(self) -> None:
-        self._display_mode = "decimal" if self._display_mode == "fraction" else "fraction"
-        self.mode_btn.setText("Fracciones" if self._display_mode == "fraction" else "Decimales")
-        self._update_view()
+    def _on_mode_toggled(self, checked: bool) -> None:
+        self._display_mode = "fraction" if checked else "decimal"
+        self.mode_btn.setText("Fracciones" if checked else "Decimales")
+        self._update_view(animate=False)
 
-    def _update_view(self) -> None:
+    def _update_view(self, animate: bool = False) -> None:
         if not self._steps:
             self.step_label.setText("Sin pasos")
             self.formula_label.setText(
@@ -176,4 +180,7 @@ class AlgorithmStepperCarousel(QFrame):
             split_col=step.split_col,
             pivot=step.pivot_pos,
             mode=self._display_mode,
+            actor_row=step.actor_row,
+            affected_rows=step.affected_rows,
+            animate=animate,
         )

@@ -6,15 +6,15 @@ from typing import List, Optional, Tuple
 
 try:
     from PySide6.QtWidgets import QWidget, QSizePolicy
-    from PySide6.QtCore import Qt, QRect, QSize
+    from PySide6.QtCore import Qt, QRect, QSize, Property, QPropertyAnimation, QEasingCurve
     from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPaintEvent
 except ImportError:
     QWidget = object  # type: ignore
+    Property = lambda *args, **kwargs: None  # type: ignore
 
 from prettycalc.core.types import Matrix, format_scalar
 from prettycalc.ui.mathtext import variable_symbol
 from prettycalc.ui.theme import (
-    COLOR_BG_BASE,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
     COLOR_FEEDBACK_SUCCESS,
@@ -125,11 +125,29 @@ class BookMatrixWidget(QWidget):
         self._matrix: Optional[Matrix] = None
         self._split_col: Optional[int] = None
         self._pivot: Optional[Tuple[int, int]] = None
+        self._actor_row: Optional[int] = None
+        self._affected_rows: Tuple[int, ...] = ()
         self._mode: str = "fraction"
         self._show_headers: bool = True
+        self._flash_alpha: float = 0.0
+        self._flash = QPropertyAnimation(self, b"flashAlpha", self)
+        self._flash.setDuration(600)
+        self._flash.setStartValue(0.0)
+        self._flash.setKeyValueAt(0.28, 0.15)
+        self._flash.setEndValue(0.0)
+        self._flash.setEasingCurve(QEasingCurve.InOutCubic)
         self.setMinimumHeight(180)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setAttribute(Qt.WA_StyledBackground, True)
+
+    def _get_flash_alpha(self) -> float:
+        return self._flash_alpha
+
+    def _set_flash_alpha(self, value: float) -> None:
+        self._flash_alpha = float(value)
+        self.update()
+
+    flashAlpha = Property(float, _get_flash_alpha, _set_flash_alpha)
 
     def set_matrix(
         self,
@@ -137,13 +155,24 @@ class BookMatrixWidget(QWidget):
         split_col: Optional[int] = None,
         pivot: Optional[Tuple[int, int]] = None,
         mode: str = "fraction",
+        actor_row: Optional[int] = None,
+        affected_rows: Tuple[int, ...] = (),
+        animate: bool = False,
     ) -> None:
         self._matrix = matrix
         self._split_col = split_col
         self._pivot = pivot
         self._mode = mode
+        self._actor_row = actor_row
+        self._affected_rows = affected_rows
         self.update()
         self.updateGeometry()
+        if animate and affected_rows:
+            self._flash.stop()
+            self._flash.start()
+        elif not animate:
+            self._flash.stop()
+            self._flash_alpha = 0.0
 
     def clear(self) -> None:
         self.set_matrix(None)
@@ -264,25 +293,31 @@ class BookMatrixWidget(QWidget):
                 QColor(COLOR_INTERACTIVE_IDLE),
             )
 
-        pivot_r, pivot_c = self._pivot if self._pivot is not None else (-1, -1)
         painter.setFont(mono)
 
         for r in range(rows):
+            y = content_top + r * row_h
+            row_band = QRect(bracket_rect.left() + 4, y, bracket_rect.width() - 8, row_h)
+            is_actor = self._actor_row is not None and r == self._actor_row
+            is_affected = r in self._affected_rows
+
+            if is_affected:
+                if self._flash_alpha > 0:
+                    wash = QColor(COLOR_FEEDBACK_SUCCESS)
+                    wash.setAlphaF(min(self._flash_alpha, 0.15))
+                    painter.fillRect(row_band, wash)
+                painter.fillRect(
+                    QRect(row_band.left(), row_band.top(), 3, row_band.height()),
+                    QColor(COLOR_FEEDBACK_SUCCESS),
+                )
+            elif is_actor:
+                painter.fillRect(
+                    QRect(row_band.left(), row_band.top(), 3, row_band.height()),
+                    QColor(COLOR_INTERACTIVE_IDLE),
+                )
+
             for c in range(cols):
                 x = col_left(c)
-                y = content_top + r * row_h
                 cell = QRect(x, y, col_widths[c], row_h)
-
-                if r == pivot_r and c == pivot_c:
-                    painter.save()
-                    painter.setPen(Qt.NoPen)
-                    painter.setBrush(QColor(COLOR_FEEDBACK_SUCCESS))
-                    painter.drawRoundedRect(cell.adjusted(4, 6, -4, -6), 4, 4)
-                    painter.restore()
-                    fg = QColor(COLOR_BG_BASE)
-                elif split is not None and c >= split:
-                    fg = QColor(COLOR_INTERACTIVE_IDLE)
-                else:
-                    fg = QColor(COLOR_TEXT_PRIMARY)
-
+                fg = QColor(COLOR_INTERACTIVE_IDLE) if split is not None and c >= split else QColor(COLOR_TEXT_PRIMARY)
                 paint_book_scalar(painter, cell, texts[r][c], fg, mono)
