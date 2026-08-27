@@ -12,10 +12,20 @@ Tokens Oficiales:
 
 from __future__ import annotations
 
+from typing import Any
+
+try:
+    from PySide6.QtCore import Qt as _Qt
+    _WA_STYLED_BG = _Qt.WA_StyledBackground
+except ImportError:
+    _WA_STYLED_BG = 0  # type: ignore
+
 # Constantes de Color
 COLOR_BG_BASE = "#1A181B"
 COLOR_SURFACE_ELEVATED = "#564D65"
+COLOR_SURFACE_INNER = "#242028"
 COLOR_TEXT_PRIMARY = "#E0FBFC"
+COLOR_TEXT_MUTED = "#7A7585"
 COLOR_INTERACTIVE_IDLE = "#98C1D9"
 COLOR_INTERACTIVE_DISABLED = "#3A3642"
 COLOR_FEEDBACK_ERROR = "#EE6C4D"
@@ -25,6 +35,16 @@ COLOR_ACCENT_WARNING = "#E9C46A"
 # Familias Tipográficas
 FONT_FAMILY_MONO = "Fira Code, Roboto Mono, Courier New, monospace"
 FONT_FAMILY_SANS = "Inter, Segoe UI, Ubuntu, sans-serif"
+
+
+def apply_widget_class(widget: Any, class_name: str) -> None:
+    """Asigna la propiedad CSS `class` y fuerza a Qt a reaplicar el QSS."""
+    widget.setProperty("class", class_name)
+    widget.setAttribute(_WA_STYLED_BG, True)
+    style = widget.style()
+    if style is not None:
+        style.unpolish(widget)
+        style.polish(widget)
 
 
 def get_global_stylesheet() -> str:
@@ -37,39 +57,45 @@ def get_global_stylesheet() -> str:
         font-size: 13px;
     }}
 
-    /* Paneles y Cards Elevadas */
-    QFrame.elevated-card, QWidget.elevated-card {{
+    QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
         background-color: {COLOR_SURFACE_ELEVATED};
         border-radius: 8px;
         padding: 12px;
         color: {COLOR_TEXT_PRIMARY};
     }}
 
-    /* Tipografía y Etiquetas */
     QLabel {{
         color: {COLOR_TEXT_PRIMARY};
         font-family: {FONT_FAMILY_SANS};
     }}
 
     QLabel.title {{
-        font-size: 18px;
-        font-weight: bold;
+        font-size: 20px;
+        font-weight: 600;
         color: {COLOR_TEXT_PRIMARY};
+        letter-spacing: 0.02em;
     }}
 
     QLabel.subtitle {{
-        font-size: 13px;
+        font-size: 12px;
         color: {COLOR_INTERACTIVE_IDLE};
         font-style: italic;
     }}
 
-    /* Botones Principales */
+    QLabel.section-title {{
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: {COLOR_INTERACTIVE_IDLE};
+    }}
+
     QPushButton {{
         background-color: {COLOR_SURFACE_ELEVATED};
         color: {COLOR_TEXT_PRIMARY};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
         border-radius: 6px;
-        padding: 6px 14px;
+        padding: 7px 16px;
         font-weight: 600;
     }}
 
@@ -79,55 +105,79 @@ def get_global_stylesheet() -> str:
     }}
 
     QPushButton:pressed {{
-        background-color: {COLOR_FEEDBACK_SUCCESS};
+        background-color: {COLOR_INTERACTIVE_IDLE};
         color: {COLOR_BG_BASE};
     }}
 
     QPushButton:disabled {{
         background-color: {COLOR_INTERACTIVE_DISABLED};
-        color: #7A7585;
+        color: {COLOR_TEXT_MUTED};
         border-color: {COLOR_INTERACTIVE_DISABLED};
     }}
 
-    /* Celdas de la Matriz */
-    QLineEdit.matrix-cell {{
-        background-color: #2A262E;
+    QPushButton#primaryAction {{
+        background-color: {COLOR_FEEDBACK_SUCCESS};
+        color: {COLOR_BG_BASE};
+        border: none;
+        font-size: 13px;
+        padding: 8px 18px;
+    }}
+
+    QPushButton#primaryAction:hover {{
+        background-color: #93C4AE;
+        color: {COLOR_BG_BASE};
+    }}
+
+    QLineEdit[class="matrix-cell"] {{
+        background-color: transparent;
         color: {COLOR_TEXT_PRIMARY};
         font-family: {FONT_FAMILY_MONO};
         font-size: 14px;
-        border: 1px solid {COLOR_INTERACTIVE_IDLE};
-        border-radius: 4px;
-        padding: 4px;
+        border: none;
+        border-bottom: 1px solid {COLOR_INTERACTIVE_DISABLED};
+        border-radius: 0px;
+        padding: 4px 2px;
         qproperty-alignment: AlignCenter;
     }}
 
-    QLineEdit.matrix-cell:focus {{
-        border: 2px solid {COLOR_TEXT_PRIMARY};
-        background-color: #35303B;
+    QLineEdit[class="matrix-cell"]:focus {{
+        border: none;
+        border-bottom: 2px solid {COLOR_TEXT_PRIMARY};
+        background-color: rgba(224, 251, 252, 0.06);
     }}
 
-    QLineEdit.matrix-cell-error {{
-        border: 2px solid {COLOR_FEEDBACK_ERROR} !important;
-        background-color: #3E2426 !important;
+    QLineEdit[class="matrix-cell-error"] {{
+        background-color: rgba(238, 108, 77, 0.12);
+        color: {COLOR_TEXT_PRIMARY};
+        font-family: {FONT_FAMILY_MONO};
+        font-size: 14px;
+        border: none;
+        border-bottom: 2px solid {COLOR_FEEDBACK_ERROR};
+        border-radius: 0px;
+        padding: 4px 2px;
+        qproperty-alignment: AlignCenter;
     }}
 
-    /* Celdas Fantasma (Ghosting) */
-    QPushButton.ghost-cell {{
+    QPushButton[class="ghost-cell"] {{
         background-color: transparent;
-        color: #7A7585;
-        border: 1px dashed #7A7585;
+        color: transparent;
+        border: 1px dashed transparent;
         border-radius: 4px;
         font-size: 16px;
         font-weight: bold;
     }}
 
-    QPushButton.ghost-cell:hover {{
-        background-color: rgba(152, 193, 217, 0.15);
+    QPushButton[class="ghost-cell"]:hover {{
+        background-color: rgba(152, 193, 217, 0.12);
         color: {COLOR_INTERACTIVE_IDLE};
         border: 1px dashed {COLOR_INTERACTIVE_IDLE};
     }}
 
-    /* Scrollbars */
+    QSplitter::handle:horizontal {{
+        background: {COLOR_BG_BASE};
+        width: 8px;
+    }}
+
     QScrollBar:vertical, QScrollBar:horizontal {{
         background: {COLOR_BG_BASE};
         border: none;
@@ -140,5 +190,7 @@ def get_global_stylesheet() -> str:
     }}
     QScrollBar::add-line, QScrollBar::sub-line {{
         background: none;
+        width: 0;
+        height: 0;
     }}
     """
