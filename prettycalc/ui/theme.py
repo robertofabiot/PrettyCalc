@@ -142,6 +142,27 @@ def get_global_stylesheet() -> str:
         color: {COLOR_BG_BASE};
     }}
 
+    QPushButton#modeToggle {{
+        background-color: transparent;
+        color: {COLOR_INTERACTIVE_IDLE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        font-size: 15px;
+        padding: 8px 12px;
+    }}
+    QPushButton#modeToggle:checked {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+    QPushButton#modeToggle:hover {{
+        background-color: rgba(152, 193, 217, 0.28);
+        color: {COLOR_TEXT_PRIMARY};
+    }}
+    QPushButton#modeToggle:checked:hover {{
+        background-color: #B3D4E6;
+        color: {COLOR_BG_BASE};
+    }}
+
     QMenu {{
         background-color: {COLOR_SURFACE_INNER};
         color: {COLOR_TEXT_PRIMARY};

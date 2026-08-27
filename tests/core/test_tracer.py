@@ -27,9 +27,13 @@ class TestStepTracer(unittest.TestCase):
             latex_formula="f_{2} \\underset{\\sim}\\rightarrow -4f_{1} + f_{2}",
             heuristic_text="Se multiplicó la Fila 1 por -4 y se sumó a la Fila 2.",
             pivot_pos=(0, 0),
+            actor_row=0,
+            affected_rows=(1,),
         )
         self.assertEqual(step1.step_number, 1)
         self.assertEqual(step1.pivot_pos, (0, 0))
+        self.assertEqual(step1.actor_row, 0)
+        self.assertEqual(step1.affected_rows, (1,))
         self.assertEqual(len(tracer), 2)
 
         steps = tracer.get_steps()

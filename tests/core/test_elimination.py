@@ -24,6 +24,10 @@ class TestElimination(unittest.TestCase):
         self.assertEqual(ref.get_row(0), [Fraction(1, 1), Fraction(2, 1), Fraction(5, 1)])
         self.assertEqual(ref.get_row(1), [Fraction(0, 1), Fraction(-2, 1), Fraction(-4, 1)])
         self.assertTrue(len(tracer) >= 2)
+        add_steps = [s for s in tracer if s.actor_row is not None]
+        self.assertTrue(add_steps)
+        self.assertEqual(add_steps[0].actor_row, 0)
+        self.assertEqual(add_steps[0].affected_rows, (1,))
 
     def test_gaussian_elimination_with_row_swap(self):
         # Matriz donde el primer pivote es 0:

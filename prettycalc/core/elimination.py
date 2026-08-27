@@ -70,6 +70,7 @@ def gaussian_elimination(
                 heuristic_text=heur,
                 pivot_pos=(pivot_row, col),
                 split_col=effective_split,
+                affected_rows=(pivot_row, selected_row),
             )
 
         pivot_val = current_matrix.get(pivot_row, col)
@@ -92,6 +93,8 @@ def gaussian_elimination(
                     heuristic_text=heur,
                     pivot_pos=(pivot_row, col),
                     split_col=effective_split,
+                    actor_row=pivot_row,
+                    affected_rows=(r,),
                 )
 
         pivot_row += 1
@@ -145,6 +148,7 @@ def gauss_jordan_elimination(
                 heuristic_text=heur,
                 pivot_pos=(r, col),
                 split_col=effective_split,
+                affected_rows=(r,),
             )
 
         # Eliminar hacia arriba
@@ -165,6 +169,8 @@ def gauss_jordan_elimination(
                     heuristic_text=heur,
                     pivot_pos=(r, col),
                     split_col=effective_split,
+                    actor_row=r,
+                    affected_rows=(upper_r,),
                 )
 
     return current_matrix, tracer

@@ -2,6 +2,7 @@
 
 from prettycalc.ui.main_window import MainWindow
 from prettycalc.ui.book_matrix import BookMatrixWidget
+from prettycalc.ui.theme import COLOR_TEXT_PRIMARY
 from prettycalc.core.types import Matrix
 
 
@@ -138,3 +139,86 @@ def test_action_buttons_live_in_matrix_card(qtbot):
     assert window.solve_btn.parentWidget() is not window.centralWidget()
     assert window.reset_btn.objectName() == "secondaryAction"
     assert window.solve_btn.objectName() == "primaryAction"
+
+
+def test_fractions_toggle_shows_current_state(qtbot):
+    """Fracciones es un interruptor: el estado checked marca la vista actual."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    btn = window.stepper_carousel.mode_btn
+    assert btn.isCheckable()
+    assert btn.objectName() == "modeToggle"
+    assert btn.isChecked()
+    assert btn.text() == "Fracciones"
+    from prettycalc.ui.theme import get_global_stylesheet
+    assert "QPushButton#modeToggle:checked" in get_global_stylesheet()
+
+    btn.click()
+    assert not btn.isChecked()
+    assert btn.text() == "Decimales"
+    assert window.stepper_carousel._display_mode == "decimal"
+
+    btn.click()
+    assert btn.isChecked()
+    assert btn.text() == "Fracciones"
+    assert window.stepper_carousel._display_mode == "fraction"
+
+
+def test_book_matrix_row_roles_flash_without_crash(qtbot):
+    """El visor acepta actor/objetivo y anima el flash de la fila mutada."""
+    from PySide6.QtCore import QAbstractAnimation
+
+    widget = BookMatrixWidget()
+    qtbot.addWidget(widget)
+    mat = Matrix([[1, "1/2", 3], [0, 1, "2/3"]])
+    widget.set_matrix(
+        mat,
+        split_col=2,
+        pivot=(0, 0),
+        actor_row=0,
+        affected_rows=(1,),
+        animate=True,
+    )
+    widget.resize(400, 280)
+    widget.show()
+    assert widget._actor_row == 0
+    assert widget._affected_rows == (1,)
+    assert widget._flash.state() == QAbstractAnimation.Running
+    qtbot.wait(50)
+    widget.repaint()
+
+
+def test_verification_substitution_uses_high_contrast(qtbot):
+    """Las líneas de sustitución de la comprobación no usan gris oscuro ni itálica."""
+    from PySide6.QtWidgets import QLabel
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_sample_case1()
+
+    labels = window.dashboard_card.findChildren(QLabel)
+    subs = [lbl for lbl in labels if "padding-left: 28px" in lbl.styleSheet()]
+    assert subs
+    for lbl in subs:
+        sheet = lbl.styleSheet()
+        assert COLOR_TEXT_PRIMARY in sheet
+        assert "italic" not in sheet
+        assert lbl.text().strip()
+
+
+def test_next_step_highlights_actor_and_affected_rows(qtbot):
+    """Al avanzar un paso, el visor recibe la fila actor y la fila objetivo."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_sample_case1()
+    carousel = window.stepper_carousel
+    found = False
+    while carousel._current_index < len(carousel._steps) - 1:
+        carousel.next_step()
+        step = carousel._steps[carousel._current_index]
+        if step.affected_rows:
+            assert carousel.matrix_view._affected_rows == step.affected_rows
+            assert carousel.matrix_view._actor_row == step.actor_row
+            found = True
+            break
+    assert found
