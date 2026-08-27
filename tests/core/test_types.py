@@ -104,6 +104,12 @@ class TestMatrixStructure(unittest.TestCase):
         self.assertEqual(m1.get(0, 0), Fraction(1, 1))
         self.assertEqual(m2.get(0, 0), Fraction(99, 1))
 
+    def test_matrix_getitem_row_is_a_copy(self):
+        m = Matrix([[1, 2], [3, 4]])
+        row = m[0]
+        row[0] = Fraction(99, 1)
+        self.assertEqual(m.get(0, 0), Fraction(1, 1))
+
     def test_matrix_get_set_rows_cols(self):
         m = Matrix([[1, 2], [3, 4]])
         self.assertEqual(m.get_col(0), [Fraction(1, 1), Fraction(3, 1)])

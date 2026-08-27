@@ -6,7 +6,6 @@ Restricción: 100% Python estándar (sin NumPy/SciPy).
 from __future__ import annotations
 from fractions import Fraction
 from typing import Sequence, Any, Tuple, List, Union, Optional
-import copy
 
 
 Scalar = Union[Fraction, int, float]
@@ -301,7 +300,9 @@ class Matrix:
             r, c = key
             return self.get(r, c)
         if isinstance(key, int):
-            return self._data[key]
+            if key < 0 or key >= self._rows:
+                raise IndexError(f"Índice de fila fuera de rango: {key} (0..{self._rows-1}).")
+            return list(self._data[key])
         raise TypeError(f"Índice inválido: {key}")
 
     def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
