@@ -14,6 +14,14 @@ from prettycalc.core.vector_ops import (
     vector_scale,
     vector_dot,
 )
+from prettycalc.core.matrix_ops import (
+    matrix_add,
+    matrix_sub,
+    matrix_scale,
+    matrix_multiply,
+    matrix_multiply_with_details,
+    MultiplicationStepDetail,
+)
 from prettycalc.core.operations import (
     swap_rows,
     scale_row,
@@ -49,6 +57,12 @@ __all__ = [
     "vector_sub",
     "vector_scale",
     "vector_dot",
+    "matrix_add",
+    "matrix_sub",
+    "matrix_scale",
+    "matrix_multiply",
+    "matrix_multiply_with_details",
+    "MultiplicationStepDetail",
     "swap_rows",
     "scale_row",
     "add_row_multiple",
