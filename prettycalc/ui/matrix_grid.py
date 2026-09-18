@@ -63,6 +63,7 @@ class MatrixCellEdit(QLineEdit):
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
+        self.selectAll()
         QTimer.singleShot(0, self.selectAll)
 
     def _on_text_changed(self, text: str) -> None:
