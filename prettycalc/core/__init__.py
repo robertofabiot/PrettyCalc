@@ -1,6 +1,19 @@
 """Motor matemático puro de PrettyCalc (Cero dependencias externas)."""
 
-from prettycalc.core.types import Matrix, parse_scalar, format_scalar, Scalar
+from prettycalc.core.types import (
+    Matrix,
+    Vector,
+    DimensionMismatchError,
+    parse_scalar,
+    format_scalar,
+    Scalar,
+)
+from prettycalc.core.vector_ops import (
+    vector_add,
+    vector_sub,
+    vector_scale,
+    vector_dot,
+)
 from prettycalc.core.operations import (
     swap_rows,
     scale_row,
@@ -27,9 +40,15 @@ from prettycalc.core.verifier import (
 
 __all__ = [
     "Matrix",
+    "Vector",
+    "DimensionMismatchError",
     "parse_scalar",
     "format_scalar",
     "Scalar",
+    "vector_add",
+    "vector_sub",
+    "vector_scale",
+    "vector_dot",
     "swap_rows",
     "scale_row",
     "add_row_multiple",
