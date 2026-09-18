@@ -27,6 +27,11 @@ from prettycalc.core.linear_combination import (
     evaluate_linear_combination,
     format_combination_equation,
 )
+from prettycalc.core.matrix_equations import (
+    MatrixEquationResult,
+    solve_matrix_equation,
+    format_equation_summary,
+)
 from prettycalc.core.operations import (
     swap_rows,
     scale_row,
@@ -71,6 +76,9 @@ __all__ = [
     "LinearCombinationResult",
     "evaluate_linear_combination",
     "format_combination_equation",
+    "MatrixEquationResult",
+    "solve_matrix_equation",
+    "format_equation_summary",
     "swap_rows",
     "scale_row",
     "add_row_multiple",
