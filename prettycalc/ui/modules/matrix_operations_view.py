@@ -246,7 +246,12 @@ class MatrixOperationsView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget { background: transparent; }"
+        )
+        scroll.viewport().setAutoFillBackground(False)
+        scroll.viewport().setStyleSheet("background: transparent;")
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         scroll.setWidget(body)
         layout.addWidget(scroll, stretch=1)
@@ -286,7 +291,7 @@ class MatrixOperationsView(QWidget):
             if not self.grid_scalar.is_all_valid():
                 return False, "✕ Hay celdas no numéricas en A."
             r, c = self.grid_scalar.data_shape()
-            return True, f"✓ Multiplicación escalar definida: k · A_{{{r}×{c}}}"
+            return True, f"✓ Multiplicación escalar definida: k · A ({r}×{c})"
 
         if not self.grid_a.is_all_valid() or not self.grid_b.is_all_valid():
             return False, "✕ Hay celdas no numéricas. Corrige las entradas marcadas."
@@ -311,7 +316,7 @@ class MatrixOperationsView(QWidget):
         return (
             False,
             f"✕ Dimensiones incompatibles: Columnas de A ({ca}) ≠ Filas de B ({rb}). "
-            "El producto A_{m×n} · B_{n×p} exige que las columnas de A igualen las filas de B.",
+            "El producto A (m×n) · B (n×p) exige que las columnas de A igualen las filas de B.",
         )
 
     def compute(self) -> None:

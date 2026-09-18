@@ -24,6 +24,7 @@ from prettycalc.core.classifier import SystemType
 from prettycalc.core.matrix_equations import solve_matrix_equation
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
+from prettycalc.ui.mathtext import to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.vectors_view import VectorColumnEditor
@@ -160,7 +161,12 @@ class MatrixEquationsView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget { background: transparent; }"
+        )
+        scroll.viewport().setAutoFillBackground(False)
+        scroll.viewport().setStyleSheet("background: transparent;")
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         scroll.setWidget(body)
         layout.addWidget(scroll, stretch=1)
@@ -175,10 +181,8 @@ class MatrixEquationsView(QWidget):
     def _refresh_formula(self) -> None:
         m, n = self.grid_a.data_shape()
         b_dim = self.vec_b.grid.num_rows
-        self.formula_lbl.setText(
-            f"A_{{{m}×{n}}}  ·  x_{{{n}×1}}  =  b_{{{b_dim}×1}}"
-        )
-        self.x_title.setText(f"x ∈ ℝ^{n}")
+        self.formula_lbl.setText(f"A ({m}×{n})  ·  x ({n}×1)  =  b ({b_dim}×1)")
+        self.x_title.setText(f"x ∈ ℝ{to_superscript(n)}")
         ok = m == b_dim and self.grid_a.is_all_valid() and self.vec_b.is_valid()
         if not self.grid_a.is_all_valid() or not self.vec_b.is_valid():
             self.badge.setText("✕ Hay entradas no numéricas en A o en b.")
@@ -190,7 +194,7 @@ class MatrixEquationsView(QWidget):
             return
         if m != b_dim:
             self.badge.setText(
-                f"✕ La ecuación no es conformable: A tiene {m} filas y b ∈ ℝ^{b_dim}. "
+                f"✕ La ecuación no es conformable: A tiene {m} filas y b ∈ ℝ{to_superscript(b_dim)}. "
                 "Se requiere dim(b) = filas de A."
             )
             self.badge.setStyleSheet(
@@ -200,7 +204,7 @@ class MatrixEquationsView(QWidget):
             self.solve_btn.setEnabled(False)
             return
         self.badge.setText(
-            f"✓ Ecuación conformable: A_{{{m}×{n}}} · x_{{{n}×1}} = b_{{{m}×1}}"
+            f"✓ Ecuación conformable: A ({m}×{n}) · x ({n}×1) = b ({m}×1)"
         )
         self.badge.setStyleSheet(
             f"background-color: {COLOR_FEEDBACK_SUCCESS}; color: {COLOR_BG_BASE}; "

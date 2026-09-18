@@ -21,6 +21,7 @@ from prettycalc.ui.theme import (
     COLOR_INTERACTIVE_IDLE,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_TEXT_MUTED,
+    COLOR_SURFACE_INNER,
     FONT_FAMILY_MONO,
     FONT_FAMILY_SANS,
 )
@@ -202,6 +203,7 @@ class BookMatrixWidget(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.fillRect(self.rect(), QColor(COLOR_SURFACE_INNER))
 
         if self._matrix is None:
             painter.setPen(QColor(COLOR_TEXT_MUTED))

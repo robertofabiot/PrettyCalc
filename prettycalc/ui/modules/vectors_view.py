@@ -30,6 +30,7 @@ from prettycalc.core.classifier import SystemType
 from prettycalc.core.linear_combination import evaluate_linear_combination, format_combination_equation
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar, parse_scalar
 from prettycalc.core.vector_ops import vector_add, vector_scale, vector_sub
+from prettycalc.ui.mathtext import to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
@@ -82,8 +83,10 @@ class VectorColumnEditor(QFrame):
         header.addWidget(self.title_lbl)
         header.addStretch(1)
         if removable:
-            delete_btn = QPushButton("Eliminar")
+            delete_btn = QPushButton("×")
             delete_btn.setObjectName("secondaryAction")
+            delete_btn.setFixedWidth(34)
+            delete_btn.setToolTip("Eliminar este vector")
             delete_btn.clicked.connect(self.removed.emit)
             header.addWidget(delete_btn)
         layout.addLayout(header)
@@ -136,6 +139,7 @@ class VectorsView(QWidget):
         tabs.addTab(self._build_basic_tab(), "Operaciones básicas")
         tabs.addTab(self._build_combination_tab(), "Combinación lineal")
         root.addWidget(tabs)
+        self.tabs = tabs
 
     def _build_basic_tab(self) -> QWidget:
         page = QWidget()
@@ -342,7 +346,9 @@ class VectorsView(QWidget):
                 self.basic_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
                 self.basic_compute_btn.setEnabled(False)
                 return
-            self.basic_badge.setText(f"✓ Escalado definido en ℝ^{n}: (k · v) ∈ ℝ^{n}")
+            self.basic_badge.setText(
+                f"✓ Escalado definido en ℝ{to_superscript(n)}: (k · v) ∈ ℝ{to_superscript(n)}"
+            )
             self.basic_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
             self.basic_compute_btn.setEnabled(True)
             return
@@ -353,7 +359,7 @@ class VectorsView(QWidget):
             self.basic_compute_btn.setEnabled(False)
             return
         self.basic_badge.setText(
-            f"✓ u, v ∈ ℝ^{n} con la misma dimensión. La suma y la resta están definidas."
+            f"✓ u, v ∈ ℝ{to_superscript(n)} con la misma dimensión. La suma y la resta están definidas."
         )
         self.basic_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
         self.basic_compute_btn.setEnabled(True)
@@ -474,6 +480,7 @@ class VectorsView(QWidget):
         self.combo_stepper.setVisible(self.show_steps_btn.isChecked())
 
     def load_combination_scd_sample(self) -> None:
+        self.tabs.setCurrentIndex(1)
         self.combo_dim.setValue(3)
         while len(self._combo_editors) > 3:
             self._remove_combo_vector(self._combo_editors[-1])
@@ -486,6 +493,7 @@ class VectorsView(QWidget):
         self._evaluate_combination()
 
     def load_combination_si_sample(self) -> None:
+        self.tabs.setCurrentIndex(1)
         self.combo_dim.setValue(3)
         while len(self._combo_editors) > 2:
             self._remove_combo_vector(self._combo_editors[-1])

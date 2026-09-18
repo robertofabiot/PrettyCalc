@@ -192,6 +192,11 @@ def get_global_stylesheet() -> str:
         background-color: #93C4AE;
         color: {COLOR_BG_BASE};
     }}
+    QPushButton#primaryAction:disabled {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: {COLOR_TEXT_MUTED};
+        border: none;
+    }}
 
     QPushButton#secondaryAction {{
         background-color: transparent;
