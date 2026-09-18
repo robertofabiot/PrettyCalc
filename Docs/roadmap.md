@@ -14,5 +14,6 @@ Requerimientos de Usuario ──► Documentación en Docs/Sprints/Sprint-N/ ─
 ## 3. Registro de Sprints
 La planificación, especificaciones de operaciones y entregables de cada iteración residen en su carpeta correspondiente dentro de [`Docs/Sprints/`](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/):
 
-* [**`Docs/Sprints/Sprint1/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint1/): *(En definición)*
+* [**`Docs/Sprints/Sprint1/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint1/): Solución de Sistemas Lineales por Eliminación por Filas (Completado · Programa 1).
+* [**`Docs/Sprints/Sprint2/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint2/): Operaciones Algebraicas en $\mathbb{R}^n$, Combinación Lineal y Ecuaciones Matriciales (Planificado · Programa 3).
 * *(Sprints posteriores se irán añadiendo conforme se definan sus requerimientos)*
