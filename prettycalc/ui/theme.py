@@ -311,6 +311,11 @@ def get_global_stylesheet() -> str:
         qproperty-alignment: AlignCenter;
     }}
 
+    QLineEdit[class="matrix-cell"][highlighted="true"] {{
+        background-color: rgba(129, 178, 154, 0.32);
+        border-bottom: 2px solid {COLOR_FEEDBACK_SUCCESS};
+    }}
+
     QPushButton[class="ghost-cell"] {{
         background-color: rgba(152, 193, 217, 0.08);
         color: {COLOR_INTERACTIVE_IDLE};
@@ -332,6 +337,76 @@ def get_global_stylesheet() -> str:
     QSplitter::handle:horizontal {{
         background: {COLOR_BG_BASE};
         width: 8px;
+    }}
+
+    QSpinBox, QComboBox {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 15px;
+        font-family: {FONT_FAMILY_SANS};
+        min-height: 28px;
+    }}
+    QSpinBox::up-button, QSpinBox::down-button {{
+        background: {COLOR_SURFACE_ELEVATED};
+        width: 18px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        selection-background-color: {COLOR_SURFACE_ELEVATED};
+    }}
+
+    QTabWidget::pane {{
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 8px;
+        background: {COLOR_BG_BASE};
+        top: -1px;
+    }}
+    QTabBar::tab {{
+        background: transparent;
+        color: {COLOR_INTERACTIVE_IDLE};
+        padding: 10px 18px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-weight: 600;
+        font-size: 15px;
+    }}
+    QTabBar::tab:hover {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: {COLOR_TEXT_PRIMARY};
+    }}
+    QTabBar::tab:selected {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+        border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+
+    QPushButton#opSelect {{
+        min-width: 52px;
+        min-height: 44px;
+        font-size: 22px;
+        font-weight: 700;
+        padding: 8px;
+    }}
+    QPushButton#opSelect:checked {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+
+    QLineEdit#scalarField {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-family: {FONT_FAMILY_MONO};
+        font-size: 18px;
+        qproperty-alignment: AlignCenter;
+        min-width: 88px;
     }}
 
     QScrollBar:vertical, QScrollBar:horizontal {{

@@ -116,14 +116,30 @@ class DynamicMatrixGrid(QFrame):
 
     matrixChanged = Signal()
 
-    def __init__(self, initial_rows: int = 2, initial_cols: int = 2, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        initial_rows: int = 2,
+        initial_cols: int = 2,
+        parent: Optional[QWidget] = None,
+        *,
+        augmented: bool = True,
+        show_headers: bool = True,
+        row_expandable: bool = True,
+        col_expandable: bool = True,
+    ):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet("background: transparent;")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
+        self.augmented = augmented
+        self.show_headers = show_headers
+        self.row_expandable = row_expandable
+        self.col_expandable = col_expandable
         self.num_rows = initial_rows
         self.num_vars = initial_cols
+        self._highlight_rows: set[int] = set()
+        self._highlight_cols: set[int] = set()
         self.cells: List[List[MatrixCellEdit]] = []
 
         self._outer_layout = QVBoxLayout(self)
@@ -166,18 +182,19 @@ class DynamicMatrixGrid(QFrame):
         painter.setRenderHint(QPainter.Antialiasing, True)
         draw_square_brackets(painter, bracket_rect, QColor(COLOR_TEXT_PRIMARY), thickness=2)
 
-        b_cell = self.cells[0][-1]
-        b_top = b_cell.mapTo(self, b_cell.rect().topLeft())
-        last_b = self.cells[-1][-1]
-        b_bottom = last_b.mapTo(self, last_b.rect().bottomLeft())
-        bar_x = b_top.x() - 6
-        draw_split_bar(
-            painter,
-            bar_x,
-            bracket_rect.top() + 4,
-            bracket_rect.bottom() - 4,
-            QColor(COLOR_INTERACTIVE_IDLE),
-        )
+        if self.augmented:
+            b_cell = self.cells[0][-1]
+            b_top = b_cell.mapTo(self, b_cell.rect().topLeft())
+            last_b = self.cells[-1][-1]
+            _b_bottom = last_b.mapTo(self, last_b.rect().bottomLeft())
+            bar_x = b_top.x() - 6
+            draw_split_bar(
+                painter,
+                bar_x,
+                bracket_rect.top() + 4,
+                bracket_rect.bottom() - 4,
+                QColor(COLOR_INTERACTIVE_IDLE),
+            )
         painter.end()
 
     def _build_grid(self) -> None:
@@ -189,25 +206,23 @@ class DynamicMatrixGrid(QFrame):
                 widget.setParent(None)
                 widget.deleteLater()
 
-        total_cols = self.num_vars + 1
+        total_cols = self._total_cols()
+        header_row = 1 if self.show_headers else 0
         self.cells = []
 
-        for c in range(self.num_vars):
-            lbl = QLabel(variable_symbol(c))
-            lbl.setAlignment(Qt.AlignCenter)
-            lbl.setFixedHeight(22)
-            lbl.setStyleSheet(
-                f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
-            )
-            self._grid_layout.addWidget(lbl, 0, c)
-
-        lbl_b = QLabel("b")
-        lbl_b.setAlignment(Qt.AlignCenter)
-        lbl_b.setFixedHeight(22)
-        lbl_b.setStyleSheet(
-            f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
-        )
-        self._grid_layout.addWidget(lbl_b, 0, self.num_vars)
+        if self.show_headers:
+            for c in range(total_cols):
+                if self.augmented:
+                    text = "b" if c == self.num_vars else variable_symbol(c)
+                else:
+                    text = str(c + 1)
+                lbl = QLabel(text)
+                lbl.setAlignment(Qt.AlignCenter)
+                lbl.setFixedHeight(22)
+                lbl.setStyleSheet(
+                    f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
+                )
+                self._grid_layout.addWidget(lbl, 0, c)
 
         for r in range(self.num_rows):
             row_cells: List[MatrixCellEdit] = []
@@ -215,23 +230,65 @@ class DynamicMatrixGrid(QFrame):
                 cell = MatrixCellEdit(r, c)
                 cell.navigate.connect(self._handle_cell_navigation)
                 cell.textChanged.connect(lambda: self.matrixChanged.emit())
-                self._grid_layout.addWidget(cell, r + 1, c)
+                self._grid_layout.addWidget(cell, r + header_row, c)
                 row_cells.append(cell)
             self.cells.append(row_cells)
 
-        self.ghost_col_btn = _make_ghost_button("Agregar variable")
+        self.ghost_col_btn = _make_ghost_button(
+            "Agregar variable" if self.augmented else "Agregar columna"
+        )
         self.ghost_col_btn.setFixedWidth(36)
         self.ghost_col_btn.setMinimumWidth(36)
         self.ghost_col_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self.ghost_col_btn.clicked.connect(self.add_column)
-        self._grid_layout.addWidget(self.ghost_col_btn, 1, total_cols, self.num_rows, 1)
+        self._grid_layout.addWidget(self.ghost_col_btn, header_row, total_cols, self.num_rows, 1)
+        if not self.col_expandable:
+            self.ghost_col_btn.hide()
 
-        self.ghost_row_btn = _make_ghost_button("Agregar ecuación")
+        self.ghost_row_btn = _make_ghost_button(
+            "Agregar ecuación" if self.augmented else "Agregar fila"
+        )
         self.ghost_row_btn.setFixedHeight(32)
         self.ghost_row_btn.clicked.connect(self.add_row)
-        self._grid_layout.addWidget(self.ghost_row_btn, self.num_rows + 1, 0, 1, total_cols)
+        self._grid_layout.addWidget(
+            self.ghost_row_btn, self.num_rows + header_row, 0, 1, total_cols
+        )
+        if not self.row_expandable:
+            self.ghost_row_btn.hide()
 
+        self._apply_highlight()
         self.update()
+
+    def _total_cols(self) -> int:
+        return self.num_vars + 1 if self.augmented else self.num_vars
+
+    def data_shape(self) -> tuple[int, int]:
+        """Dimensiones de la matriz de datos (filas × columnas editables)."""
+        return (self.num_rows, self._total_cols())
+
+    def set_highlight(
+        self,
+        rows: Optional[List[int]] = None,
+        cols: Optional[List[int]] = None,
+    ) -> None:
+        """Resalta filas y/o columnas para el inspector de producto."""
+        self._highlight_rows = set(rows or [])
+        self._highlight_cols = set(cols or [])
+        self._apply_highlight()
+
+    def clear_highlight(self) -> None:
+        self.set_highlight([], [])
+
+    def _apply_highlight(self) -> None:
+        for r, row in enumerate(self.cells):
+            for c, cell in enumerate(row):
+                active = r in self._highlight_rows or c in self._highlight_cols
+                cell.setProperty("highlighted", active)
+                style = cell.style()
+                if style is not None:
+                    style.unpolish(cell)
+                    style.polish(cell)
+                cell.update()
 
     def _cell_at(self, pos: QPoint) -> Optional[MatrixCellEdit]:
         """Localiza la celda bajo un punto en coordenadas del contenedor."""
@@ -252,13 +309,13 @@ class DynamicMatrixGrid(QFrame):
         delete_col = QAction("Eliminar columna", menu)
 
         can_delete_row = self.num_rows > 1
-        can_delete_col = self.num_vars > 1 and cell.col < self.num_vars
+        can_delete_col = self.num_vars > 1 and (self.augmented is False or cell.col < self.num_vars)
         delete_row.setEnabled(can_delete_row)
         delete_col.setEnabled(can_delete_col)
-        if cell.col >= self.num_vars:
+        if self.augmented and cell.col >= self.num_vars:
             delete_col.setToolTip("La columna de términos independientes no se puede eliminar.")
         elif self.num_vars <= 1:
-            delete_col.setToolTip("Debe quedar al menos una variable.")
+            delete_col.setToolTip("Debe quedar al menos una columna.")
         if self.num_rows <= 1:
             delete_row.setToolTip("Debe quedar al menos una ecuación.")
 
@@ -280,8 +337,10 @@ class DynamicMatrixGrid(QFrame):
         self.matrixChanged.emit()
 
     def remove_column(self, index: int) -> None:
-        """Elimina una columna de variable. No elimina b ni deja el sistema sin incógnitas."""
-        if index < 0 or index >= self.num_vars or self.num_vars <= 1:
+        """Elimina una columna. En modo aumentado no elimina b ni deja el sistema sin incógnitas."""
+        if index < 0 or self.num_vars <= 1:
+            return
+        if self.augmented and index >= self.num_vars:
             return
         data = self.get_raw_strings()
         trimmed = [row[:index] + row[index + 1 :] for row in data]
@@ -292,14 +351,14 @@ class DynamicMatrixGrid(QFrame):
 
     def _handle_cell_navigation(self, r: int, c: int, direction: str) -> None:
         target_r, target_c = r, c
-        total_cols = self.num_vars + 1
+        total_cols = self._total_cols()
 
         if direction == "up" and r > 0:
             target_r = r - 1
         elif direction == "down":
             if r < self.num_rows - 1:
                 target_r = r + 1
-            else:
+            elif self.row_expandable:
                 self.add_row()
                 target_r = r + 1
         elif direction == "left" and c > 0:
@@ -307,15 +366,17 @@ class DynamicMatrixGrid(QFrame):
         elif direction == "right":
             if c < total_cols - 1:
                 target_c = c + 1
-            else:
+            elif self.col_expandable:
                 self.add_column()
-                target_c = self.num_vars - 1
+                target_c = self._total_cols() - 1 if not self.augmented else self.num_vars - 1
 
         if 0 <= target_r < len(self.cells) and 0 <= target_c < len(self.cells[target_r]):
             self.cells[target_r][target_c].setFocus()
             self.cells[target_r][target_c].selectAll()
 
     def add_row(self) -> None:
+        if not self.row_expandable:
+            return
         current_data = self.get_raw_strings()
         self.num_rows += 1
         self._build_grid()
@@ -323,15 +384,21 @@ class DynamicMatrixGrid(QFrame):
         self.matrixChanged.emit()
 
     def add_column(self) -> None:
+        if not self.col_expandable:
+            return
         current_data = self.get_raw_strings()
         self.num_vars += 1
         self._build_grid()
-        adjusted_data = []
-        for row in current_data:
-            coeffs = row[:-1]
-            b_val = row[-1]
-            adjusted_data.append(coeffs + ["0"] + [b_val])
-        self.set_raw_strings(adjusted_data)
+        if self.augmented:
+            adjusted_data = []
+            for row in current_data:
+                coeffs = row[:-1]
+                b_val = row[-1]
+                adjusted_data.append(coeffs + ["0"] + [b_val])
+            self.set_raw_strings(adjusted_data)
+        else:
+            padded = [row + ["0"] for row in current_data]
+            self.set_raw_strings(padded)
         self.matrixChanged.emit()
 
     def get_matrix(self) -> Matrix:
@@ -342,7 +409,7 @@ class DynamicMatrixGrid(QFrame):
 
     def set_matrix(self, matrix: Matrix) -> None:
         self.num_rows = matrix.rows
-        self.num_vars = matrix.cols - 1
+        self.num_vars = matrix.cols - 1 if self.augmented else matrix.cols
         self._build_grid()
         for r in range(matrix.rows):
             for c in range(matrix.cols):
