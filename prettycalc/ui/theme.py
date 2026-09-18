@@ -227,6 +227,42 @@ def get_global_stylesheet() -> str:
         color: {COLOR_BG_BASE};
     }}
 
+    QWidget#modularNavigationBar {{
+        background: transparent;
+    }}
+    QFrame#navSegmentBar {{
+        background-color: {COLOR_BG_BASE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 8px;
+    }}
+    QPushButton#navSegment {{
+        background-color: transparent;
+        color: {COLOR_INTERACTIVE_IDLE};
+        border: none;
+        border-bottom: 2px solid transparent;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: {FONT_FAMILY_SANS};
+    }}
+    QPushButton#navSegment:hover {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: {COLOR_TEXT_PRIMARY};
+        border: none;
+        border-bottom: 2px solid transparent;
+    }}
+    QPushButton#navSegment:checked {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+        border: none;
+        border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+    QPushButton#navSegment:checked:hover {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+    }}
+
     QMenu {{
         background-color: {COLOR_SURFACE_INNER};
         color: {COLOR_TEXT_PRIMARY};
