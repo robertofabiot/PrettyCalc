@@ -67,6 +67,27 @@ class SystemAnalysis:
     parametric_solutions: Optional[Dict[int, ParametricExpression]]
     inconsistent_row: Optional[int]
     summary_message: str
+    pivot_columns: Optional[List[int]] = None
+    has_augmented_pivot: bool = False
+
+    def __post_init__(self):
+        if self.pivot_columns is None:
+            object.__setattr__(self, "pivot_columns", list(self.basic_variables))
+
+    @property
+    def pivot_columns_1based(self) -> List[int]:
+        """Retorna los índices de columnas con pivote en base 1 (1..n)."""
+        return [c + 1 for c in (self.pivot_columns or [])]
+
+    @property
+    def basic_variables_names(self) -> List[str]:
+        """Retorna los nombres de las variables básicas (ej: ['x1', 'x2'])."""
+        return [f"x{c + 1}" for c in self.basic_variables]
+
+    @property
+    def free_variables_names(self) -> List[str]:
+        """Retorna los nombres de las variables libres (ej: ['x3'])."""
+        return [f"x{c + 1}" for c in self.free_variables]
 
 
 def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAnalysis:
@@ -148,6 +169,8 @@ def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAn
                 f"Rango(A) = {rank_a} != Rango(A|b) = {rank_augmented}. "
                 f"Fila {inc_r_disp} contradictoria (0 = c con c != 0)."
             ),
+            pivot_columns=basic_vars,
+            has_augmented_pivot=True,
         )
 
     if rank_a == num_variables:
@@ -172,6 +195,8 @@ def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAn
                 f"Sistema Consistente Determinado (Solución Única). "
                 f"Rango(A) = Rango(A|b) = {rank_a} = número de incógnitas."
             ),
+            pivot_columns=basic_vars,
+            has_augmented_pivot=False,
         )
 
     # Sistema Consistente Indeterminado (SCI)
@@ -212,4 +237,6 @@ def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAn
             f"Rango(A) = Rango(A|b) = {rank_a} < {num_variables} incógnitas. "
             f"Variables libres: {free_vars_str}."
         ),
+        pivot_columns=basic_vars,
+        has_augmented_pivot=False,
     )
