@@ -1,4 +1,4 @@
-23gb """Clasificación canónica de sistemas de ecuaciones lineales según el Teorema de Rouché-Frobenius.
+"""Clasificación canónica de sistemas de ecuaciones lineales según el Teorema de Rouché-Frobenius.
 
 Categorías:
 1. Consistente Determinado (SCD) -> Solución única
