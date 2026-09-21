@@ -14,6 +14,7 @@ try:
         QFrame,
         QSpacerItem,
         QSizePolicy,
+        QScrollArea,
     )
     from PySide6.QtCore import Qt
 except ImportError:
@@ -111,8 +112,14 @@ class LinearSystemsView(QWidget):
         btn_case3.clicked.connect(self.load_sample_case3)
         samples_layout.addWidget(btn_case3)
 
-        left_layout.addWidget(samples_box)
-        body_splitter.addWidget(left_pane)
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.NoFrame)
+        left_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        left_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        left_scroll.setWidget(left_pane)
+        body_splitter.addWidget(left_scroll)
 
         center_pane = QWidget()
         center_layout = QVBoxLayout(center_pane)

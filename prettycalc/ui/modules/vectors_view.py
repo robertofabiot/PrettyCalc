@@ -142,8 +142,25 @@ class VectorsView(QWidget):
         self.tabs = tabs
 
     def _build_basic_tab(self) -> QWidget:
+        container = QWidget()
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        scroll = QScrollArea(container)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget { background: transparent; }"
+        )
+        scroll.viewport().setAutoFillBackground(False)
+        scroll.viewport().setStyleSheet("background: transparent;")
+
         page = QWidget()
+        page.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(4, 4, 10, 16)
         layout.setSpacing(10)
 
         controls = QHBoxLayout()
@@ -222,11 +239,30 @@ class VectorsView(QWidget):
         layout.addLayout(actions)
 
         self._refresh_basic_badge()
-        return page
+        scroll.setWidget(page)
+        main_layout.addWidget(scroll)
+        return container
 
     def _build_combination_tab(self) -> QWidget:
+        container = QWidget()
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        scroll = QScrollArea(container)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget { background: transparent; }"
+        )
+        scroll.viewport().setAutoFillBackground(False)
+        scroll.viewport().setStyleSheet("background: transparent;")
+
         page = QWidget()
+        page.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(4, 4, 10, 16)
         layout.setSpacing(10)
 
         top = QHBoxLayout()
@@ -259,11 +295,11 @@ class VectorsView(QWidget):
         self.combo_list_host = QWidget()
         self.combo_list_layout = QHBoxLayout(self.combo_list_host)
         self.combo_list_layout.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setWidget(self.combo_list_host)
-        gen_layout.addWidget(scroll, stretch=1)
+        scroll_gen = QScrollArea()
+        scroll_gen.setWidgetResizable(True)
+        scroll_gen.setFrameShape(QFrame.NoFrame)
+        scroll_gen.setWidget(self.combo_list_host)
+        gen_layout.addWidget(scroll_gen, stretch=1)
 
         add_btn = QPushButton("+  Agregar vector")
         add_btn.setObjectName("secondaryAction")
@@ -318,7 +354,10 @@ class VectorsView(QWidget):
 
         self._add_combo_vector()
         self._add_combo_vector()
-        return page
+
+        scroll.setWidget(page)
+        main_layout.addWidget(scroll)
+        return container
 
     def _on_basic_dimension(self, n: int) -> None:
         self.vec_u.set_dimension(n)

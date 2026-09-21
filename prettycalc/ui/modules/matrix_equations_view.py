@@ -1,4 +1,4 @@
-"""Vista de ecuaciones matriciales A x = b con comprobación por producto."""
+"""Vista de ecuaciones matriciales A x = b con comprobación por producto y navegación fluida."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ try:
         QMessageBox,
         QScrollArea,
         QSizePolicy,
+        QTabWidget,
     )
     from PySide6.QtCore import Qt
 except ImportError:
@@ -36,14 +37,17 @@ from prettycalc.ui.theme import (
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
     COLOR_TEXT_PRIMARY,
+    COLOR_TEXT_MUTED,
+    COLOR_SURFACE_INNER,
     FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
     apply_message_box_theme,
     apply_widget_class,
 )
 
 
 class MatrixEquationsView(QWidget):
-    """Entrada de A y b, resolución por filas y verificación de A · x = b."""
+    """Entrada de A y b, resolución por filas y verificación de A · x = b con scroll y pestañas."""
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -52,111 +56,249 @@ class MatrixEquationsView(QWidget):
         self._refresh_formula()
 
     def _setup_ui(self) -> None:
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(12)
+        # Layout principal del widget: contiene un QScrollArea que evita cualquier corte de pantalla
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        header = QHBoxLayout()
-        self.formula_lbl = QLabel("A · x = b")
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.NoFrame)
+        self.scroll_area.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget { background: transparent; }"
+        )
+        self.scroll_area.viewport().setAutoFillBackground(False)
+        self.scroll_area.viewport().setStyleSheet("background: transparent;")
+
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        root = QVBoxLayout(content)
+        root.setContentsMargins(4, 4, 10, 16)
+        root.setSpacing(14)
+
+        # 1. Cabecera y Presets de prueba
+        header_card = QFrame()
+        apply_widget_class(header_card, "elevated-card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(14, 10, 14, 10)
+        header_layout.setSpacing(12)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(2)
+        main_title = QLabel("Ecuación Matricial  A · x = b")
+        main_title.setStyleSheet(
+            f"font-size: 19px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+        )
+        self.formula_lbl = QLabel("A (3×3)  ·  x (3×1)  =  b (3×1)")
         self.formula_lbl.setStyleSheet(
-            f"font-size: 22px; font-weight: 600; color: {COLOR_TEXT_PRIMARY}; "
+            f"font-size: 15px; font-weight: 500; color: {COLOR_INTERACTIVE_IDLE}; "
             f"font-family: {FONT_FAMILY_MONO};"
         )
-        header.addWidget(self.formula_lbl)
-        header.addStretch(1)
-        sample = QPushButton("Ejemplo 3×3")
-        sample.clicked.connect(self.load_sample)
-        header.addWidget(sample)
-        root.addLayout(header)
+        title_col.addWidget(main_title)
+        title_col.addWidget(self.formula_lbl)
+        header_layout.addLayout(title_col, stretch=1)
 
+        # Barra de ejemplos académicos y reinicio
+        samples_row = QHBoxLayout()
+        samples_row.setSpacing(8)
+
+        sample_scd = QPushButton("Ejemplo SCD (3×3)")
+        sample_scd.setToolTip("Cargar sistema con solución única: x = (2, 1, 1)")
+        sample_scd.setCursor(Qt.PointingHandCursor)
+        sample_scd.clicked.connect(self.load_sample)
+        samples_row.addWidget(sample_scd)
+
+        sample_sci = QPushButton("Ejemplo SCI (2×3)")
+        sample_sci.setToolTip("Cargar sistema con infinitas soluciones y variables libres")
+        sample_sci.setCursor(Qt.PointingHandCursor)
+        sample_sci.clicked.connect(self.load_sample_sci)
+        samples_row.addWidget(sample_sci)
+
+        sample_si = QPushButton("Ejemplo SI (3×2)")
+        sample_si.setToolTip("Cargar sistema incompatible sin solución")
+        sample_si.setCursor(Qt.PointingHandCursor)
+        sample_si.clicked.connect(self.load_sample_si)
+        samples_row.addWidget(sample_si)
+
+        reset_btn = QPushButton("Limpiar")
+        reset_btn.setObjectName("secondaryAction")
+        reset_btn.setToolTip("Restablecer matriz y vector a ceros")
+        reset_btn.setCursor(Qt.PointingHandCursor)
+        reset_btn.clicked.connect(self.reset)
+        samples_row.addWidget(reset_btn)
+
+        header_layout.addLayout(samples_row)
+        root.addWidget(header_card)
+
+        # 2. Badge de conformabilidad dimensional
         self.badge = QLabel("")
         self.badge.setAlignment(Qt.AlignCenter)
         self.badge.setWordWrap(True)
         root.addWidget(self.badge)
 
+        # 3. Tarjeta de Planteamiento: A · x = b
+        equation_card = QFrame()
+        apply_widget_class(equation_card, "elevated-card")
+        eq_card_layout = QVBoxLayout(equation_card)
+        eq_card_layout.setContentsMargins(14, 12, 14, 14)
+        eq_card_layout.setSpacing(12)
+
+        eq_title = QLabel("Planteamiento de la Ecuación")
+        eq_title.setStyleSheet(
+            f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.02em;"
+        )
+        eq_card_layout.addWidget(eq_title)
+
         body = QHBoxLayout()
         body.setSpacing(10)
 
+        # Matriz A
         self.grid_a = DynamicMatrixGrid(initial_rows=3, initial_cols=3, augmented=False)
         self.grid_a.matrixChanged.connect(self._on_a_changed)
-        body.addWidget(self._card("Matriz A", self.grid_a), stretch=3)
+        body.addWidget(self._card("Matriz de Coeficientes  A", self.grid_a), stretch=4)
 
+        # Operador ·
         dot = QLabel("·")
+        dot.setAlignment(Qt.AlignCenter)
         dot.setStyleSheet(
-            f"font-size: 32px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;"
+            f"font-size: 34px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 4px;"
         )
         body.addWidget(dot, 0, Qt.AlignCenter)
 
+        # Vector x (incógnita / solución)
         x_card = QFrame()
-        apply_widget_class(x_card, "elevated-card")
+        x_card.setStyleSheet(
+            f"QFrame {{ background-color: {COLOR_SURFACE_INNER}; border-radius: 6px; padding: 6px; }}"
+        )
         x_layout = QVBoxLayout(x_card)
-        self.x_title = QLabel("x  (incógnita)")
+        x_layout.setContentsMargins(8, 8, 8, 8)
+        x_layout.setSpacing(4)
+        self.x_title = QLabel("x ∈ ℝ³")
+        self.x_title.setAlignment(Qt.AlignCenter)
         self.x_title.setStyleSheet(
-            f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+            f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+        )
+        self.x_subtitle = QLabel("Incógnita a resolver")
+        self.x_subtitle.setAlignment(Qt.AlignCenter)
+        self.x_subtitle.setStyleSheet(
+            f"font-size: 13px; color: {COLOR_INTERACTIVE_IDLE}; font-style: italic;"
         )
         x_layout.addWidget(self.x_title)
-        self.x_view = BookMatrixWidget()
-        x_layout.addWidget(self.x_view, stretch=1)
-        body.addWidget(x_card, stretch=1)
+        x_layout.addWidget(self.x_subtitle)
 
+        self.x_view = BookMatrixWidget()
+        self.x_view.setMinimumSize(90, 160)
+        x_layout.addWidget(self.x_view, stretch=1)
+        body.addWidget(x_card, stretch=2)
+
+        # Operador =
         eq = QLabel("=")
+        eq.setAlignment(Qt.AlignCenter)
         eq.setStyleSheet(
-            f"font-size: 28px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;"
+            f"font-size: 30px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 4px;"
         )
         body.addWidget(eq, 0, Qt.AlignCenter)
 
-        self.vec_b = VectorColumnEditor(3, "Vector b")
+        # Vector b
+        self.vec_b = VectorColumnEditor(3, "Vector Términos  b")
         self.vec_b.changed.connect(self._refresh_formula)
-        body.addWidget(self.vec_b, stretch=1)
-        root.addLayout(body, stretch=2)
+        body.addWidget(self.vec_b, stretch=2)
+        eq_card_layout.addLayout(body)
 
+        # Botón de resolución
         actions = QHBoxLayout()
         actions.addStretch(1)
-        self.solve_btn = QPushButton("Resolver ecuación matricial")
+        self.solve_btn = QPushButton("Resolver ecuación matricial  A · x = b")
         self.solve_btn.setObjectName("primaryAction")
+        self.solve_btn.setCursor(Qt.PointingHandCursor)
+        self.solve_btn.setMinimumHeight(44)
         self.solve_btn.clicked.connect(self.solve)
         actions.addWidget(self.solve_btn)
-        root.addLayout(actions)
+        actions.addStretch(1)
+        eq_card_layout.addLayout(actions)
 
-        bottom = QHBoxLayout()
-        stepper_box = QVBoxLayout()
-        steps_title = QLabel("Eliminación por filas de [A | b]")
-        steps_title.setStyleSheet(
-            f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
-        )
-        stepper_box.addWidget(steps_title)
-        self.stepper = AlgorithmStepperCarousel()
-        stepper_box.addWidget(self.stepper, stretch=1)
-        bottom.addLayout(stepper_box, stretch=3)
+        root.addWidget(equation_card)
 
-        right = QVBoxLayout()
+        # 4. Sección de Resultados y Procedimiento organizada con Pestañas
+        self.results_tabs = QTabWidget()
+        self.results_tabs.setMinimumHeight(440)
+
+        # --- Pestaña 1: Comprobación y Resultados ---
+        tab_results = QWidget()
+        tab_results_layout = QHBoxLayout(tab_results)
+        tab_results_layout.setContentsMargins(10, 12, 10, 12)
+        tab_results_layout.setSpacing(14)
+
+        # Panel izquierdo: Dashboard formal de clasificación
         self.dashboard = ResultsDashboardCard()
-        right.addWidget(self.dashboard, stretch=1)
+        self.dashboard.setMinimumWidth(340)
+        tab_results_layout.addWidget(self.dashboard, stretch=3)
+
+        # Panel derecho: Tarjeta de verificación del producto A · x = b
         self.product_card = QFrame()
         apply_widget_class(self.product_card, "elevated-card")
         prod_layout = QVBoxLayout(self.product_card)
+        prod_layout.setContentsMargins(14, 14, 14, 14)
+        prod_layout.setSpacing(10)
+
         prod_title = QLabel("Comprobación  A · x = b")
         prod_title.setStyleSheet(
-            f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+            f"font-size: 18px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
         )
         prod_layout.addWidget(prod_title)
+
+        prod_desc = QLabel(
+            "Multiplicación fila por vector para verificar la igualdad exacta componente a componente:"
+        )
+        prod_desc.setWordWrap(True)
+        prod_desc.setStyleSheet(f"font-size: 14px; color: {COLOR_TEXT_MUTED};")
+        prod_layout.addWidget(prod_desc)
+
         self.product_label = QLabel("Resuelve para verificar el producto matricial.")
         self.product_label.setWordWrap(True)
+        self.product_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.product_label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO};"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO}; "
+            f"background-color: {COLOR_SURFACE_INNER}; border-radius: 6px; padding: 12px;"
         )
         prod_layout.addWidget(self.product_label)
-        right.addWidget(self.product_card)
-        bottom.addLayout(right, stretch=2)
-        root.addLayout(bottom, stretch=3)
+        prod_layout.addStretch(1)
+        tab_results_layout.addWidget(self.product_card, stretch=2)
+
+        self.results_tabs.addTab(tab_results, "✓  Comprobación y Solución")
+
+        # --- Pestaña 2: Procedimiento de Eliminación por Filas ---
+        tab_stepper = QWidget()
+        tab_stepper_layout = QVBoxLayout(tab_stepper)
+        tab_stepper_layout.setContentsMargins(10, 12, 10, 12)
+        tab_stepper_layout.setSpacing(10)
+
+        steps_title = QLabel("Procedimiento de Gauss-Jordan sobre la Matriz Aumentada [A | b]")
+        steps_title.setStyleSheet(
+            f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+        )
+        tab_stepper_layout.addWidget(steps_title)
+
+        self.stepper = AlgorithmStepperCarousel()
+        self.stepper.setMinimumHeight(340)
+        tab_stepper_layout.addWidget(self.stepper, stretch=1)
+
+        self.results_tabs.addTab(tab_stepper, "📋  Procedimiento Paso a Paso [A | b]")
+
+        root.addWidget(self.results_tabs)
+
+        self.scroll_area.setWidget(content)
+        main_layout.addWidget(self.scroll_area)
 
     def _card(self, title: str, body: QWidget) -> QFrame:
         card = QFrame()
         apply_widget_class(card, "elevated-card")
         layout = QVBoxLayout(card)
         layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
         lbl = QLabel(title)
-        lbl.setStyleSheet(f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        lbl.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -241,8 +383,10 @@ class MatrixEquationsView(QWidget):
                 split_col=None,
                 show_headers=False,
             )
+            self.x_subtitle.setText(f"Solución x ({result.solution.dimension}×1)")
         else:
             self.x_view.clear()
+            self.x_subtitle.setText("Sin solución")
 
         self.dashboard.display_results(result.analysis, verifications)
 
@@ -266,6 +410,7 @@ class MatrixEquationsView(QWidget):
             )
 
     def load_sample(self) -> None:
+        """Caso SCD canónico (3×3 con solución única)."""
         self.grid_a.set_matrix(Matrix([
             [1, 1, 1],
             [2, -1, 1],
@@ -273,6 +418,37 @@ class MatrixEquationsView(QWidget):
         ]))
         self.vec_b.set_vector(Vector([4, 4, 3]))
         self.solve()
+
+    def load_sample_sci(self) -> None:
+        """Caso SCI (infinitas soluciones y variable libre)."""
+        self.grid_a.set_matrix(Matrix([
+            [1, 2, -1],
+            [2, 4, -2],
+        ]))
+        self.vec_b.set_vector(Vector([4, 8]))
+        self.solve()
+
+    def load_sample_si(self) -> None:
+        """Caso SI (sistema incompatible sin solución)."""
+        self.grid_a.set_matrix(Matrix([
+            [1, 1],
+            [1, 1],
+            [2, -1],
+        ]))
+        self.vec_b.set_vector(Vector([2, 5, 1]))
+        self.solve()
+
+    def reset(self) -> None:
+        """Restablece la matriz y el vector al estado inicial."""
+        self.grid_a.set_matrix(Matrix.zeros(3, 3))
+        self.vec_b.set_vector(Vector([0, 0, 0]))
+        self.x_view.clear()
+        self.x_subtitle.setText("Incógnita a resolver")
+        self.stepper.set_steps([])
+        self.dashboard.clear()
+        self.product_label.setText("Resuelve para verificar el producto matricial.")
+        self.results_tabs.setCurrentIndex(0)
+        self._refresh_formula()
 
     def _show_alert(self, title: str, text: str) -> None:
         box = QMessageBox(self)

@@ -123,6 +123,7 @@ def get_global_stylesheet() -> str:
 
     QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
         background-color: {COLOR_SURFACE_ELEVATED};
+        border: 1px solid rgba(152, 193, 217, 0.14);
         border-radius: 8px;
         padding: 12px;
         color: {COLOR_TEXT_PRIMARY};
@@ -373,11 +374,14 @@ def get_global_stylesheet() -> str:
     QTabBar::tab {{
         background: transparent;
         color: {COLOR_INTERACTIVE_IDLE};
-        padding: 10px 18px;
+        padding: 10px 20px;
         border: none;
         border-bottom: 2px solid transparent;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
         font-weight: 600;
         font-size: 15px;
+        font-family: {FONT_FAMILY_SANS};
     }}
     QTabBar::tab:hover {{
         background-color: {COLOR_INTERACTIVE_DISABLED};
@@ -414,19 +418,35 @@ def get_global_stylesheet() -> str:
         min-width: 88px;
     }}
 
+    QToolTip {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 5px;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-family: {FONT_FAMILY_SANS};
+    }}
+
     QScrollBar:vertical, QScrollBar:horizontal {{
         background: {COLOR_BG_BASE};
         border: none;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
+        margin: 0px;
     }}
     QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
         background: {COLOR_SURFACE_ELEVATED};
-        border-radius: 4px;
+        border-radius: 5px;
+        min-height: 24px;
+        min-width: 24px;
+    }}
+    QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{
+        background: {COLOR_INTERACTIVE_IDLE};
     }}
     QScrollBar::add-line, QScrollBar::sub-line {{
         background: none;
-        width: 0;
-        height: 0;
+        width: 0px;
+        height: 0px;
     }}
     """ + get_message_box_stylesheet()

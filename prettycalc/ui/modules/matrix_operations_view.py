@@ -69,8 +69,24 @@ class MatrixOperationsView(QWidget):
         self._refresh_compatibility()
 
     def _setup_ui(self) -> None:
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget { background: transparent; }"
+        )
+        scroll.viewport().setAutoFillBackground(False)
+        scroll.viewport().setStyleSheet("background: transparent;")
+
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        root = QVBoxLayout(content)
+        root.setContentsMargins(4, 4, 10, 16)
         root.setSpacing(12)
 
         toolbar = QHBoxLayout()
@@ -138,6 +154,9 @@ class MatrixOperationsView(QWidget):
         )
         inspector_layout.addWidget(self.inspector_label)
         root.addWidget(inspector_card)
+
+        scroll.setWidget(content)
+        main_layout.addWidget(scroll)
 
     def _build_binary_page(self) -> QWidget:
         page = QWidget()
