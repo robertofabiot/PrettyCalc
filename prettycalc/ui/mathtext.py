@@ -8,6 +8,7 @@ from typing import Optional
 from prettycalc.ui.theme import COLOR_TEXT_PRIMARY, FONT_FAMILY_SANS
 
 _SUBSCRIPTS = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+_SUPERSCRIPTS = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 _LATEX_FRAC = re.compile(r"\\frac\{([^{}]+)\}\{([^{}]+)\}")
 _LATEX_TEXT = re.compile(r"\\text\{([^}]*)\}")
@@ -19,6 +20,11 @@ _X_SUB = re.compile(r"\bx(\d+)\b")
 def to_subscript(value: int | str) -> str:
     """Convierte dígitos a subíndices tipográficos (1 → ₁)."""
     return str(value).translate(_SUBSCRIPTS)
+
+
+def to_superscript(value: int | str) -> str:
+    """Convierte dígitos a superíndices tipográficos (n → ⁿ)."""
+    return str(value).translate(_SUPERSCRIPTS)
 
 
 def variable_symbol(index_0: int) -> str:

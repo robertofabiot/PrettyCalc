@@ -11,6 +11,27 @@ from typing import Sequence, Any, Tuple, List, Union, Optional
 Scalar = Union[Fraction, int, float]
 
 
+class DimensionMismatchError(ValueError):
+    """Dimensiones incompatibles para una operación algebraica.
+
+    El mensaje describe la regla violada (misma dimensión, mismas filas/columnas
+    o conformabilidad del producto) para que la UI y el CLI expliquen el error
+    sin lanzar una excepción genérica.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        left_shape: Optional[Tuple[int, ...]] = None,
+        right_shape: Optional[Tuple[int, ...]] = None,
+        operation: Optional[str] = None,
+    ) -> None:
+        self.left_shape = left_shape
+        self.right_shape = right_shape
+        self.operation = operation
+        super().__init__(message)
+
+
 def parse_scalar(value: Any) -> Fraction:
     """Convierte una entrada numérica o cadena a un objeto Fraction exacto.
 
@@ -343,4 +364,115 @@ class Matrix:
                 str_cells[r][c].rjust(col_widths[c]) for c in range(self._cols)
             )
             lines.append(f"│  {formatted_row}  │")
+        return "\n".join(lines)
+
+
+class Vector:
+    """Vector columna en ℝⁿ sobre el cuerpo de los racionales (`Fraction`).
+
+    Las componentes se almacenan en una lista unidimensional de fracciones
+    exactas. Un vector de dimensión n equivale a una matriz columna n×1,
+    pero el acceso es unidimensional: `v[i]` en lugar de `v[i, 0]`.
+    """
+
+    def __init__(self, components: Sequence[Any]):
+        """Inicializa el vector a partir de una secuencia de escalares.
+
+        Args:
+            components: Enteros, fracciones (`"3/4"`), decimales o `Fraction`.
+
+        Raises:
+            ValueError: Si la secuencia está vacía.
+        """
+        if components is None or len(components) == 0:
+            raise ValueError("No se puede crear un vector vacío (dimensión 0).")
+
+        self._components: List[Fraction] = [parse_scalar(val) for val in components]
+        self._dimension: int = len(self._components)
+
+    @classmethod
+    def zeros(cls, n: int) -> Vector:
+        """Crea el vector nulo de ℝⁿ."""
+        if n <= 0:
+            raise ValueError(f"Dimensión inválida para vector nulo: {n}")
+        return cls([Fraction(0, 1) for _ in range(n)])
+
+    @classmethod
+    def from_column_matrix(cls, matrix: Matrix) -> Vector:
+        """Construye un vector a partir de una matriz columna n×1."""
+        if matrix.cols != 1:
+            raise ValueError(
+                f"Se esperaba una matriz columna n×1, se recibió {matrix.rows}×{matrix.cols}."
+            )
+        return cls(matrix.get_col(0))
+
+    @property
+    def dimension(self) -> int:
+        """Número de componentes (n de ℝⁿ)."""
+        return self._dimension
+
+    @property
+    def components(self) -> List[Fraction]:
+        """Copia de las componentes exactas."""
+        return list(self._components)
+
+    def to_list(self) -> List[Fraction]:
+        """Retorna las componentes como lista de `Fraction`."""
+        return list(self._components)
+
+    def to_column_matrix(self) -> Matrix:
+        """Representación matricial equivalente: columna n×1."""
+        return Matrix([[comp] for comp in self._components])
+
+    def copy(self) -> Vector:
+        """Copia profunda e independiente."""
+        return Vector(list(self._components))
+
+    def to_latex(self) -> str:
+        """Código LaTeX del vector como matriz columna."""
+        lines = ["\\begin{bmatrix}"]
+        for val in self._components:
+            lines.append(f"  {format_scalar(val, mode='latex')} \\\\")
+        lines.append("\\end{bmatrix}")
+        return "\n".join(lines)
+
+    def __len__(self) -> int:
+        return self._dimension
+
+    def __getitem__(self, index: int) -> Fraction:
+        if index < 0 or index >= self._dimension:
+            raise IndexError(
+                f"Índice de componente fuera de rango: {index} (0..{self._dimension - 1})."
+            )
+        return self._components[index]
+
+    def __setitem__(self, index: int, value: Any) -> None:
+        if index < 0 or index >= self._dimension:
+            raise IndexError(
+                f"Índice de componente fuera de rango: {index} (0..{self._dimension - 1})."
+            )
+        self._components[index] = parse_scalar(value)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Vector):
+            return False
+        if self._dimension != other._dimension:
+            return False
+        return self._components == other._components
+
+    def __iter__(self):
+        return iter(self._components)
+
+    def __repr__(self) -> str:
+        inner = ", ".join(
+            f"Fraction({v.numerator}, {v.denominator})" for v in self._components
+        )
+        return f"Vector([{inner}])"
+
+    def __str__(self) -> str:
+        width = max(len(format_scalar(v, mode="fraction")) for v in self._components)
+        lines = [
+            f"│  {format_scalar(v, mode='fraction').rjust(width)}  │"
+            for v in self._components
+        ]
         return "\n".join(lines)

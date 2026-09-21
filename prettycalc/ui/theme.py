@@ -123,6 +123,7 @@ def get_global_stylesheet() -> str:
 
     QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
         background-color: {COLOR_SURFACE_ELEVATED};
+        border: 1px solid rgba(152, 193, 217, 0.14);
         border-radius: 8px;
         padding: 12px;
         color: {COLOR_TEXT_PRIMARY};
@@ -192,6 +193,11 @@ def get_global_stylesheet() -> str:
         background-color: #93C4AE;
         color: {COLOR_BG_BASE};
     }}
+    QPushButton#primaryAction:disabled {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: {COLOR_TEXT_MUTED};
+        border: none;
+    }}
 
     QPushButton#secondaryAction {{
         background-color: transparent;
@@ -225,6 +231,42 @@ def get_global_stylesheet() -> str:
     QPushButton#modeToggle:checked:hover {{
         background-color: #B3D4E6;
         color: {COLOR_BG_BASE};
+    }}
+
+    QWidget#modularNavigationBar {{
+        background: transparent;
+    }}
+    QFrame#navSegmentBar {{
+        background-color: {COLOR_BG_BASE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 8px;
+    }}
+    QPushButton#navSegment {{
+        background-color: transparent;
+        color: {COLOR_INTERACTIVE_IDLE};
+        border: none;
+        border-bottom: 2px solid transparent;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: {FONT_FAMILY_SANS};
+    }}
+    QPushButton#navSegment:hover {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: {COLOR_TEXT_PRIMARY};
+        border: none;
+        border-bottom: 2px solid transparent;
+    }}
+    QPushButton#navSegment:checked {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+        border: none;
+        border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+    QPushButton#navSegment:checked:hover {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
     }}
 
     QMenu {{
@@ -275,6 +317,11 @@ def get_global_stylesheet() -> str:
         qproperty-alignment: AlignCenter;
     }}
 
+    QLineEdit[class="matrix-cell"][highlighted="true"] {{
+        background-color: rgba(129, 178, 154, 0.32);
+        border-bottom: 2px solid {COLOR_FEEDBACK_SUCCESS};
+    }}
+
     QPushButton[class="ghost-cell"] {{
         background-color: rgba(152, 193, 217, 0.08);
         color: {COLOR_INTERACTIVE_IDLE};
@@ -298,19 +345,108 @@ def get_global_stylesheet() -> str:
         width: 8px;
     }}
 
+    QSpinBox, QComboBox {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 15px;
+        font-family: {FONT_FAMILY_SANS};
+        min-height: 28px;
+    }}
+    QSpinBox::up-button, QSpinBox::down-button {{
+        background: {COLOR_SURFACE_ELEVATED};
+        width: 18px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        selection-background-color: {COLOR_SURFACE_ELEVATED};
+    }}
+
+    QTabWidget::pane {{
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 8px;
+        background: {COLOR_BG_BASE};
+        top: -1px;
+    }}
+    QTabBar::tab {{
+        background: transparent;
+        color: {COLOR_INTERACTIVE_IDLE};
+        padding: 10px 20px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        font-weight: 600;
+        font-size: 15px;
+        font-family: {FONT_FAMILY_SANS};
+    }}
+    QTabBar::tab:hover {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: {COLOR_TEXT_PRIMARY};
+    }}
+    QTabBar::tab:selected {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+        border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+
+    QPushButton#opSelect {{
+        min-width: 52px;
+        min-height: 44px;
+        font-size: 22px;
+        font-weight: 700;
+        padding: 8px;
+    }}
+    QPushButton#opSelect:checked {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+    }}
+
+    QLineEdit#scalarField {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-family: {FONT_FAMILY_MONO};
+        font-size: 18px;
+        qproperty-alignment: AlignCenter;
+        min-width: 88px;
+    }}
+
+    QToolTip {{
+        background-color: {COLOR_SURFACE_INNER};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 5px;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-family: {FONT_FAMILY_SANS};
+    }}
+
     QScrollBar:vertical, QScrollBar:horizontal {{
         background: {COLOR_BG_BASE};
         border: none;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
+        margin: 0px;
     }}
     QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
         background: {COLOR_SURFACE_ELEVATED};
-        border-radius: 4px;
+        border-radius: 5px;
+        min-height: 24px;
+        min-width: 24px;
+    }}
+    QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{
+        background: {COLOR_INTERACTIVE_IDLE};
     }}
     QScrollBar::add-line, QScrollBar::sub-line {{
         background: none;
-        width: 0;
-        height: 0;
+        width: 0px;
+        height: 0px;
     }}
     """ + get_message_box_stylesheet()

@@ -6,11 +6,12 @@ from typing import List, Optional, Tuple
 
 try:
     from PySide6.QtWidgets import QWidget, QSizePolicy
-    from PySide6.QtCore import Qt, QRect, QSize, Property, QPropertyAnimation, QEasingCurve
-    from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPaintEvent
+    from PySide6.QtCore import Qt, Signal, QRect, QSize, Property, QPropertyAnimation, QEasingCurve
+    from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPaintEvent, QMouseEvent
 except ImportError:
     QWidget = object  # type: ignore
     Property = lambda *args, **kwargs: None  # type: ignore
+    Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.types import Matrix, format_scalar
 from prettycalc.ui.mathtext import variable_symbol
@@ -20,6 +21,7 @@ from prettycalc.ui.theme import (
     COLOR_INTERACTIVE_IDLE,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_TEXT_MUTED,
+    COLOR_SURFACE_INNER,
     FONT_FAMILY_MONO,
     FONT_FAMILY_SANS,
 )
@@ -121,6 +123,8 @@ def paint_book_scalar(
 class BookMatrixWidget(QWidget):
     """Matriz aumentada pintada como en un libro de álgebra lineal."""
 
+    cellClicked = Signal(int, int)
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._matrix: Optional[Matrix] = None
@@ -131,6 +135,10 @@ class BookMatrixWidget(QWidget):
         self._mode: str = "fraction"
         self._show_headers: bool = True
         self._flash_alpha: float = 0.0
+        self._highlight_row: Optional[int] = None
+        self._highlight_col: Optional[int] = None
+        self._cell_rects: List[List[QRect]] = []
+        self._clickable: bool = False
         self._flash = QPropertyAnimation(self, b"flashAlpha", self)
         self._flash.setDuration(600)
         self._flash.setStartValue(0.0)
@@ -159,6 +167,10 @@ class BookMatrixWidget(QWidget):
         actor_row: Optional[int] = None,
         affected_rows: Tuple[int, ...] = (),
         animate: bool = False,
+        highlight_row: Optional[int] = None,
+        highlight_col: Optional[int] = None,
+        clickable: Optional[bool] = None,
+        show_headers: Optional[bool] = None,
     ) -> None:
         self._matrix = matrix
         self._split_col = split_col
@@ -166,6 +178,13 @@ class BookMatrixWidget(QWidget):
         self._mode = mode
         self._actor_row = actor_row
         self._affected_rows = affected_rows
+        self._highlight_row = highlight_row
+        self._highlight_col = highlight_col
+        if clickable is not None:
+            self._clickable = clickable
+        if show_headers is not None:
+            self._show_headers = show_headers
+        self.setCursor(Qt.PointingHandCursor if self._clickable and matrix is not None else Qt.ArrowCursor)
         self.update()
         self.updateGeometry()
         if animate and affected_rows:
@@ -184,6 +203,7 @@ class BookMatrixWidget(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.fillRect(self.rect(), QColor(COLOR_SURFACE_INNER))
 
         if self._matrix is None:
             painter.setPen(QColor(COLOR_TEXT_MUTED))
@@ -316,12 +336,19 @@ class BookMatrixWidget(QWidget):
 
         pivot_r, pivot_c = self._pivot if self._pivot is not None else (-1, -1)
         painter.setFont(mono)
+        self._cell_rects = []
 
         for r in range(rows):
             y = content_top + r * row_h
             row_band = QRect(bracket_rect.left() + 4, y, bracket_rect.width() - 8, row_h)
             is_actor = self._actor_row is not None and r == self._actor_row
             is_affected = r in self._affected_rows
+            is_hl_row = self._highlight_row is not None and r == self._highlight_row
+
+            if is_hl_row:
+                wash = QColor(COLOR_INTERACTIVE_IDLE)
+                wash.setAlphaF(0.18)
+                painter.fillRect(row_band, wash)
 
             if is_affected:
                 if self._flash_alpha > 0:
@@ -338,9 +365,16 @@ class BookMatrixWidget(QWidget):
                     QColor(COLOR_INTERACTIVE_IDLE),
                 )
 
+            row_rects: List[QRect] = []
             for c in range(cols):
                 x = col_left(c)
                 cell = QRect(x, y, col_widths[c], row_h)
+                row_rects.append(cell)
+
+                if self._highlight_col is not None and c == self._highlight_col:
+                    col_wash = QColor(COLOR_INTERACTIVE_IDLE)
+                    col_wash.setAlphaF(0.16)
+                    painter.fillRect(cell, col_wash)
 
                 if r == pivot_r and c == pivot_c:
                     painter.save()
@@ -355,3 +389,17 @@ class BookMatrixWidget(QWidget):
                     fg = QColor(COLOR_TEXT_PRIMARY)
 
                 paint_book_scalar(painter, cell, texts[r][c], fg, mono)
+            self._cell_rects.append(row_rects)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if self._clickable and self._matrix is not None:
+            pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+            for r, row_rects in enumerate(self._cell_rects):
+                for c, rect in enumerate(row_rects):
+                    if rect.contains(pos):
+                        self.cellClicked.emit(r, c)
+                        self._highlight_row = r
+                        self._highlight_col = c
+                        self.update()
+                        return
+        super().mousePressEvent(event)

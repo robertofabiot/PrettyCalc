@@ -9,44 +9,45 @@ try:
         QWidget,
         QVBoxLayout,
         QHBoxLayout,
-        QPushButton,
         QLabel,
-        QMessageBox,
-        QSplitter,
-        QFrame,
         QApplication,
-        QSpacerItem,
-        QSizePolicy,
+        QStackedWidget,
     )
+    from PySide6.QtGui import QAction, QKeySequence
     from PySide6.QtCore import Qt
 except ImportError:
     QMainWindow = object  # type: ignore
 
-from prettycalc.core.types import Matrix
-from prettycalc.core.elimination import gauss_jordan_elimination
-from prettycalc.core.classifier import classify_system, SystemType
-from prettycalc.core.verifier import SolutionVerifier
-from prettycalc.ui.matrix_grid import DynamicMatrixGrid
-from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
-from prettycalc.ui.results_dashboard import ResultsDashboardCard
+from prettycalc.ui.modules.linear_systems_view import LinearSystemsView
+from prettycalc.ui.modules.matrix_operations_view import MatrixOperationsView
+from prettycalc.ui.modules.vectors_view import VectorsView
+from prettycalc.ui.modules.matrix_equations_view import MatrixEquationsView
+from prettycalc.ui.navigation_bar import ModularNavigationBar
 from prettycalc.ui.theme import (
     get_global_stylesheet,
-    apply_message_box_theme,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
-    apply_widget_class,
+)
+
+_MODULE_SUBTITLES = (
+    "Sistemas de ecuaciones lineales  ·  eliminación por filas",
+    "Álgebra matricial  ·  suma, escala y producto A · B",
+    "Vectores en ℝⁿ  ·  operaciones y combinación lineal",
+    "Ecuaciones matriciales  ·  A x = b",
 )
 
 
 class MainWindow(QMainWindow):
-    """Ventana principal: cuadrícula, carrusel de pasos y dashboard."""
+    """Shell multi-módulo: navegación segmentada y cuatro vistas persistentes."""
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PrettyCalc — Álgebra lineal")
-        self.resize(1320, 780)
+        self.setMinimumSize(1080, 680)
+        self.resize(1380, 800)
         self.setStyleSheet(get_global_stylesheet())
         self._setup_ui()
+        self._setup_shortcuts()
 
     def _setup_ui(self) -> None:
         root_widget = QWidget()
@@ -58,7 +59,7 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(14)
 
         header_layout = QHBoxLayout()
-        header_layout.setSpacing(12)
+        header_layout.setSpacing(16)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
@@ -66,188 +67,84 @@ class MainWindow(QMainWindow):
         title_lbl.setStyleSheet(
             f"font-size: 28px; font-weight: 600; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.02em;"
         )
-        sub_lbl = QLabel("Sistemas de ecuaciones lineales  ·  eliminación por filas")
-        sub_lbl.setStyleSheet(f"font-size: 17px; color: {COLOR_INTERACTIVE_IDLE};")
+        self.subtitle_lbl = QLabel(_MODULE_SUBTITLES[0])
+        self.subtitle_lbl.setStyleSheet(f"font-size: 15px; color: {COLOR_INTERACTIVE_IDLE};")
         title_box.addWidget(title_lbl)
-        title_box.addWidget(sub_lbl)
-        header_layout.addLayout(title_box, stretch=1)
+        title_box.addWidget(self.subtitle_lbl)
+        header_layout.addLayout(title_box)
+
+        self.nav_bar = ModularNavigationBar()
+        self.nav_bar.module_changed.connect(self._on_module_changed)
+        header_layout.addWidget(self.nav_bar, stretch=1, alignment=Qt.AlignVCenter)
         main_layout.addLayout(header_layout)
 
-        body_splitter = QSplitter(Qt.Horizontal)
-        body_splitter.setHandleWidth(10)
-        body_splitter.setChildrenCollapsible(False)
+        self.module_stack = QStackedWidget()
+        self.linear_systems_view = LinearSystemsView()
+        self.matrix_operations_view = MatrixOperationsView()
+        self.vectors_view = VectorsView()
+        self.matrix_equations_view = MatrixEquationsView()
+        self.module_stack.addWidget(self.linear_systems_view)
+        self.module_stack.addWidget(self.matrix_operations_view)
+        self.module_stack.addWidget(self.vectors_view)
+        self.module_stack.addWidget(self.matrix_equations_view)
+        main_layout.addWidget(self.module_stack, stretch=1)
 
-        left_pane = QWidget()
-        left_layout = QVBoxLayout(left_pane)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(8)
+    def _setup_shortcuts(self) -> None:
+        for index in range(4):
+            action = QAction(self)
+            action.setShortcut(QKeySequence(f"Ctrl+{index + 1}"))
+            action.triggered.connect(lambda _checked=False, i=index: self.set_module(i))
+            self.addAction(action)
 
-        matrix_card = QFrame()
-        apply_widget_class(matrix_card, "elevated-card")
-        card_layout = QVBoxLayout(matrix_card)
-        card_layout.setContentsMargins(16, 14, 16, 14)
-        card_layout.setSpacing(12)
+    def set_module(self, index: int) -> None:
+        """Conmuta el módulo visible y sincroniza la barra de navegación."""
+        self.nav_bar.set_current_index(index, emit=False)
+        self._on_module_changed(index)
 
-        grid_title = QLabel("Matriz aumentada  [A | b]")
-        grid_title.setStyleSheet(
-            f"font-size: 19px; font-weight: 600; letter-spacing: 0.03em; color: {COLOR_TEXT_PRIMARY};"
-        )
-        card_layout.addWidget(grid_title)
+    def _on_module_changed(self, index: int) -> None:
+        if index < 0 or index >= self.module_stack.count():
+            return
+        self.module_stack.setCurrentIndex(index)
+        if 0 <= index < len(_MODULE_SUBTITLES):
+            self.subtitle_lbl.setText(_MODULE_SUBTITLES[index])
 
-        self.matrix_grid = DynamicMatrixGrid(initial_rows=2, initial_cols=2)
-        card_layout.addWidget(self.matrix_grid, stretch=1)
+    @property
+    def matrix_grid(self):
+        return self.linear_systems_view.matrix_grid
 
-        actions = QHBoxLayout()
-        actions.setSpacing(10)
-        actions.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
+    @property
+    def solve_btn(self):
+        return self.linear_systems_view.solve_btn
 
-        self.reset_btn = QPushButton("Reiniciar")
-        self.reset_btn.setObjectName("secondaryAction")
-        self.reset_btn.clicked.connect(self.reset_matrix)
-        actions.addWidget(self.reset_btn)
+    @property
+    def reset_btn(self):
+        return self.linear_systems_view.reset_btn
 
-        self.solve_btn = QPushButton("Resolver sistema")
-        self.solve_btn.setObjectName("primaryAction")
-        self.solve_btn.clicked.connect(self.solve_system)
-        actions.addWidget(self.solve_btn)
+    @property
+    def dashboard_card(self):
+        return self.linear_systems_view.dashboard_card
 
-        card_layout.addLayout(actions)
-        left_layout.addWidget(matrix_card, stretch=1)
-
-        samples_box = QFrame()
-        apply_widget_class(samples_box, "elevated-card")
-        samples_layout = QVBoxLayout(samples_box)
-        samples_layout.setContentsMargins(10, 10, 10, 10)
-        samples_layout.setSpacing(6)
-
-        samples_lbl = QLabel("Casos de prueba")
-        samples_lbl.setStyleSheet(
-            f"font-size: 16px; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.03em;"
-        )
-        samples_layout.addWidget(samples_lbl)
-
-        btn_case1 = QPushButton("I  ·  Solución única")
-        btn_case1.clicked.connect(self.load_sample_case1)
-        samples_layout.addWidget(btn_case1)
-
-        btn_case2 = QPushButton("II  ·  Infinitas soluciones")
-        btn_case2.clicked.connect(self.load_sample_case2)
-        samples_layout.addWidget(btn_case2)
-
-        btn_case3 = QPushButton("III  ·  Sin solución")
-        btn_case3.clicked.connect(self.load_sample_case3)
-        samples_layout.addWidget(btn_case3)
-
-        left_layout.addWidget(samples_box)
-        body_splitter.addWidget(left_pane)
-
-        center_pane = QWidget()
-        center_layout = QVBoxLayout(center_pane)
-        center_layout.setContentsMargins(0, 0, 0, 0)
-        center_layout.setSpacing(8)
-
-        steps_title = QLabel("Procedimiento")
-        steps_title.setStyleSheet(
-            f"font-size: 19px; font-weight: 600; letter-spacing: 0.03em; color: {COLOR_TEXT_PRIMARY};"
-        )
-        center_layout.addWidget(steps_title)
-
-        self.stepper_carousel = AlgorithmStepperCarousel()
-        center_layout.addWidget(self.stepper_carousel, stretch=1)
-        body_splitter.addWidget(center_pane)
-
-        right_pane = QWidget()
-        right_layout = QVBoxLayout(right_pane)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(0)
-        self.dashboard_card = ResultsDashboardCard()
-        right_layout.addWidget(self.dashboard_card)
-        body_splitter.addWidget(right_pane)
-
-        body_splitter.setSizes([360, 540, 380])
-        body_splitter.setStretchFactor(0, 2)
-        body_splitter.setStretchFactor(1, 4)
-        body_splitter.setStretchFactor(2, 2)
-        main_layout.addWidget(body_splitter, stretch=1)
-
-    def _show_alert(self, icon: QMessageBox.Icon, title: str, text: str) -> None:
-        box = QMessageBox(self)
-        box.setIcon(icon)
-        box.setWindowTitle(title)
-        box.setText(text)
-        box.setStandardButtons(QMessageBox.Ok)
-        box.setDefaultButton(QMessageBox.Ok)
-        apply_message_box_theme(box)
-        box.exec()
+    @property
+    def stepper_carousel(self):
+        return self.linear_systems_view.stepper_carousel
 
     def solve_system(self) -> None:
-        """Ejecuta escalonamiento, clasificación y verificación."""
-        if not self.matrix_grid.is_all_valid():
-            self._show_alert(
-                QMessageBox.Warning,
-                "Entrada inválida",
-                "Corrige las celdas marcadas. Se admiten enteros, fracciones (a/b) y decimales.",
-            )
-            return
-
-        try:
-            augmented_mat = self.matrix_grid.get_matrix()
-            split_col = augmented_mat.cols - 1
-
-            _, tracer = gauss_jordan_elimination(augmented_mat, split_col=split_col)
-            self.stepper_carousel.set_steps(tracer.get_steps())
-
-            analysis = classify_system(augmented_mat, split_col=split_col)
-
-            verifications = None
-            if analysis.unique_solution is not None:
-                verifications = SolutionVerifier.verify(
-                    augmented_mat, analysis.unique_solution, split_col=split_col
-                )
-
-            self.dashboard_card.display_results(analysis, verifications)
-
-        except Exception as e:
-            self._show_alert(
-                QMessageBox.Critical,
-                "Error matemático",
-                f"No se pudo resolver el sistema:\n{e}",
-            )
+        self.linear_systems_view.solve_system()
 
     def reset_matrix(self) -> None:
-        """Restablece la cuadrícula a un estado 2×2 inicial."""
-        self.matrix_grid.set_matrix(Matrix.zeros(2, 3))
-        self.stepper_carousel.set_steps([])
-        self.dashboard_card.clear()
+        self.linear_systems_view.reset_matrix()
 
     def load_sample_case1(self) -> None:
-        """Caso I: solución única."""
-        mat = Matrix([
-            [1, 1, 1, 4],
-            [2, -1, 1, 4],
-            [1, 2, -1, 3],
-        ])
-        self.matrix_grid.set_matrix(mat)
-        self.solve_system()
+        self.set_module(0)
+        self.linear_systems_view.load_sample_case1()
 
     def load_sample_case2(self) -> None:
-        """Caso II: infinitas soluciones."""
-        mat = Matrix([
-            [1, 2, 3, 6],
-            [2, 4, 6, 12],
-            [3, 6, 9, 18],
-        ])
-        self.matrix_grid.set_matrix(mat)
-        self.solve_system()
+        self.set_module(0)
+        self.linear_systems_view.load_sample_case2()
 
     def load_sample_case3(self) -> None:
-        """Caso III: sistema sin solución."""
-        mat = Matrix([
-            [1, 2, 4],
-            [2, 4, 9],
-        ])
-        self.matrix_grid.set_matrix(mat)
-        self.solve_system()
+        self.set_module(0)
+        self.linear_systems_view.load_sample_case3()
 
 
 def run_app():
