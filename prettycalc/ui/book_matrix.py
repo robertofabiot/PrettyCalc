@@ -285,16 +285,36 @@ class BookMatrixWidget(QWidget):
 
         # Encabezados
         if self._show_headers:
-            painter.setFont(header_font)
+            sub_font = QFont(header_font)
+            sub_font.setPointSize(max(7, int(header_font.pointSize() * 0.68)))
+            sub_font.setItalic(False)
+            sub_fm = QFontMetrics(sub_font)
             painter.setPen(QColor(COLOR_INTERACTIVE_IDLE))
+
             for c in range(cols):
-                label = variable_symbol(c) if split is None or c < split else "b"
                 hx = col_left(c)
-                painter.drawText(
-                    QRect(hx, origin_y, col_widths[c], header_h),
-                    Qt.AlignCenter,
-                    label,
-                )
+                if split is not None and c >= split:
+                    painter.setFont(header_font)
+                    painter.drawText(
+                        QRect(hx, origin_y, col_widths[c], header_h),
+                        Qt.AlignCenter,
+                        "b",
+                    )
+                else:
+                    sub_str = str(c + 1)
+                    w_x = header_fm.horizontalAdvance("x")
+                    w_sub = sub_fm.horizontalAdvance(sub_str)
+                    gap = 1
+                    total_hdr_w = w_x + gap + w_sub
+                    start_x = hx + (col_widths[c] - total_hdr_w) // 2
+
+                    base_y = origin_y + (header_h + header_fm.ascent() - header_fm.descent()) // 2
+                    painter.setFont(header_font)
+                    painter.drawText(start_x, base_y, "x")
+
+                    painter.setFont(sub_font)
+                    sub_y = base_y + max(2, int(header_fm.ascent() * 0.32))
+                    painter.drawText(start_x + w_x + gap, sub_y, sub_str)
 
         bracket_rect = QRect(
             origin_x,

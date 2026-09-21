@@ -265,3 +265,21 @@ def test_invalid_input_dialog_is_readable(qtbot):
     fg = QColor(captured.get("label") or COLOR_TEXT_PRIMARY)
     assert bg.lightness() < 140
     assert fg.lightness() > 180
+
+
+def test_results_dashboard_shows_pivots_and_variables(qtbot):
+    """El dashboard muestra explícitamente columnas con pivote, variables básicas y libres."""
+    from PySide6.QtWidgets import QLabel
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_sample_case2()  # Infinitas soluciones
+
+    labels = [lbl.text() for lbl in window.dashboard_card.findChildren(QLabel)]
+    full_text = " ".join(labels)
+
+    assert "Columnas con pivote" in full_text
+    assert "Variables básicas" in full_text
+    assert "Variables libres" in full_text
+    assert "<sub" in full_text
+    assert "libre" in full_text
