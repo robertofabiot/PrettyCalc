@@ -150,15 +150,9 @@ class VectorsView(QWidget):
         scroll = QScrollArea(container)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
         scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
 
         page = QWidget()
-        page.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(page)
         layout.setContentsMargins(4, 4, 10, 16)
         layout.setSpacing(10)
@@ -252,15 +246,9 @@ class VectorsView(QWidget):
         scroll = QScrollArea(container)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
         scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
 
         page = QWidget()
-        page.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(page)
         layout.setContentsMargins(4, 4, 10, 16)
         layout.setSpacing(10)

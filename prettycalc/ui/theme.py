@@ -449,4 +449,12 @@ def get_global_stylesheet() -> str:
         width: 0px;
         height: 0px;
     }}
+
+    QScrollArea {{
+        background: transparent;
+        border: none;
+    }}
+    QScrollArea > QWidget > QWidget {{
+        background: transparent;
+    }}
     """ + get_message_box_stylesheet()

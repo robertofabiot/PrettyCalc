@@ -64,15 +64,9 @@ class MatrixEquationsView(QWidget):
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.NoFrame)
-        self.scroll_area.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
         self.scroll_area.viewport().setAutoFillBackground(False)
-        self.scroll_area.viewport().setStyleSheet("background: transparent;")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
         root = QVBoxLayout(content)
         root.setContentsMargins(4, 4, 10, 16)
         root.setSpacing(14)
@@ -127,6 +121,13 @@ class MatrixEquationsView(QWidget):
         reset_btn.setCursor(Qt.PointingHandCursor)
         reset_btn.clicked.connect(self.reset)
         samples_row.addWidget(reset_btn)
+
+        self.header_solve_btn = QPushButton("▶  Resolver A · x = b")
+        self.header_solve_btn.setObjectName("primaryAction")
+        self.header_solve_btn.setToolTip("Resolver la ecuación matricial actual")
+        self.header_solve_btn.setCursor(Qt.PointingHandCursor)
+        self.header_solve_btn.clicked.connect(self.solve)
+        samples_row.addWidget(self.header_solve_btn)
 
         header_layout.addLayout(samples_row)
         root.addWidget(header_card)
@@ -303,12 +304,7 @@ class MatrixEquationsView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
         scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         scroll.setWidget(body)
         layout.addWidget(scroll, stretch=1)
@@ -333,6 +329,8 @@ class MatrixEquationsView(QWidget):
                 "font-weight: 600; padding: 10px 14px; border-radius: 6px;"
             )
             self.solve_btn.setEnabled(False)
+            if hasattr(self, "header_solve_btn"):
+                self.header_solve_btn.setEnabled(False)
             return
         if m != b_dim:
             self.badge.setText(
@@ -344,6 +342,8 @@ class MatrixEquationsView(QWidget):
                 "font-weight: 600; padding: 10px 14px; border-radius: 6px;"
             )
             self.solve_btn.setEnabled(False)
+            if hasattr(self, "header_solve_btn"):
+                self.header_solve_btn.setEnabled(False)
             return
         self.badge.setText(
             f"✓ Ecuación conformable: A ({m}×{n}) · x ({n}×1) = b ({m}×1)"
@@ -353,6 +353,8 @@ class MatrixEquationsView(QWidget):
             "font-weight: 600; padding: 10px 14px; border-radius: 6px;"
         )
         self.solve_btn.setEnabled(ok)
+        if hasattr(self, "header_solve_btn"):
+            self.header_solve_btn.setEnabled(ok)
 
     def solve(self) -> None:
         if not self.grid_a.is_all_valid() or not self.vec_b.is_valid():

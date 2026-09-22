@@ -76,15 +76,9 @@ class MatrixOperationsView(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
         scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
         root = QVBoxLayout(content)
         root.setContentsMargins(4, 4, 10, 16)
         root.setSpacing(12)
@@ -265,12 +259,7 @@ class MatrixOperationsView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
         scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         scroll.setWidget(body)
         layout.addWidget(scroll, stretch=1)
