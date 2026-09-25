@@ -32,6 +32,14 @@ from prettycalc.core.matrix_equations import (
     solve_matrix_equation,
     format_equation_summary,
 )
+from prettycalc.core.matrix_vector_ops import (
+    matrix_vector_multiply,
+    matrix_vector_multiply_with_details,
+    DistributivePropertyResult,
+    verify_distributive_property,
+    HomogeneityPropertyResult,
+    verify_homogeneity_property,
+)
 from prettycalc.core.operations import (
     swap_rows,
     scale_row,
@@ -73,6 +81,12 @@ __all__ = [
     "matrix_multiply",
     "matrix_multiply_with_details",
     "MultiplicationStepDetail",
+    "matrix_vector_multiply",
+    "matrix_vector_multiply_with_details",
+    "DistributivePropertyResult",
+    "verify_distributive_property",
+    "HomogeneityPropertyResult",
+    "verify_homogeneity_property",
     "LinearCombinationResult",
     "evaluate_linear_combination",
     "format_combination_equation",
@@ -96,3 +110,4 @@ __all__ = [
     "EquationVerification",
     "SolutionVerifier",
 ]
+

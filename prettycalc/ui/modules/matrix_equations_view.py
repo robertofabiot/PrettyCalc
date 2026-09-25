@@ -28,8 +28,10 @@ from prettycalc.core.verifier import SolutionVerifier
 from prettycalc.ui.mathtext import to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
+from prettycalc.ui.modules.matrix_vector_properties_view import MatrixVectorPropertiesView
 from prettycalc.ui.modules.vectors_view import VectorColumnEditor
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
+
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
@@ -290,7 +292,14 @@ class MatrixEquationsView(QWidget):
         root.addWidget(self.results_tabs)
 
         self.scroll_area.setWidget(content)
-        main_layout.addWidget(self.scroll_area)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.scroll_area, "Ecuación  A · x = b")
+        self.properties_view = MatrixVectorPropertiesView()
+        self.tabs.addTab(self.properties_view, "Propiedades del Producto  A · x")
+        self.main_tabs = self.tabs
+        main_layout.addWidget(self.tabs)
+
 
     def _card(self, title: str, body: QWidget) -> QFrame:
         card = QFrame()
