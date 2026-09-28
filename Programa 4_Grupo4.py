@@ -485,64 +485,100 @@ def display_results(results: dict, vectors: List[List[Fraction]]) -> None:
 # Interfaz de Consola Interactiva (CLI)
 # ------------------------------------------------------------------------------
 
+def mostrar_teoremas_modulo() -> None:
+    """Despliega los teoremas y propiedades analizadas en clase para este módulo."""
+
+    print("\n" + "=" * 65)
+    print(" 📖 TEOREMAS CLAVE — VECTORES E INDEPENDENCIA LINEAL")
+    print("=" * 65)
+    print("""
+1. DEFINICIÓN FUNDAMENTAL DE INDEPENDENCIA LINEAL (L.I.):
+   Un conjunto de k vectores {v₁, v₂, ..., vₖ} en ℝⁿ es L.I. si y solo si
+   la única solución a la ecuación vectorial homogénea:
+       c₁·v₁ + c₂·v₂ + ... + cₖ·vₖ = 0
+   es la SOLUCIÓN TRIVIAL (c₁ = c₂ = ... = cₖ = 0).
+
+2. DEFINICIÓN DE DEPENDENCIA LINEAL (L.D.):
+   El conjunto es L.D. si existen escalares no todos nulos tales que
+   c₁·v₁ + ... + cₖ·vₖ = 0. Al menos un vector es combinación lineal
+   de los demás.
+
+3. CONEXIÓN CON LA FORMA ESCALONADA POR FILAS (REF) DE A·c = 0:
+   Siendo A = [ v₁  v₂ ... vₖ ] (matriz de n × k):
+   • Si número de pivotes r = k: Cero variables libres.
+     → Solución única (trivial) → LINEALMENTE INDEPENDIENTE (L.I.).
+   • Si número de pivotes r < k: Existen (k - r) variables libres.
+     → Infinitas soluciones no triviales → LINEALMENTE DEPENDIENTE (L.D.).
+
+4. TEOREMA DE LA DIMENSIÓN (k > n):
+   Cualquier conjunto de k vectores en ℝⁿ con k > n es necesariamente L.D.,
+   pues en n filas el número máximo de pivotes es r ≤ n < k.
+
+5. TEOREMA DEL VECTOR NULO:
+   Cualquier conjunto de vectores que contenga al vector cero 0 es L.D.
+""")
+    print("=" * 65)
+
+
 def linear_independence_cli():
-    """Función principal interactiva para evaluar independencia lineal en consola."""
-    print("=" * 75)
-    print(" UNIVERSIDAD AMERICANA (UAM) - FIA | ÁLGEBRA LINEAL (MTM0120) - GRUPO 4    ")
-    print(" EVALUADOR DE INDEPENDENCIA Y DEPENDENCIA LINEAL EN ℝⁿ (PROGRAMA 4)        ")
-    print("=" * 75)
-    print("Este programa determina si un conjunto de k vectores en ℝⁿ es L.I. o L.D.")
-    print("reduciendo la matriz de columnas a su Forma Escalonada por Filas (REF).")
-    print("Cumple con la restricción de 100% Python estándar (sin librerías externas).\n")
-
+    """Función principal interactiva con Logotipo ASCII requerido y opción de teoremas."""
     while True:
-        # 1. Solicitar cantidad de vectores (k) y dimensión (n)
-        print("-" * 75)
-        print("PASO 1: Dimensiones del Problema")
-        print("-" * 75)
-        k = read_positive_int("Ingrese la cantidad de vectores (k): ")
-        n = read_positive_int("Ingrese la dimensión del espacio (n para ℝⁿ): ")
+        print("\n" + "=" * 54)
+        print(" MÓDULO: VECTORES E INDEPENDENCIA LINEAL")
+        print(" Combinaciones Lineales, L.I. y L.D.")
+        print(" 𝐴 𝑥 = 0")
+        print("=" * 54)
+        print(" 0. Ver Teoremas Clave del Módulo")
+        print(" 1. Evaluar Independencia / Dependencia Lineal (L.I. o L.D.) en ℝⁿ")
+        print(" 2. Salir")
+        print("=" * 54)
 
-        # Alerta pedagógica preliminar si k > n
-        if k > n:
-            print(f"\n💡 [Observación Teórica Preliminar]: Ha ingresado k = {k} vectores en ℝ^{n}.")
-            print(f"   Por teorema fundamental, como k ({k}) > n ({n}), el conjunto será")
-            print("   necesariamente Linealmente Dependiente (L.D.). Se verificará por reducción.\n")
+        opc = input("Seleccione una opción (0-2): ").strip()
 
-        # 2. Solicitar las componentes de cada vector
-        print("\n" + "-" * 75)
-        print("PASO 2: Ingreso de Vectores Columna")
-        print("(Puede ingresar enteros, fracciones como '3/4' o decimales como '0.5')")
-        print("-" * 75)
+        if opc == "0":
+            mostrar_teoremas_modulo()
+            input("\nPresione ENTER para continuar...")
+        elif opc == "1":
+            print("\n" + "-" * 75)
+            print("PASO 1: Dimensiones del Problema")
+            print("-" * 75)
+            k = read_positive_int("Ingrese la cantidad de vectores (k): ")
+            n = read_positive_int("Ingrese la dimensión del espacio (n para ℝⁿ): ")
 
-        vectors: List[List[Fraction]] = []
-        for j in range(k):
-            print(f"\n>> Vector v_{j+1} ∈ ℝ^{n}:")
-            v: List[Fraction] = []
-            for i in range(n):
-                val = read_scalar(f"   Componente v_{j+1}[{i+1}]: ")
-                v.append(val)
-            vectors.append(v)
+            if k > n:
+                print(f"\n💡 [Observación Teórica Preliminar]: Ha ingresado k = {k} vectores en ℝ^{n}.")
+                print(f"   Por teorema fundamental, como k ({k}) > n ({n}), el conjunto será")
+                print("   necesariamente Linealmente Dependiente (L.D.). Se verificará por reducción.\n")
 
-        # 3. Mostrar conjunto de vectores ingresado
-        print_vector_set(vectors, dim_n=n)
+            print("\n" + "-" * 75)
+            print("PASO 2: Ingreso de Vectores Columna")
+            print("(Puede ingresar enteros, fracciones como '3/4' o decimales como '0.5')")
+            print("-" * 75)
 
-        # 4. Procesamiento, reducción por filas y diagnóstico
-        print("\n" + "-" * 75)
-        print("PASO 3: Construcción del Sistema Homogéneo A·c = 0 y Reducción por Filas")
-        print("-" * 75)
+            vectors: List[List[Fraction]] = []
+            for j in range(k):
+                print(f"\n>> Vector v_{j+1} ∈ ℝ^{n}:")
+                v: List[Fraction] = []
+                for i in range(n):
+                    val = read_scalar(f"   Componente v_{j+1}[{i+1}]: ")
+                    v.append(val)
+                vectors.append(v)
 
-        results = evaluate_linear_independence(vectors, dim_n=n, verbose=True)
+            print_vector_set(vectors, dim_n=n)
 
-        # 5. Salida de resultados
-        display_results(results, vectors)
+            print("\n" + "-" * 75)
+            print("PASO 3: Construcción del Sistema Homogéneo A·c = 0 y Reducción por Filas")
+            print("-" * 75)
 
-        # Opción de repetir
-        print("\n" + "=" * 75)
-        again = input("¿Desea evaluar otro conjunto de vectores? (s/n): ").strip().lower()
-        if again not in ("s", "si", "sí", "y", "yes"):
+            results = evaluate_linear_independence(vectors, dim_n=n, verbose=True)
+            display_results(results, vectors)
+            input("\nPresione ENTER para continuar...")
+        elif opc == "2":
             print("\n¡Gracias por utilizar PrettyCalc - Álgebra Lineal Grupo 4! Sesión finalizada.\n")
             break
+        else:
+            print("   ⚠️  Opción no válida. Ingrese 0, 1 o 2.")
+
 
 
 if __name__ == "__main__":
