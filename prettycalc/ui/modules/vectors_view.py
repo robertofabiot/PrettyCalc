@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import List, Optional
 
 try:
@@ -28,6 +29,10 @@ except ImportError:
 
 from prettycalc.core.classifier import SystemType
 from prettycalc.core.linear_combination import evaluate_linear_combination, format_combination_equation
+from prettycalc.core.linear_independence import (
+    LinearIndependenceResult,
+    evaluate_linear_independence,
+)
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar, parse_scalar
 from prettycalc.core.vector_ops import vector_add, vector_scale, vector_sub
 from prettycalc.ui.mathtext import to_superscript
@@ -130,6 +135,8 @@ class VectorsView(QWidget):
         super().__init__(parent)
         self.setObjectName("vectorsView")
         self._combo_editors: List[VectorColumnEditor] = []
+        self._indep_editors: List[VectorColumnEditor] = []
+        self._last_indep_result: Optional[LinearIndependenceResult] = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -138,6 +145,7 @@ class VectorsView(QWidget):
         tabs = QTabWidget()
         tabs.addTab(self._build_basic_tab(), "Operaciones básicas")
         tabs.addTab(self._build_combination_tab(), "Combinación lineal")
+        tabs.addTab(self._build_independence_tab(), "Independencia lineal")
         root.addWidget(tabs)
         self.tabs = tabs
 
@@ -538,3 +546,291 @@ class VectorsView(QWidget):
         box.setText(text)
         apply_message_box_theme(box)
         box.exec()
+
+    # --------------------------------------------------------------------------
+    # Subpestaña 3: Independencia y Dependencia Lineal en ℝⁿ
+    # --------------------------------------------------------------------------
+
+    def _build_independence_tab(self) -> QWidget:
+        container = QWidget()
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        scroll = QScrollArea(container)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.viewport().setAutoFillBackground(False)
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(4, 4, 10, 16)
+        layout.setSpacing(10)
+
+        # Barra superior con dimensión y presets de ejemplo
+        top = QHBoxLayout()
+        dim_lbl = QLabel("Espacio ℝⁿ   n =")
+        dim_lbl.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px;")
+        self.indep_dim = QSpinBox()
+        self.indep_dim.setRange(1, 10)
+        self.indep_dim.setValue(3)
+        self.indep_dim.valueChanged.connect(self._on_indep_dimension)
+        top.addWidget(dim_lbl)
+        top.addWidget(self.indep_dim)
+        top.addStretch(1)
+
+        sample_li = QPushButton("Ejemplo L.I.")
+        sample_li.clicked.connect(self.load_independence_li_sample)
+        sample_ld = QPushButton("Ejemplo L.D.")
+        sample_ld.clicked.connect(self.load_independence_ld_sample)
+        sample_dim = QPushButton("Ejemplo k > n (L.D.)")
+        sample_dim.clicked.connect(self.load_independence_dim_sample)
+        theorems_btn = QPushButton("Teoremas clave")
+        theorems_btn.clicked.connect(self.show_theorems_dialog)
+
+        top.addWidget(sample_li)
+        top.addWidget(sample_ld)
+        top.addWidget(sample_dim)
+        top.addWidget(theorems_btn)
+        layout.addLayout(top)
+
+        # Editores de vectores
+        generators = QFrame()
+        apply_widget_class(generators, "elevated-card")
+        gen_layout = QVBoxLayout(generators)
+        gen_title = QLabel("Conjunto de vectores {v₁, …, vₖ}")
+        gen_title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        gen_layout.addWidget(gen_title)
+
+        self.indep_list_host = QWidget()
+        self.indep_list_layout = QHBoxLayout(self.indep_list_host)
+        self.indep_list_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_gen = QScrollArea()
+        scroll_gen.setWidgetResizable(True)
+        scroll_gen.setFrameShape(QFrame.NoFrame)
+        scroll_gen.setWidget(self.indep_list_host)
+        gen_layout.addWidget(scroll_gen, stretch=1)
+
+        add_btn = QPushButton("+  Agregar vector")
+        add_btn.setObjectName("secondaryAction")
+        add_btn.clicked.connect(self._add_indep_vector)
+        gen_layout.addWidget(add_btn)
+        layout.addWidget(generators, stretch=2)
+
+        # Acciones
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        self.indep_btn = QPushButton("Evaluar Independencia Lineal")
+        self.indep_btn.setObjectName("primaryAction")
+        self.indep_btn.clicked.connect(self._evaluate_independence)
+        actions.addWidget(self.indep_btn)
+        layout.addLayout(actions)
+
+        # Resultados
+        results = QFrame()
+        apply_widget_class(results, "elevated-card")
+        res_layout = QVBoxLayout(results)
+        self.indep_badge = QLabel("Esperando evaluación")
+        self.indep_badge.setAlignment(Qt.AlignCenter)
+        self.indep_badge.setWordWrap(True)
+        self.indep_badge.setStyleSheet(_badge_style("#3A3642", COLOR_TEXT_PRIMARY))
+        res_layout.addWidget(self.indep_badge)
+
+        self.indep_summary = QLabel("")
+        self.indep_summary.setWordWrap(True)
+        self.indep_summary.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px;")
+        self.indep_summary.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        res_layout.addWidget(self.indep_summary)
+
+        self.indep_checklist = QVBoxLayout()
+        res_layout.addLayout(self.indep_checklist)
+
+        self.indep_show_steps_btn = QPushButton("Ver procedimiento de escalonamiento por filas")
+        self.indep_show_steps_btn.setObjectName("secondaryAction")
+        self.indep_show_steps_btn.setCheckable(True)
+        self.indep_show_steps_btn.clicked.connect(self._toggle_indep_steps)
+        self.indep_show_steps_btn.setEnabled(False)
+        res_layout.addWidget(self.indep_show_steps_btn)
+
+        self.indep_stepper = AlgorithmStepperCarousel()
+        self.indep_stepper.setVisible(False)
+        res_layout.addWidget(self.indep_stepper)
+        layout.addWidget(results, stretch=2)
+
+        # Vectores iniciales (3 vectores)
+        self._add_indep_vector()
+        self._add_indep_vector()
+        self._add_indep_vector()
+
+        scroll.setWidget(page)
+        main_layout.addWidget(scroll)
+        return container
+
+    def _add_indep_vector(self) -> None:
+        idx = len(self._indep_editors) + 1
+        dim = self.indep_dim.value()
+        editor = VectorColumnEditor(
+            dimension=dim,
+            title=f"v_{idx}",
+            removable=len(self._indep_editors) >= 1,
+            parent=self.indep_list_host,
+        )
+        editor.removed.connect(lambda e=editor: self._remove_indep_vector(e))
+        self._indep_editors.append(editor)
+        self.indep_list_layout.addWidget(editor)
+        self._refresh_indep_titles()
+
+    def _remove_indep_vector(self, editor: VectorColumnEditor) -> None:
+        if len(self._indep_editors) <= 1:
+            return
+        if editor in self._indep_editors:
+            self._indep_editors.remove(editor)
+            self.indep_list_layout.removeWidget(editor)
+            editor.deleteLater()
+            self._refresh_indep_titles()
+
+    def _refresh_indep_titles(self) -> None:
+        for idx, ed in enumerate(self._indep_editors):
+            ed.title_lbl.setText(f"v_{idx + 1}")
+
+    def _on_indep_dimension(self, n: int) -> None:
+        for ed in self._indep_editors:
+            ed.set_dimension(n)
+
+    def _toggle_indep_steps(self) -> None:
+        self.indep_stepper.setVisible(self.indep_show_steps_btn.isChecked())
+
+    def _evaluate_independence(self) -> None:
+        for idx, ed in enumerate(self._indep_editors):
+            if not ed.is_valid():
+                self._show_alert("Entrada inválida", f"El vector v_{idx + 1} contiene valores numéricos no válidos.")
+                return
+
+        vectors = [ed.get_vector() for ed in self._indep_editors]
+        res = evaluate_linear_independence(vectors)
+        self._last_indep_result = res
+
+        if res.is_linearly_independent:
+            badge_text = "🟢 CONJUNTO LINEALMENTE INDEPENDIENTE (L.I.)"
+            badge_css = _badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE)
+        else:
+            badge_text = "🔴 CONJUNTO LINEALMENTE DEPENDIENTE (L.D.)"
+            badge_css = _badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY)
+
+        self.indep_badge.setText(badge_text)
+        self.indep_badge.setStyleSheet(badge_css)
+
+        # Resumen teórico
+        summary_lines = [
+            f"<b>• Vectores:</b> k = {res.k} en ℝ^{res.n}",
+            f"<b>• Número de pivotes (rango de A):</b> {res.num_pivots}",
+            f"<b>• Variables básicas:</b> {[f'c_{c+1}' for c in res.basic_variables] if res.basic_variables else 'Ninguna'}",
+            f"<b>• Variables libres:</b> {[f'c_{c+1}' for c in res.free_variables] if res.free_variables else 'Ninguna (0)'}",
+        ]
+        if res.is_linearly_independent:
+            summary_lines.append("<br><b>Justificación Teórica:</b>")
+            summary_lines.append("• El número de pivotes coincide exactamente con la cantidad de vectores (r = k).")
+            summary_lines.append("• El sistema homogéneo A·c = 0 no tiene variables libres (0 variables libres).")
+            summary_lines.append("• La <b>única solución</b> a c₁·v₁ + … + cₖ·vₖ = 0 es la <b>solución trivial</b>: c₁ = … = cₖ = 0.")
+        else:
+            summary_lines.append("<br><b>Justificación Teórica:</b>")
+            summary_lines.append(f"• El número de pivotes (r = {res.num_pivots}) es menor a la cantidad de vectores (k = {res.k}).")
+            summary_lines.append(f"• Existen {len(res.free_variables)} variable(s) libre(s), lo que garantiza <b>infinitas soluciones no triviales</b> (c ≠ 0).")
+            if res.theorem_k_greater_n:
+                summary_lines.append(f"• <b>Teorema Fundamental de Dimensión:</b> k = {res.k} > n = {res.n}. En ℝ^{res.n} ningún conjunto de más de {res.n} vectores puede ser L.I.")
+            if res.zero_vector_index is not None:
+                summary_lines.append(f"• <b>Teorema del Vector Nulo:</b> El vector v_{res.zero_vector_index + 1} es el vector cero. Todo conjunto con el 0 es L.D.")
+
+        self.indep_summary.setText("<br>".join(summary_lines))
+
+        # Limpiar checklist previo
+        while self.indep_checklist.count():
+            item = self.indep_checklist.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        # Demostración si es L.D.
+        if not res.is_linearly_independent and res.nontrivial_weights:
+            title_lbl = QLabel("<b>Demostración de Combinación Lineal No Trivial Nula:</b>")
+            title_lbl.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; margin-top: 8px;")
+            self.indep_checklist.addWidget(title_lbl)
+
+            terms = [f"({format_scalar(w)})·v_{i+1}" for i, w in enumerate(res.nontrivial_weights) if w != Fraction(0, 1)]
+            eq_lbl = QLabel(f"   {' + '.join(terms)} = 0")
+            eq_lbl.setStyleSheet(
+                f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO}; "
+                f"font-weight: 600; padding: 6px; background-color: {COLOR_SURFACE_INNER}; border-radius: 4px;"
+            )
+            self.indep_checklist.addWidget(eq_lbl)
+
+            for label, val, matches in res.verification_checklist:
+                row = QLabel(f"   ✓ {label}: Σ cᵢ·vᵢ = {format_scalar(val)} (coincide con 0)")
+                row.setStyleSheet(f"color: {COLOR_FEEDBACK_SUCCESS}; font-size: 14px; font-family: {FONT_FAMILY_MONO};")
+                self.indep_checklist.addWidget(row)
+
+        self.indep_stepper.set_steps(res.tracer.get_steps())
+        self.indep_show_steps_btn.setEnabled(True)
+
+    def load_independence_li_sample(self) -> None:
+        self.tabs.setCurrentIndex(2)
+        self.indep_dim.setValue(3)
+        while len(self._indep_editors) > 3:
+            self._remove_indep_vector(self._indep_editors[-1])
+        while len(self._indep_editors) < 3:
+            self._add_indep_vector()
+        self._indep_editors[0].set_vector(Vector([1, 0, 0]))
+        self._indep_editors[1].set_vector(Vector([0, 1, 0]))
+        self._indep_editors[2].set_vector(Vector([0, 0, 1]))
+        self._evaluate_independence()
+
+    def load_independence_ld_sample(self) -> None:
+        self.tabs.setCurrentIndex(2)
+        self.indep_dim.setValue(3)
+        while len(self._indep_editors) > 3:
+            self._remove_indep_vector(self._indep_editors[-1])
+        while len(self._indep_editors) < 3:
+            self._add_indep_vector()
+        self._indep_editors[0].set_vector(Vector([1, 2, 3]))
+        self._indep_editors[1].set_vector(Vector([4, 5, 6]))
+        self._indep_editors[2].set_vector(Vector([5, 7, 9]))  # v3 = v1 + v2
+        self._evaluate_independence()
+
+    def load_independence_dim_sample(self) -> None:
+        self.tabs.setCurrentIndex(2)
+        self.indep_dim.setValue(3)
+        while len(self._indep_editors) > 4:
+            self._remove_indep_vector(self._indep_editors[-1])
+        while len(self._indep_editors) < 4:
+            self._add_indep_vector()
+        self._indep_editors[0].set_vector(Vector([1, 0, 0]))
+        self._indep_editors[1].set_vector(Vector([0, 1, 0]))
+        self._indep_editors[2].set_vector(Vector([0, 0, 1]))
+        self._indep_editors[3].set_vector(Vector([1, 1, 1]))
+        self._evaluate_independence()
+
+    def show_theorems_dialog(self) -> None:
+        theorems_text = (
+            "<h3>TEOREMAS CLAVE — MÓDULO 2: VECTORES E INDEPENDENCIA LINEAL</h3>"
+            "<hr>"
+            "<p><b>1. Teorema de Independencia Lineal:</b><br>"
+            "Un conjunto de k vectores en ℝⁿ es L.I. si y solo si la única solución a "
+            "<i>c₁·v₁ + c₂·v₂ + … + cₖ·vₖ = 0</i> es la solución trivial (sin variables libres).</p>"
+            "<p><b>2. Teorema de Dependencia Lineal:</b><br>"
+            "El conjunto es L.D. si existen escalares no todos nulos tales que la combinación sea 0. "
+            "Equivale a que al menos un vector es combinación lineal de los demás.</p>"
+            "<p><b>3. Conexión con la Forma Escalonada (REF):</b><br>"
+            "Si el número de pivotes <i>r = k</i>, hay 0 variables libres → <b>L.I.</b><br>"
+            "Si el número de pivotes <i>r &lt; k</i>, hay <i>k - r</i> variables libres → <b>L.D.</b></p>"
+            "<p><b>4. Teorema de la Dimensión (k &gt; n):</b><br>"
+            "Cualquier conjunto con <i>k &gt; n</i> vectores en ℝⁿ es necesariamente <b>Linealmente Dependiente</b>.</p>"
+            "<p><b>5. Teorema del Vector Nulo:</b><br>"
+            "Cualquier conjunto que contenga al vector cero <b>0</b> es <b>Linealmente Dependiente</b>.</p>"
+        )
+        box = QMessageBox(self)
+        box.setWindowTitle("Teoremas Clave del Módulo 2")
+        box.setTextFormat(Qt.RichText)
+        box.setText(theorems_text)
+        apply_message_box_theme(box)
+        box.exec()
+

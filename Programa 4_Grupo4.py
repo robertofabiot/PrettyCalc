@@ -39,8 +39,16 @@ Fundamento algebraico:
 
 from __future__ import annotations
 
+import sys
 from fractions import Fraction
 from typing import List, Optional, Sequence, Tuple
+
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 # ------------------------------------------------------------------------------
@@ -526,7 +534,7 @@ def linear_independence_cli():
         print("\n" + "=" * 54)
         print(" MÓDULO: VECTORES E INDEPENDENCIA LINEAL")
         print(" Combinaciones Lineales, L.I. y L.D.")
-        print(" 𝐴 𝑥 = 0")
+        print(" A x = 0")
         print("=" * 54)
         print(" 0. Ver Teoremas Clave del Módulo")
         print(" 1. Evaluar Independencia / Dependencia Lineal (L.I. o L.D.) en ℝⁿ")

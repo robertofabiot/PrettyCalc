@@ -27,6 +27,10 @@ from prettycalc.core.linear_combination import (
     evaluate_linear_combination,
     format_combination_equation,
 )
+from prettycalc.core.linear_independence import (
+    LinearIndependenceResult,
+    evaluate_linear_independence,
+)
 from prettycalc.core.matrix_equations import (
     MatrixEquationResult,
     solve_matrix_equation,
@@ -90,6 +94,8 @@ __all__ = [
     "LinearCombinationResult",
     "evaluate_linear_combination",
     "format_combination_equation",
+    "LinearIndependenceResult",
+    "evaluate_linear_independence",
     "MatrixEquationResult",
     "solve_matrix_equation",
     "format_equation_summary",

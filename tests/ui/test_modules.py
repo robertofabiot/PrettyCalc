@@ -113,6 +113,40 @@ def test_vectors_combination_si_sample(qtbot):
     assert COLOR_FEEDBACK_ERROR in view.combo_badge.styleSheet()
 
 
+def test_vectors_independence_li_sample(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_independence_li_sample()
+    assert "INDEPENDIENTE (L.I.)" in view.indep_badge.text()
+    assert COLOR_FEEDBACK_SUCCESS in view.indep_badge.styleSheet()
+    assert "k = 3 en ℝ^3" in view.indep_summary.text()
+    assert "solución trivial" in view.indep_summary.text()
+
+
+def test_vectors_independence_ld_sample(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_independence_ld_sample()
+    assert "DEPENDIENTE (L.D.)" in view.indep_badge.text()
+    assert COLOR_FEEDBACK_ERROR in view.indep_badge.styleSheet()
+    assert "infinitas soluciones no triviales" in view.indep_summary.text()
+    assert view.indep_checklist.count() > 0
+
+
+def test_vectors_independence_dim_sample(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_independence_dim_sample()
+    assert "DEPENDIENTE (L.D.)" in view.indep_badge.text()
+    assert "k = 4 > n = 3" in view.indep_summary.text()
+
+
 def test_matrix_equations_sample_solves_and_verifies(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)

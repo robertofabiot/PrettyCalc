@@ -103,7 +103,7 @@ Cada módulo incorpora su respectivo **Logotipo ASCII Art** y la opción obligat
   * Variables libres: $0$.
   * **Veredicto:** 🟢 **LINEALMENTE INDEPENDIENTE (L.I.)**.
 
-*(Pegar aquí captura de pantalla de la consola ejecutando el Caso 1)*
+![Ejecución Caso 1 L.I. en PrettyCalc](screenshots/gui_independencia_li.png)
 
 ---
 
@@ -119,7 +119,7 @@ Cada módulo incorpora su respectivo **Logotipo ASCII Art** y la opción obligat
   * **Combinación Lineal No Trivial:** $(1) \cdot v_1 + (1) \cdot v_2 + (-1) \cdot v_3 = \mathbf{0}$.
   * Comprobación: Componente 1: $0$, Componente 2: $0$, Componente 3: $0$.
 
-*(Pegar aquí captura de pantalla de la consola ejecutando el Caso 2)*
+![Ejecución Caso 2 L.D. en PrettyCalc](screenshots/gui_independencia_ld.png)
 
 ---
 
@@ -132,7 +132,7 @@ Cada módulo incorpora su respectivo **Logotipo ASCII Art** y la opción obligat
   * Variables libres: $1$ ($c_4$).
   * **Veredicto:** 🔴 **LINEALMENTE DEPENDIENTE (L.D.)**.
 
-*(Pegar aquí captura de pantalla de la consola ejecutando el Caso 3)*
+![Ejecución Caso 3 k > n en PrettyCalc](screenshots/gui_independencia_k_mayor_n.png)
 
 ---
 

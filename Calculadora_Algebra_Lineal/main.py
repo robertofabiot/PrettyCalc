@@ -12,6 +12,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Asegurar importaciones relativas limpias sin importar el CWD
 _current_dir = Path(__file__).resolve().parent
 _parent_dir = _current_dir.parent

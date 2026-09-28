@@ -11,6 +11,13 @@ from fractions import Fraction
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 try:
     from Calculadora_Algebra_Lineal.teoremas.resumen_teoremas import mostrar_teoremas_determinantes
 except ImportError:

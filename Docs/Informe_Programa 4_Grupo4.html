@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Informe Técnico - Programa 4 (Álgebra Lineal UAM)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body);"></script>
+  <style>
+    @page {
+      size: letter;
+      margin: 20mm;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #2c3e50;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 20px 40px;
+    }
+    .header-box {
+      border-bottom: 3px solid #2b5797;
+      padding-bottom: 12px;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    .header-box h1 {
+      margin: 0;
+      color: #1b365d;
+      font-size: 24px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .header-box h2 {
+      margin: 4px 0;
+      color: #4a69bd;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .header-box h3 {
+      margin: 4px 0;
+      color: #6a89cc;
+      font-size: 15px;
+      font-weight: 400;
+    }
+    .title-box {
+      background: #f8f9fa;
+      border-left: 6px solid #2b5797;
+      padding: 16px 20px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .title-box h2 {
+      margin: 0 0 6px 0;
+      color: #1e3799;
+      font-size: 20px;
+    }
+    .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0 25px 0;
+    }
+    .metadata-table td {
+      padding: 6px 12px;
+      font-size: 14px;
+      border-bottom: 1px solid #e1e8ed;
+    }
+    .metadata-table td.label {
+      font-weight: bold;
+      color: #1b365d;
+      width: 25%;
+    }
+    h2.section-title {
+      color: #1b365d;
+      border-bottom: 2px solid #e1e8ed;
+      padding-bottom: 6px;
+      margin-top: 30px;
+      font-size: 18px;
+    }
+    h3.subsection-title {
+      color: #2b5797;
+      margin-top: 18px;
+      font-size: 15px;
+    }
+    p, li {
+      font-size: 14px;
+      text-align: justify;
+    }
+    .badge-li {
+      display: inline-block;
+      background-color: #2ed573;
+      color: #ffffff;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .badge-ld {
+      display: inline-block;
+      background-color: #ff4757;
+      color: #ffffff;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .case-box {
+      border: 1px solid #dcdde1;
+      background: #fdfdfd;
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 18px 0;
+    }
+    .case-box h4 {
+      margin: 0 0 8px 0;
+      color: #2f3542;
+      font-size: 15px;
+    }
+    .screenshot-placeholder {
+      border: 2px dashed #b2bec3;
+      background-color: #f1f2f6;
+      color: #57606f;
+      text-align: center;
+      padding: 35px 20px;
+      margin: 12px 0;
+      border-radius: 6px;
+      font-style: italic;
+      font-size: 13px;
+    }
+    code, pre {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background: #f1f2f6;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+    pre {
+      padding: 10px;
+      overflow-x: auto;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-box">
+    <h1>Universidad Americana (UAM)</h1>
+    <h2>Facultad de Ingeniería y Arquitectura (FIA)</h2>
+    <h3>Asignatura: Álgebra Lineal (MTM0120) — Segundo Corte</h3>
+  </div>
+
+  <div class="title-box">
+    <h2>PROYECTO INTEGRADOR: CALCULADORA DE ÁLGEBRA LINEAL</h2>
+    <h3>Programa 4: Módulo II — Vectores e Independencia Lineal en \(\mathbb{R}^n\)</h3>
+  </div>
+
+  <table class="metadata-table">
+    <tr>
+      <td class="label">Docente:</td>
+      <td>Docente de la Asignatura de Álgebra Lineal</td>
+    </tr>
+    <tr>
+      <td class="label">Grupo de Proyecto:</td>
+      <td>Grupo 4</td>
+    </tr>
+    <tr>
+      <td class="label">Integrantes:</td>
+      <td>
+        • Natanael [Apellidos] (Carnet: [Número])<br>
+        • Roberto Fabio T. [Apellidos] (Carnet: [Número])<br>
+        • [Integrante 3] [Apellidos] (Carnet: [Número])
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Carrera:</td>
+      <td>Ingeniería en Sistemas de Información / Software</td>
+    </tr>
+    <tr>
+      <td class="label">Fecha:</td>
+      <td>Septiembre de 2026</td>
+    </tr>
+  </table>
+
+  <h2 class="section-title">1. Resumen y Objetivos del Programa 4</h2>
+  <p>
+    El propósito de esta actividad es modelar e implementar en <strong>Python estándar (100% puro, sin bibliotecas externas como NumPy, SciPy o SymPy)</strong> una herramienta analítica capaz de evaluar si un conjunto arbitrario de \(k\) vectores en \(\mathbb{R}^n\) es <strong>Linealmente Independiente (L.I.)</strong> o <strong>Linealmente Dependiente (L.D.)</strong>. 
+    Toda la aritmética computacional se diseñó con precisión exacta mediante la clase nativa <code>fractions.Fraction</code> para evitar errores por redondeo de punto flotante. Asimismo, la solución se implementó bajo la directriz de <strong>Arquitectura Modular por Carpetas</strong> (<code>Calculadora_Algebra_Lineal/</code>) con menús interactivos, cabeceras en Logotipo ASCII y consulta interactiva de Teoremas Clave.
+  </p>
+
+  <h2 class="section-title">2. Explicación Teórica y Lógica del Algoritmo</h2>
+  
+  <h3 class="subsection-title">2.1. Definición Vectorial de Independencia Lineal</h3>
+  <p>
+    Sea un conjunto de \(k\) vectores \(\{v_1, v_2, \dots, v_k\}\) pertenecientes al espacio vectorial \(\mathbb{R}^n\). Se plantea la ecuación vectorial homogénea:
+    \[c_1 v_1 + c_2 v_2 + \dots + c_k v_k = \mathbf{0}\]
+    donde \(c_1, c_2, \dots, c_k \in \mathbb{R}\) son escalares incógnitos.
+  </p>
+  <ul>
+    <li>
+      <strong>Linealmente Independiente (L.I.):</strong> Se cumple si y solo si la <strong>única solución</strong> a la ecuación es la solución trivial:
+      \[c_1 = c_2 = \dots = c_k = 0\]
+      Geométricamente, ningún vector del conjunto puede formarse a partir de combinaciones de los restantes.
+    </li>
+    <li>
+      <strong>Linealmente Dependiente (L.D.):</strong> Ocurre si existen escalares \(c_i\) <strong>no todos nulos</strong> (\(\exists c_i \neq 0\)) que satisfacen la combinación nula. En este caso, al menos un vector es redundante y puede expresarse como combinación lineal de los otros.
+    </li>
+  </ul>
+
+  <h3 class="subsection-title">2.2. Construcción del Sistema Homogéneo Matricial \(A \mathbf{c} = \mathbf{0}\)</h3>
+  <p>
+    La ecuación vectorial se traduce de forma natural en el sistema de ecuaciones lineales homogéneo:
+    \[A \mathbf{c} = \mathbf{0}\]
+    donde la matriz \(A\) de tamaño \(n \times k\) tiene como columnas a los vectores:
+    \[A = \begin{bmatrix} v_1 & v_2 & \dots & v_k \end{bmatrix}\]
+    El vector de incógnitas es \(\mathbf{c} = [c_1, \dots, c_k]^T\) y la matriz aumentada del sistema homogéneo es \([A \mid \mathbf{0}]\) de dimensión \(n \times (k + 1)\).
+  </p>
+
+  <h3 class="subsection-title">2.3. Reducción por Filas (REF) y Conteo de Pivotes</h3>
+  <p>
+    El algoritmo aplica <strong>Eliminación Gaussiana</strong> mediante operaciones elementales de fila (\(f_i \leftrightarrow f_j\), \(f_i \to k \cdot f_i\), \(f_i \to f_i + k \cdot f_j\)) para transformar la matriz a su <strong>Forma Escalonada por Filas (REF)</strong>:
+  </p>
+  <ul>
+    <li>Se localiza la primera columna no nula y se selecciona un elemento pivote.</li>
+    <li>Se intercambian filas si el pivote no está en la fila de trabajo.</li>
+    <li>Se eliminan hacia adelante todos los elementos situados debajo del pivote.</li>
+    <li>Al concluir, se cuenta el número exacto de pivotes \(r = \text{rango}(A)\).</li>
+  </ul>
+
+  <h3 class="subsection-title">2.4. Criterio de Decisión Teórico y Veredicto</h3>
+  <p>
+    La relación entre el número de pivotes \(r\) y la cantidad de vectores \(k\) determina el veredicto:
+  </p>
+  <ul>
+    <li>
+      <strong>Si \(r = k\) (Pivote en cada columna):</strong> No existen variables libres en el sistema (\(k - r = 0\)). El sistema homogéneo posee únicamente la <strong>solución trivial</strong> \(\mathbf{c} = \mathbf{0}\).<br>
+      <strong>Veredicto:</strong> <span class="badge-li">LINEALMENTE INDEPENDIENTE (L.I.)</span>
+    </li>
+    <li>
+      <strong>Si \(r < k\) (Columnas sin pivote):</strong> Existen exactamente \(k - r \ge 1\) variables libres. Esto garantiza la existencia de <strong>infinitas soluciones no triviales</strong> (\(\mathbf{c} \neq \mathbf{0}\)).<br>
+      <strong>Veredicto:</strong> <span class="badge-ld">LINEALMENTE DEPENDIENTE (L.D.)</span>
+    </li>
+  </ul>
+
+  <h3 class="subsection-title">2.5. Teoremas Especiales Incorporados</h3>
+  <ul>
+    <li><strong>Teorema de la Dimensión (\(k > n\)):</strong> Si se ingresan más vectores que la dimensión del espacio (\(k > n\)), el sistema es <strong>necesariamente L.D.</strong> ya que una matriz de \(n\) filas puede tener a lo sumo \(r \le n < k\) pivotes, dejando forzosamente variables libres.</li>
+    <li><strong>Teorema del Vector Nulo:</strong> Si el conjunto contiene al vector cero \(\mathbf{0}\), es <strong>L.D.</strong> de inmediato, pues \(1 \cdot \mathbf{0} + 0 \cdot v_2 + \dots = \mathbf{0}\) es una solución no trivial.</li>
+    <li><strong>Extracción de Dependencia Explícita:</strong> Cuando el conjunto es L.D., el programa calcula los coeficientes no triviales de \(A\mathbf{c} = \mathbf{0}\) mediante Gauss-Jordan y demuestra la anulación componente a componente.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2 class="section-title">3. Arquitectura Modular del Proyecto</h2>
+  <p>
+    Conforme a las directrices de la Universidad Americana, el código se distribuyó en una arquitectura modular limpia por paquetes:
+  </p>
+  <pre>
+Calculadora_Algebra_Lineal/
+│
+├── main.py                     &lt;-- Menú Principal de la Calculadora
+├── modulos/
+│   ├── __init__.py             &lt;-- Inicializador de paquete
+│   ├── modulo_sistemas.py      &lt;-- Módulo 1: Sistemas de Ecuaciones (SEL)
+│   ├── modulo_vectores.py      &lt;-- Módulo 2: Vectores e Indep. Lineal (Programa 4)
+│   ├── modulo_matrices.py      &lt;-- Módulo 3: Operaciones Matriciales e Inversa
+│   └── modulo_determinantes.py &lt;-- Módulo 4: Determinantes y Propiedades
+└── teoremas/
+    ├── __init__.py
+    └── resumen_teoremas.py     &lt;-- Opción 0: Teoremas Clave por Módulo
+  </pre>
+
+  <h2 class="section-title">4. Casos de Prueba y Evidencias de Ejecución</h2>
+
+  <div class="case-box">
+    <h4>Caso 1: Conjunto Linealmente Independiente (L.I.) en \(\mathbb{R}^3\)</h4>
+    <p>
+      <strong>Datos ingresados:</strong> \(k = 3\) vectores en \(\mathbb{R}^3\):
+      \[v_1 = (1, 0, 0)^T, \quad v_2 = (0, 1, 0)^T, \quad v_3 = (0, 0, 1)^T\]
+      <strong>Matriz Aumentada Homogénea \([A \mid \mathbf{0}]\):</strong>
+      \[\begin{bmatrix} 1 & 0 & 0 & \mid & 0 \\ 0 & 1 & 0 & \mid & 0 \\ 0 & 0 & 1 & \mid & 0 \end{bmatrix}\]
+      <strong>Resultados del Sistema:</strong>
+      Número de pivotes = 3 (\(r = k\)). Variables libres = 0.<br>
+      <strong>Veredicto:</strong> <span class="badge-li">LINEALMENTE INDEPENDIENTE (L.I.)</span> (Única solución trivial).
+    </p>
+    <div style="text-align: center; margin: 15px 0;">
+      <img src="screenshots/gui_independencia_li.png" alt="Captura PrettyCalc L.I." style="max-width: 100%; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <p style="font-size: 12px; color: #57606f; margin-top: 4px;">Figura 1: Evaluación gráfica de conjunto Linealmente Independiente en PrettyCalc.</p>
+    </div>
+  </div>
+
+  <div class="case-box">
+    <h4>Caso 2: Conjunto Linealmente Dependiente (L.D.) en \(\mathbb{R}^3\)</h4>
+    <p>
+      <strong>Datos ingresados:</strong> \(k = 3\) vectores con dependencia \(v_3 = v_1 + v_2\):
+      \[v_1 = (1, 2, 3)^T, \quad v_2 = (4, 5, 6)^T, \quad v_3 = (5, 7, 9)^T\]
+      <strong>Forma Escalonada por Filas (REF):</strong>
+      \[\begin{bmatrix} 1 & 4 & 5 & \mid & 0 \\ 0 & -3 & -3 & \mid & 0 \\ 0 & 0 & 0 & \mid & 0 \end{bmatrix}\]
+      <strong>Resultados del Sistema:</strong>
+      Número de pivotes = 2 (\(r < k\)). Variable libre = \(c_3\).<br>
+      <strong>Veredicto:</strong> <span class="badge-ld">LINEALMENTE DEPENDIENTE (L.D.)</span>.<br>
+      <strong>Combinación no trivial obtenida:</strong> \((1) \cdot v_1 + (1) \cdot v_2 + (-1) \cdot v_3 = \mathbf{0}\).
+    </p>
+    <div style="text-align: center; margin: 15px 0;">
+      <img src="screenshots/gui_independencia_ld.png" alt="Captura PrettyCalc L.D." style="max-width: 100%; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <p style="font-size: 12px; color: #57606f; margin-top: 4px;">Figura 2: Evaluación gráfica de conjunto Linealmente Dependiente y carrusel de pasos en PrettyCalc.</p>
+    </div>
+  </div>
+
+  <div class="case-box">
+    <h4>Caso 3: Teorema de Dimensión (\(k > n\): 4 vectores en \(\mathbb{R}^3\))</h4>
+    <p>
+      <strong>Datos ingresados:</strong> \(k = 4\) vectores en \(\mathbb{R}^3\):
+      \[v_1 = (1, 0, 0)^T, \quad v_2 = (0, 1, 0)^T, \quad v_3 = (0, 0, 1)^T, \quad v_4 = (1, 1, 1)^T\]
+      <strong>Resultados:</strong> Detección teórica preliminar: \(k = 4 > n = 3 \implies\) forzosamente L.D.<br>
+      Pivotes = 3, Variable libre = \(c_4\). Veredicto: <span class="badge-ld">LINEALMENTE DEPENDIENTE (L.D.)</span>.
+    </p>
+    <div style="text-align: center; margin: 15px 0;">
+      <img src="screenshots/gui_independencia_k_mayor_n.png" alt="Captura PrettyCalc k > n" style="max-width: 100%; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <p style="font-size: 12px; color: #57606f; margin-top: 4px;">Figura 3: Diagnóstico automático del Teorema Fundamental de Dimensión (\(k > n\)) en PrettyCalc.</p>
+    </div>
+  </div>
+
+  <h2 class="section-title">5. Estructura del Archivo de Entrega</h2>
+  <p>
+    Conforme a las instrucciones de entrega en Moodle:
+  </p>
+  <ul>
+    <li><strong>Nombre del archivo comprimido:</strong> <code>Programa 4_Grupo 4_Apellido1_Apellido2.zip</code></li>
+    <li><strong>Archivos contenidos:</strong>
+      <ol>
+        <li><code>Programa 4_Grupo4.py</code> (Código Python 100% puro y exhaustivamente comentado).</li>
+        <li><code>Informe_Programa 4_Grupo4.pdf</code> (Este reporte en formato PDF).</li>
+      </ol>
+    </li>
+  </ul>
+
+</body>
+</html>
