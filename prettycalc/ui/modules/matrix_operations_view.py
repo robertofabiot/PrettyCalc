@@ -1,8 +1,14 @@
-"""Vista de álgebra matricial: A ± B, k·A, A·B con badge dimensional e inspector."""
+"""Vista de álgebra matricial: A ± B, k·A, A·B y la transpuesta Aᵀ.
+
+Asignatura: Álgebra Lineal MTM0120, Universidad Americana (UAM).
+Autores / Grupo: Grupo 4.
+Muestra el cambio de dimensión n×m y las propiedades que cumple la matriz.
+"""
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+import html
+from typing import Any, List, Optional, Sequence, Tuple
 
 try:
     from PySide6.QtWidgets import (
@@ -30,7 +36,9 @@ from prettycalc.core.matrix_ops import (
     matrix_multiply_with_details,
     matrix_scale,
     matrix_sub,
+    matrix_transpose,
 )
+from prettycalc.core.matrix_properties import PropertyCheck, analyze_matrix
 from prettycalc.core.types import DimensionMismatchError, Matrix, format_scalar, parse_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
@@ -39,6 +47,7 @@ from prettycalc.ui.theme import (
     COLOR_FEEDBACK_ERROR,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
+    COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
     FONT_FAMILY_SANS,
@@ -54,6 +63,25 @@ def _badge_style(ok: bool) -> str:
         f"background-color: {bg}; color: {fg}; font-weight: 600; font-size: 15px; "
         f"padding: 10px 14px; border-radius: 6px; font-family: {FONT_FAMILY_SANS};"
     )
+
+
+def _checks_to_html(checks: Sequence[PropertyCheck]) -> str:
+    """Tarjetas en HTML: verde si cumple, coral si no, gris si no aplica."""
+    colors = {
+        "cumple": COLOR_FEEDBACK_SUCCESS,
+        "no_cumple": COLOR_FEEDBACK_ERROR,
+        "no_aplica": COLOR_TEXT_MUTED,
+        "dato": COLOR_TEXT_PRIMARY,
+    }
+    marks = {"cumple": "✓", "no_cumple": "✗", "no_aplica": "—", "dato": "·"}
+    rows = []
+    for check in checks:
+        text = html.escape(f"{check.name}: {check.detail}")
+        color = colors[check.status]
+        rows.append(
+            f'<div style="color:{color}; margin: 3px 0;">{marks[check.status]}&nbsp;&nbsp;{text}</div>'
+        )
+    return "".join(rows)
 
 
 class MatrixOperationsView(QWidget):
@@ -85,11 +113,16 @@ class MatrixOperationsView(QWidget):
         self.scalar_mode_btn = QPushButton("k  ·  A")
         self.scalar_mode_btn.setObjectName("modeToggle")
         self.scalar_mode_btn.setCheckable(True)
+        self.transpose_mode_btn = QPushButton("Aᵀ")
+        self.transpose_mode_btn.setObjectName("modeToggle")
+        self.transpose_mode_btn.setCheckable(True)
         mode_group.addButton(self.binary_mode_btn, 0)
         mode_group.addButton(self.scalar_mode_btn, 1)
+        mode_group.addButton(self.transpose_mode_btn, 2)
         mode_group.idClicked.connect(self._on_mode_changed)
         toolbar.addWidget(self.binary_mode_btn)
         toolbar.addWidget(self.scalar_mode_btn)
+        toolbar.addWidget(self.transpose_mode_btn)
         toolbar.addStretch(1)
 
         sample_ok = QPushButton("Ejemplo 2×3 · 3×2")
@@ -108,6 +141,7 @@ class MatrixOperationsView(QWidget):
         self.pages = QStackedWidget()
         self.pages.addWidget(self._build_binary_page())
         self.pages.addWidget(self._build_scalar_page())
+        self.pages.addWidget(self._build_transpose_page())
         root.addWidget(self.pages, stretch=1)
 
         actions = QHBoxLayout()
@@ -117,27 +151,20 @@ class MatrixOperationsView(QWidget):
         self.compute_btn.clicked.connect(self.compute)
         actions.addWidget(self.compute_btn)
         root.addLayout(actions)
-
-        inspector_card = QFrame()
-        apply_widget_class(inspector_card, "elevated-card")
-        inspector_layout = QVBoxLayout(inspector_card)
-        inspector_layout.setContentsMargins(14, 12, 14, 12)
-        inspector_title = QLabel("Inspector de producto  Cᵢⱼ = Σ Aᵢₖ Bₖⱼ")
-        inspector_title.setStyleSheet(
-            f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
-        )
-        inspector_layout.addWidget(inspector_title)
-        self.inspector_label = QLabel(
+        root.addWidget(self._build_note_card(
+            "Inspector de producto  Cᵢⱼ = Σ Aᵢₖ Bₖⱼ",
             "Calcula un producto A · B y pulsa una celda de C para ver la fila de A, "
-            "la columna de B y la sumatoria de productos parciales."
-        )
-        self.inspector_label.setWordWrap(True)
-        self.inspector_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.inspector_label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px; font-family: {FONT_FAMILY_MONO};"
-        )
-        inspector_layout.addWidget(self.inspector_label)
-        root.addWidget(inspector_card)
+            "la columna de B y la sumatoria de productos parciales.",
+            rich=False,
+            target="inspector_label",
+        ))
+        root.addWidget(self._build_note_card(
+            "Propiedades de la matriz y de la transpuesta",
+            "Calcula para ver qué tipo de matriz es, qué propiedades cumple "
+            "y si se verifican las identidades de la transpuesta.",
+            rich=True,
+            target="properties_label",
+        ))
 
     def _build_binary_page(self) -> QWidget:
         page = QWidget()
@@ -232,6 +259,81 @@ class MatrixOperationsView(QWidget):
         row.addWidget(self._wrap_matrix_card("k · A", self.scalar_result_view), stretch=3)
         return page
 
+    def _build_note_card(self, title: str, body: str, rich: bool, target: str) -> QFrame:
+        """Tarjeta de texto. Guarda la etiqueta en el atributo `target`."""
+        card = QFrame()
+        apply_widget_class(card, "elevated-card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 12, 14, 12)
+        heading = QLabel(title)
+        heading.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+        )
+        layout.addWidget(heading)
+        label = QLabel(body)
+        label.setWordWrap(True)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        if rich:
+            label.setTextFormat(Qt.RichText)
+        label.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO};"
+        )
+        layout.addWidget(label)
+        setattr(self, target, label)
+        return card
+
+    def _build_transpose_page(self) -> QWidget:
+        """Página unaria: A a la izquierda, Aᵀ a la derecha y el escalar k."""
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(10)
+        outer.addLayout(self._transpose_matrix_row(), stretch=1)
+        outer.addLayout(self._transpose_identity_bar())
+        return page
+
+    def _transpose_matrix_row(self) -> QHBoxLayout:
+        """Fila visual A → Aᵀ. El resultado cambia de m×n a n×m."""
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        self.grid_transpose = DynamicMatrixGrid(
+            initial_rows=2, initial_cols=3, augmented=False
+        )
+        self.grid_transpose.matrixChanged.connect(self._on_operands_changed)
+        row.addWidget(self._wrap_matrix_card("Matriz A", self.grid_transpose), stretch=3)
+        arrow = QLabel("→")
+        arrow.setStyleSheet(
+            f"font-size: 28px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;"
+        )
+        row.addWidget(arrow, 0, Qt.AlignCenter)
+        self.transpose_result_view = BookMatrixWidget()
+        row.addWidget(self._wrap_matrix_card("Aᵀ", self.transpose_result_view), stretch=3)
+        return row
+
+    def _transpose_identity_bar(self) -> QHBoxLayout:
+        """Escalar k y la opción de usar B en las identidades de la transpuesta."""
+        extras = QHBoxLayout()
+        extras.setSpacing(8)
+        k_label = QLabel("k")
+        k_label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px; font-weight: 600;")
+        extras.addWidget(k_label)
+        self.identity_scalar_edit = QLineEdit("1")
+        self.identity_scalar_edit.setObjectName("scalarField")
+        self.identity_scalar_edit.setFont(QFont("Fira Code", 14))
+        self.identity_scalar_edit.setFixedWidth(88)
+        self.identity_scalar_edit.setAlignment(Qt.AlignCenter)
+        self.identity_scalar_edit.setToolTip("Escalar usado en la comprobación (k·A)ᵀ = k·Aᵀ")
+        self.identity_scalar_edit.textChanged.connect(self._on_operands_changed)
+        extras.addWidget(self.identity_scalar_edit)
+        self.include_b_btn = QPushButton("Incluir B en (A+B)ᵀ y (A·B)ᵀ")
+        self.include_b_btn.setObjectName("modeToggle")
+        self.include_b_btn.setCheckable(True)
+        self.include_b_btn.setToolTip("Usa la matriz B de la vista A ∘ B")
+        self.include_b_btn.toggled.connect(self._on_operands_changed)
+        extras.addWidget(self.include_b_btn)
+        extras.addStretch(1)
+        return extras
+
     def _wrap_matrix_card(self, title: str, body: QWidget) -> QFrame:
         card = QFrame()
         apply_widget_class(card, "elevated-card")
@@ -274,6 +376,9 @@ class MatrixOperationsView(QWidget):
     def _is_scalar_mode(self) -> bool:
         return self.pages.currentIndex() == 1
 
+    def _is_transpose_mode(self) -> bool:
+        return self.pages.currentIndex() == 2
+
     def _refresh_compatibility(self) -> None:
         ok, message = self._compatibility_state()
         self.badge.setText(message)
@@ -282,6 +387,8 @@ class MatrixOperationsView(QWidget):
         self.compute_btn.setToolTip("" if ok else message)
 
     def _compatibility_state(self) -> Tuple[bool, str]:
+        if self._is_transpose_mode():
+            return self._transpose_compatibility()
         if self._is_scalar_mode():
             text = self.scalar_edit.text().strip()
             try:
@@ -319,6 +426,19 @@ class MatrixOperationsView(QWidget):
             "El producto A (m×n) · B (n×p) exige que las columnas de A igualen las filas de B.",
         )
 
+    def _transpose_compatibility(self) -> Tuple[bool, str]:
+        """La transpuesta siempre existe; solo exige entradas válidas en A y en k."""
+        if not self.grid_transpose.is_all_valid():
+            return False, "✕ Hay celdas no numéricas en A."
+        k_text = self.identity_scalar_edit.text().strip()
+        if k_text:
+            try:
+                parse_scalar(k_text)
+            except Exception:
+                return False, "✕ El escalar k de la comprobación no es válido."
+        rows, cols = self.grid_transpose.data_shape()
+        return True, f"✓ Transpuesta definida: A es {rows}×{cols}  ⇒  Aᵀ es {cols}×{rows}"
+
     def compute(self) -> None:
         ok, message = self._compatibility_state()
         if not ok:
@@ -327,44 +447,12 @@ class MatrixOperationsView(QWidget):
             return
 
         try:
-            if self._is_scalar_mode():
-                k = parse_scalar(self.scalar_edit.text())
-                a = self.grid_scalar.get_matrix()
-                result = matrix_scale(a, k)
-                self.scalar_result_view.set_matrix(
-                    result, split_col=None, clickable=False, show_headers=False
-                )
-                self._result = result
-                self._details = []
-                self.inspector_label.setText(
-                    f"Cada celda se escala: Cᵢⱼ = ({format_scalar(k)}) · Aᵢⱼ."
-                )
-                return
-
-            a = self.grid_a.get_matrix()
-            b = self.grid_b.get_matrix()
-            if self._op == "add":
-                result = matrix_add(a, b)
-                self._details = []
-                self.inspector_label.setText("Suma elemento a elemento: Cᵢⱼ = Aᵢⱼ + Bᵢⱼ.")
-            elif self._op == "sub":
-                result = matrix_sub(a, b)
-                self._details = []
-                self.inspector_label.setText("Resta elemento a elemento: Cᵢⱼ = Aᵢⱼ − Bᵢⱼ.")
+            if self._is_transpose_mode():
+                self._compute_transpose()
+            elif self._is_scalar_mode():
+                self._compute_scalar()
             else:
-                result, self._details = matrix_multiply_with_details(a, b)
-                self.inspector_label.setText(
-                    "Producto calculado con tres bucles anidados. "
-                    "Pulsa una celda de C para inspeccionar Cᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ."
-                )
-
-            self._result = result
-            self.result_view.set_matrix(
-                result,
-                split_col=None,
-                clickable=self._op == "mul",
-                show_headers=False,
-            )
+                self._compute_binary()
         except DimensionMismatchError as exc:
             self.badge.setText(f"✕ {exc}")
             self.badge.setStyleSheet(_badge_style(False))
@@ -376,6 +464,88 @@ class MatrixOperationsView(QWidget):
             box.setText(str(exc))
             apply_message_box_theme(box)
             box.exec()
+
+    def _compute_scalar(self) -> None:
+        """Calcula k·A y comprueba (k·A)ᵀ = k·Aᵀ."""
+        k = parse_scalar(self.scalar_edit.text())
+        primary = self.grid_scalar.get_matrix()
+        result = matrix_scale(primary, k)
+        self.scalar_result_view.set_matrix(
+            result, split_col=None, clickable=False, show_headers=False
+        )
+        self._result = result
+        self._details = []
+        self.inspector_label.setText(
+            f"Cada celda se escala: Cᵢⱼ = ({format_scalar(k)}) · Aᵢⱼ."
+        )
+        self._show_properties(primary, None, k)
+
+    def _compute_binary(self) -> None:
+        """Calcula A±B o A·B y contrasta las identidades de la transpuesta con B."""
+        primary = self.grid_a.get_matrix()
+        other = self.grid_b.get_matrix()
+        if self._op == "add":
+            result = matrix_add(primary, other)
+            self._details = []
+            self.inspector_label.setText("Suma elemento a elemento: Cᵢⱼ = Aᵢⱼ + Bᵢⱼ.")
+        elif self._op == "sub":
+            result = matrix_sub(primary, other)
+            self._details = []
+            self.inspector_label.setText("Resta elemento a elemento: Cᵢⱼ = Aᵢⱼ − Bᵢⱼ.")
+        else:
+            result, self._details = matrix_multiply_with_details(primary, other)
+            self.inspector_label.setText(
+                "Producto calculado con tres bucles anidados. "
+                "Pulsa una celda de C para inspeccionar Cᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ."
+            )
+        self._result = result
+        self.result_view.set_matrix(
+            result,
+            split_col=None,
+            clickable=self._op == "mul",
+            show_headers=False,
+        )
+        self._show_properties(primary, other, None)
+
+    def _compute_transpose(self) -> None:
+        """Calcula Aᵀ y publica las propiedades estructurales y las identidades."""
+        primary = self.grid_transpose.get_matrix()
+        result = matrix_transpose(primary)
+        self.transpose_result_view.set_matrix(
+            result, split_col=None, clickable=False, show_headers=False
+        )
+        self._result = result
+        self._details = []
+        rows, cols = primary.shape
+        self.inspector_label.setText(
+            f"A es {rows}×{cols} y Aᵀ es {cols}×{rows}. Cada columna de A pasa a ser una fila."
+        )
+        other = self._optional_partner()
+        scalar = self._optional_identity_scalar()
+        self._show_properties(primary, other, scalar)
+
+    def _optional_partner(self) -> Optional[Matrix]:
+        """Devuelve B solo si el usuario pidió comprobar las identidades binarias."""
+        if not self.include_b_btn.isChecked() or not self.grid_b.is_all_valid():
+            return None
+        return self.grid_b.get_matrix()
+
+    def _optional_identity_scalar(self) -> Any:
+        """Escalar k de la página de transpuesta, o None si el campo está vacío."""
+        text = self.identity_scalar_edit.text().strip()
+        if not text:
+            return None
+        return parse_scalar(text)
+
+    def _show_properties(
+        self,
+        primary: Matrix,
+        other: Optional[Matrix],
+        scalar: Any,
+    ) -> None:
+        """Pinta las tarjetas de propiedades a partir del motor compartido."""
+        checks = analyze_matrix(primary, other, scalar)
+        self.properties_label.setText(_checks_to_html(checks))
 
     def _on_result_cell_clicked(self, row: int, col: int) -> None:
         if not self._details:
@@ -413,10 +583,15 @@ class MatrixOperationsView(QWidget):
         self._details = []
         self.result_view.clear()
         self.scalar_result_view.clear()
+        self.transpose_result_view.clear()
         self._clear_highlights()
         self.inspector_label.setText(
             "Calcula un producto A · B y pulsa una celda de C para ver la fila de A, "
             "la columna de B y la sumatoria de productos parciales."
+        )
+        self.properties_label.setText(
+            "Calcula para ver qué tipo de matriz es, qué propiedades cumple "
+            "y si se verifican las identidades de la transpuesta."
         )
 
     def load_compatible_product_sample(self) -> None:

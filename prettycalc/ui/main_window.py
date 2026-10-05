@@ -31,7 +31,7 @@ from prettycalc.ui.theme import (
 
 _MODULE_SUBTITLES = (
     "Sistemas de ecuaciones lineales  ·  eliminación por filas",
-    "Álgebra matricial  ·  suma, escala y producto A · B",
+    "Álgebra matricial  ·  A ± B, k·A, A·B y Aᵀ",
     "Vectores en ℝⁿ  ·  operaciones y combinación lineal",
     "Ecuaciones matriciales  ·  A x = b",
 )
