@@ -10,6 +10,7 @@ from prettycalc.core.matrix_ops import (
     matrix_multiply_with_details,
     matrix_scale,
     matrix_sub,
+    matrix_transpose,
 )
 from prettycalc.core.types import DimensionMismatchError, Matrix
 
@@ -82,6 +83,21 @@ def test_matrix_multiply_incompatible_raises():
     b = Matrix([[1, 2], [3, 4]])  # 2×2
     with pytest.raises(DimensionMismatchError, match="columnas de A"):
         matrix_multiply(a, b)
+
+
+def test_matrix_transpose_swaps_shape_and_does_not_mutate():
+    original = Matrix([[1, 2, 3], [4, "1/2", 6]])
+    snapshot = original.copy()
+    transposed = matrix_transpose(original)
+    assert original == snapshot
+    assert transposed.shape == (3, 2)
+    assert transposed == Matrix([[1, 4], [2, "1/2"], [3, 6]])
+    assert matrix_transpose(transposed) == original
+
+
+def test_matrix_transpose_column_becomes_row():
+    column = Matrix([[1], [0], ["-3/2"]])
+    assert matrix_transpose(column) == Matrix([[1, 0, "-3/2"]])
 
 
 def test_matrix_multiply_with_details_matches_product():

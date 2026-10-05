@@ -16,6 +16,7 @@ try:
         QSpinBox,
         QTabWidget,
         QScrollArea,
+        QSizePolicy,
         QButtonGroup,
         QLineEdit,
         QMessageBox,
@@ -329,11 +330,15 @@ class VectorsView(QWidget):
 
         self.combo_summary = QLabel("")
         self.combo_summary.setWordWrap(True)
-        self.combo_summary.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px;")
+        self.combo_summary.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 24px; font-weight: 600; "
+            f"font-family: {FONT_FAMILY_MONO}; padding: 8px 0;"
+        )
         self.combo_summary.setTextInteractionFlags(Qt.TextSelectableByMouse)
         res_layout.addWidget(self.combo_summary)
 
         self.combo_checklist = QVBoxLayout()
+        self.combo_checklist.setSpacing(10)
         res_layout.addLayout(self.combo_checklist)
 
         self.show_steps_btn = QPushButton("Ver procedimiento de escalonamiento")
@@ -496,18 +501,23 @@ class VectorsView(QWidget):
             mark = "✓" if ok else "✗"
             color = COLOR_FEEDBACK_SUCCESS if ok else COLOR_FEEDBACK_ERROR
             row = QLabel(
-                f"{mark}  {label}:  {format_scalar(got)}  =  {format_scalar(expected)}"
+                f"{mark}    {label}:    {format_scalar(got)}  =  {format_scalar(expected)}"
             )
+            row.setWordWrap(True)
+            row.setMinimumHeight(48)
+            row.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
             row.setStyleSheet(
-                f"color: {color}; font-size: 16px; font-family: {FONT_FAMILY_MONO}; padding: 2px 0;"
+                f"color: {color}; font-size: 24px; font-weight: 600; "
+                f"font-family: {FONT_FAMILY_MONO}; padding: 10px 12px; "
+                f"background-color: {COLOR_SURFACE_INNER}; border-radius: 6px;"
             )
             self.combo_checklist.addWidget(row)
 
         if result.system_type == SystemType.INCONSISTENT:
             row = QLabel("Contradicción: aparece una fila [0 … 0 | c ≠ 0].")
             row.setStyleSheet(
-                f"color: {COLOR_FEEDBACK_ERROR}; font-size: 16px; font-style: italic; "
-                f"padding: 8px; background-color: {COLOR_SURFACE_INNER};"
+                f"color: {COLOR_FEEDBACK_ERROR}; font-size: 24px; font-weight: 600; "
+                f"padding: 10px 12px; background-color: {COLOR_SURFACE_INNER};"
             )
             self.combo_checklist.addWidget(row)
 

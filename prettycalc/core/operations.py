@@ -1,6 +1,9 @@
-"""Operaciones elementales de fila con generación de notación formal LaTeX y heurísticas explicativas.
+"""Operaciones elementales de fila y la notación LaTeX de cada una.
 
-100% Python estándar (sin NumPy/SciPy).
+Asignatura: Álgebra Lineal MTM0120, Universidad Americana (UAM).
+Autores / Grupo: Grupo 4.
+La suma, el producto y la transpuesta están en matrix_ops.py: este módulo
+no las repite, para que el motor tenga un solo lugar por cada cálculo.
 """
 
 from __future__ import annotations
@@ -85,10 +88,6 @@ def add_row_multiple(matrix: Matrix, target_r: int, source_r: int, scalar: Any) 
     new_mat.set_row(target_r, combined_row)
     return new_mat
 
-
-# ==============================================================================
-# Generadores de Notación Formal (LaTeX) y Textos Heurísticos
-# ==============================================================================
 
 def get_swap_metadata(r1: int, r2: int) -> Tuple[str, str]:
     """Genera (latex_formula, heuristic_text) para un intercambio de filas (índices 0-based)."""

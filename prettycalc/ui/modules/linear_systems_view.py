@@ -27,6 +27,7 @@ from prettycalc.core.verifier import SolutionVerifier
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
+from prettycalc.ui.module_scroll import make_module_scroll
 from prettycalc.ui.theme import (
     apply_message_box_theme,
     COLOR_TEXT_PRIMARY,
@@ -43,7 +44,8 @@ class LinearSystemsView(QWidget):
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        main_layout = QVBoxLayout(self)
+        content = QWidget()
+        main_layout = QVBoxLayout(content)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(14)
 
@@ -149,6 +151,9 @@ class LinearSystemsView(QWidget):
         body_splitter.setStretchFactor(1, 4)
         body_splitter.setStretchFactor(2, 2)
         main_layout.addWidget(body_splitter, stretch=1)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(make_module_scroll(content))
 
     def _show_alert(self, icon: QMessageBox.Icon, title: str, text: str) -> None:
         box = QMessageBox(self)

@@ -31,7 +31,6 @@ from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.matrix_vector_properties_view import MatrixVectorPropertiesView
 from prettycalc.ui.modules.vectors_view import VectorColumnEditor
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
-
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
@@ -58,7 +57,6 @@ class MatrixEquationsView(QWidget):
         self._refresh_formula()
 
     def _setup_ui(self) -> None:
-        # Layout principal del widget: contiene un QScrollArea que evita cualquier corte de pantalla
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -262,7 +260,8 @@ class MatrixEquationsView(QWidget):
         self.product_label.setWordWrap(True)
         self.product_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.product_label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO}; "
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-weight: 600; "
+            f"font-family: {FONT_FAMILY_MONO}; "
             f"background-color: {COLOR_SURFACE_INNER}; border-radius: 6px; padding: 12px;"
         )
         prod_layout.addWidget(self.product_label)
@@ -310,13 +309,8 @@ class MatrixEquationsView(QWidget):
         lbl = QLabel(title)
         lbl.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.viewport().setAutoFillBackground(False)
-        body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        scroll.setWidget(body)
-        layout.addWidget(scroll, stretch=1)
+        body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        layout.addWidget(body, stretch=1)
         return card
 
     def _on_a_changed(self) -> None:
