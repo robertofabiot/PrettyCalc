@@ -15,6 +15,8 @@ Fundamento algebraico (equivalencias usadas en este programa):
     3. Producto A_{m×n} · B_{n×p}  →  tres bucles anidados:
            C[i][j] = sum(A[i][k] * B[k][j] for k in range(n))
     4. Ecuación matricial A x = b  →  matriz aumentada [A | b] y Gauss-Jordan.
+    5. Transpuesta Aᵀ: si A es m×n, Aᵀ es n×m y (Aᵀ)_ji = A_ij. El análisis de
+       propiedades usa el mismo motor que la interfaz (prettycalc.core).
 ================================================================================
 """
 
@@ -22,6 +24,10 @@ from __future__ import annotations
 
 from fractions import Fraction
 from typing import List, Optional, Sequence, Tuple
+
+from prettycalc.core.matrix_ops import matrix_transpose as transpose_core
+from prettycalc.core.matrix_properties import analyze_matrix, format_property_lines
+from prettycalc.core.types import Matrix
 
 
 # ------------------------------------------------------------------------------
@@ -425,13 +431,57 @@ def matrix_multiply(
     return C
 
 
+def _rows_from_matrix(matrix: Matrix) -> List[List[Fraction]]:
+    """Pasa una Matrix del motor a las listas que imprime la consola."""
+    return matrix.to_list()
+
+
+def menu_transpose() -> None:
+    """Lee A y muestra A y Aᵀ alineadas, con el cambio de dimensión m×n → n×m."""
+    rows = read_positive_int("Filas de A (m): ")
+    cols = read_positive_int("Columnas de A (n): ")
+    original = read_matrix(rows, cols, "A")
+    transposed = _rows_from_matrix(transpose_core(Matrix(original)))
+    print_matrix(original, title=f"A   ({rows}×{cols})")
+    print_matrix(transposed, title=f"Aᵀ   ({cols}×{rows})")
+
+
+def menu_propiedades() -> None:
+    """Imprime qué propiedades cumple A y cuáles identidades de Aᵀ se verifican."""
+    rows = read_positive_int("Filas de A: ")
+    cols = read_positive_int("Columnas de A: ")
+    primary = Matrix(read_matrix(rows, cols, "A"))
+    other: Optional[Matrix] = None
+    scalar: Optional[Fraction] = None
+    answer = input("¿Comprobar (A+B)ᵀ, (k·A)ᵀ y (A·B)ᵀ? (s/n): ").strip().lower()
+    if answer == "s":
+        rows_b = read_positive_int("Filas de B: ")
+        cols_b = read_positive_int("Columnas de B: ")
+        other = Matrix(read_matrix(rows_b, cols_b, "B"))
+        scalar = read_scalar("Escalar k: ")
+    print("\n" + "-" * 70)
+    print("Propiedades de A y comprobaciones de la transpuesta")
+    for line in format_property_lines(analyze_matrix(primary, other, scalar)):
+        print(f"  {line}")
+
+
 def menu_matrices() -> None:
-    """Suma, resta, escalado y producto con validación dimensional."""
+    """Suma, resta, escalado, producto, transpuesta y propiedades."""
     print("\n" + "=" * 70)
     print("  3. OPERACIONES MATRICIALES")
     print("=" * 70)
     print("  1) A + B     2) A − B     3) k · A     4) A · B (con desglose)")
-    op = input("Elija 1-4: ").strip()
+    print("  5) Aᵀ        6) Propiedades de A y de la transpuesta")
+    op = input("Elija 1-6: ").strip()
+    if op == "5":
+        menu_transpose()
+        return
+    if op == "6":
+        menu_propiedades()
+        return
+    if op not in ("1", "2", "3", "4"):
+        print("Opción no válida.")
+        return
 
     if op == "3":
         m = read_positive_int("Filas de A: ")
@@ -523,7 +573,7 @@ def main() -> None:
         print("=" * 70)
         print("  1. Operaciones con vectores en ℝⁿ")
         print("  2. Evaluación de combinación lineal  (Σ cᵢ vᵢ = b)")
-        print("  3. Operaciones matriciales  (A ± B, k·A, A·B)")
+        print("  3. Operaciones matriciales  (A ± B, k·A, A·B, Aᵀ)")
         print("  4. Ecuaciones matriciales  (A x = b)")
         print("  0. Salir")
         choice = input("\nSeleccione una opción: ").strip()
