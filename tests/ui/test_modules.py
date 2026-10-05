@@ -79,6 +79,26 @@ def test_matrix_operations_compatible_badge_and_inspector(qtbot):
     assert view.grid_b._highlight_cols == {0}
 
 
+def test_matrix_transpose_mode_updates_shape_and_properties(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(1)
+    view = window.matrix_operations_view
+    view.transpose_mode_btn.click()
+    view.grid_transpose.set_matrix(Matrix([[1, 2, 3], [4, 5, 6]]))
+    view.identity_scalar_edit.setText("2")
+    view.compute()
+
+    assert view.compute_btn.isEnabled()
+    assert view._result == Matrix([[1, 4], [2, 5], [3, 6]])
+    assert "Aᵀ es 3×2" in view.badge.text()
+    assert COLOR_FEEDBACK_SUCCESS in view.badge.styleSheet()
+    text = view.properties_label.text()
+    assert "rectangular" in text
+    assert "(Aᵀ)ᵀ = A" in text
+    assert "No aplica: la matriz no es cuadrada." in text
+
+
 def test_matrix_operations_incompatible_disables_compute(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
