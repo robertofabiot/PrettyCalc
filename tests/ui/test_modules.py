@@ -79,6 +79,30 @@ def test_matrix_operations_compatible_badge_and_inspector(qtbot):
     assert view.grid_b._highlight_cols == {0}
 
 
+def test_vector_checks_stay_large_and_module_can_scroll(qtbot):
+    from PySide6.QtWidgets import QLabel, QScrollArea
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.resize(980, 420)
+    window.show()
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_combination_scd_sample()
+    qtbot.wait(30)
+
+    checks = [lbl for lbl in view.findChildren(QLabel) if "componente" in lbl.text()]
+    assert checks
+    for lbl in checks:
+        assert "24px" in lbl.styleSheet()
+
+    scroll = view.tabs.currentWidget()
+    assert isinstance(scroll, QScrollArea)
+    assert scroll.objectName() == "moduleScroll"
+    assert scroll.widget().minimumHeight() >= scroll.widget().sizeHint().height() - 4
+    assert scroll.verticalScrollBar().maximum() > 0
+
+
 def test_matrix_transpose_mode_updates_shape_and_properties(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)

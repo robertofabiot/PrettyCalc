@@ -23,7 +23,6 @@ try:
         QLineEdit,
         QSizePolicy,
         QMessageBox,
-        QScrollArea,
     )
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QFont
@@ -41,6 +40,7 @@ from prettycalc.core.matrix_ops import (
 from prettycalc.core.matrix_properties import PropertyCheck, analyze_matrix
 from prettycalc.core.types import DimensionMismatchError, Matrix, format_scalar, parse_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
+from prettycalc.ui.module_scroll import make_module_scroll
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
@@ -79,7 +79,8 @@ def _checks_to_html(checks: Sequence[PropertyCheck]) -> str:
         text = html.escape(f"{check.name}: {check.detail}")
         color = colors[check.status]
         rows.append(
-            f'<div style="color:{color}; margin: 3px 0;">{marks[check.status]}&nbsp;&nbsp;{text}</div>'
+            f'<div style="color:{color}; font-size:24px; font-weight:600; '
+            f'margin: 8px 0;">{marks[check.status]}&nbsp;&nbsp;{text}</div>'
         )
     return "".join(rows)
 
@@ -97,7 +98,8 @@ class MatrixOperationsView(QWidget):
         self._refresh_compatibility()
 
     def _setup_ui(self) -> None:
-        root = QVBoxLayout(self)
+        content = QWidget()
+        root = QVBoxLayout(content)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(12)
 
@@ -165,6 +167,9 @@ class MatrixOperationsView(QWidget):
             rich=True,
             target="properties_label",
         ))
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(make_module_scroll(content))
 
     def _build_binary_page(self) -> QWidget:
         page = QWidget()
@@ -276,7 +281,7 @@ class MatrixOperationsView(QWidget):
         if rich:
             label.setTextFormat(Qt.RichText)
         label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO};"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 24px; font-family: {FONT_FAMILY_MONO};"
         )
         layout.addWidget(label)
         setattr(self, target, label)
@@ -345,18 +350,8 @@ class MatrixOperationsView(QWidget):
             f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
         )
         layout.addWidget(lbl)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
-        scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
-        body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        scroll.setWidget(body)
-        layout.addWidget(scroll, stretch=1)
+        body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        layout.addWidget(body, stretch=1)
         return card
 
     def _on_mode_changed(self, index: int) -> None:

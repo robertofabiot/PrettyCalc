@@ -402,6 +402,37 @@ def get_global_stylesheet() -> str:
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
     }}
 
+    QScrollBar:vertical {{
+        background: {COLOR_BG_BASE};
+        width: 14px;
+        margin: 2px;
+        border: none;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {COLOR_INTERACTIVE_IDLE};
+        min-height: 28px;
+        border-radius: 5px;
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+        height: 0px;
+        background: transparent;
+    }}
+    QScrollBar:horizontal {{
+        background: {COLOR_BG_BASE};
+        height: 14px;
+        margin: 2px;
+        border: none;
+    }}
+    QScrollBar::handle:horizontal {{
+        background: {COLOR_INTERACTIVE_IDLE};
+        min-width: 28px;
+        border-radius: 5px;
+    }}
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+        width: 0px;
+        background: transparent;
+    }}
+
     QLineEdit#scalarField {{
         background-color: {COLOR_SURFACE_INNER};
         color: {COLOR_TEXT_PRIMARY};

@@ -9,7 +9,6 @@ try:
         QVBoxLayout,
         QLabel,
         QFrame,
-        QScrollArea,
     )
     from PySide6.QtCore import Qt
 except ImportError:
@@ -48,20 +47,8 @@ class ResultsDashboardCard(QFrame):
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 8, 8, 8)
-        outer.setSpacing(0)
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
-        outer.addWidget(scroll)
-
-        inner = QWidget()
-        inner.setStyleSheet("background: transparent;")
-        layout = QVBoxLayout(inner)
-        layout.setContentsMargins(10, 10, 12, 10)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(14)
 
         title = QLabel("Resultados")
@@ -104,9 +91,7 @@ class ResultsDashboardCard(QFrame):
         self.checklist_container = QVBoxLayout()
         self.checklist_container.setSpacing(8)
         layout.addLayout(self.checklist_container)
-
         layout.addStretch(1)
-        scroll.setWidget(inner)
 
     def clear(self) -> None:
         """Restablece el panel al estado vacío inicial."""
@@ -209,16 +194,16 @@ class ResultsDashboardCard(QFrame):
         head.setWordWrap(True)
         head.setTextFormat(Qt.RichText)
         head.setText(
-            f"<span style='color:{mark_color}; font-weight:bold; font-size:18px;'>{mark}</span>"
-            f"&nbsp;&nbsp;<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:17px;'>({v.equation_index + 1})</span>"
-            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-size:17px; font-family:{FONT_FAMILY_MONO};'>{eq}</span>"
+            f"<span style='color:{mark_color}; font-weight:bold; font-size:24px;'>{mark}</span>"
+            f"&nbsp;&nbsp;<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:22px;'>({v.equation_index + 1})</span>"
+            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-size:22px; font-family:{FONT_FAMILY_MONO};'>{eq}</span>"
         )
         col.addWidget(head)
 
         sub_lbl = QLabel(sub)
         sub_lbl.setWordWrap(True)
         sub_lbl.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 17px; "
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-weight: 600; "
             f"font-family: {FONT_FAMILY_MONO}; padding-left: 28px;"
         )
         col.addWidget(sub_lbl)

@@ -13,7 +13,6 @@ try:
         QLabel,
         QFrame,
         QMessageBox,
-        QScrollArea,
         QSizePolicy,
     )
     from PySide6.QtCore import Qt
@@ -29,6 +28,7 @@ from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.vectors_view import VectorColumnEditor
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
+from prettycalc.ui.module_scroll import make_module_scroll
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
@@ -52,7 +52,8 @@ class MatrixEquationsView(QWidget):
         self._refresh_formula()
 
     def _setup_ui(self) -> None:
-        root = QVBoxLayout(self)
+        content = QWidget()
+        root = QVBoxLayout(content)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(12)
 
@@ -143,12 +144,16 @@ class MatrixEquationsView(QWidget):
         self.product_label = QLabel("Resuelve para verificar el producto matricial.")
         self.product_label.setWordWrap(True)
         self.product_label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO};"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 24px; font-weight: 600; "
+            f"font-family: {FONT_FAMILY_MONO};"
         )
         prod_layout.addWidget(self.product_label)
         right.addWidget(self.product_card)
         bottom.addLayout(right, stretch=2)
         root.addLayout(bottom, stretch=3)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(make_module_scroll(content))
 
     def _card(self, title: str, body: QWidget) -> QFrame:
         card = QFrame()
@@ -158,18 +163,8 @@ class MatrixEquationsView(QWidget):
         lbl = QLabel(title)
         lbl.setStyleSheet(f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollArea > QWidget { background: transparent; }"
-        )
-        scroll.viewport().setAutoFillBackground(False)
-        scroll.viewport().setStyleSheet("background: transparent;")
-        body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        scroll.setWidget(body)
-        layout.addWidget(scroll, stretch=1)
+        body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        layout.addWidget(body, stretch=1)
         return card
 
     def _on_a_changed(self) -> None:
