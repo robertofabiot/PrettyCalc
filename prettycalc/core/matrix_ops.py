@@ -1,7 +1,8 @@
-"""Álgebra matricial básica: suma, resta, escala y producto con bucles anidados.
+"""Álgebra matricial: suma, resta, escala, producto y transpuesta.
 
-100% Python estándar. Aritmética exacta con `fractions.Fraction`.
-Prohibido NumPy, SciPy y álgebra lineal de `math`.
+Asignatura: Álgebra Lineal MTM0120, Universidad Americana (UAM).
+Autores / Grupo: Grupo 4.
+Aritmética exacta con fractions.Fraction. Sin NumPy, SciPy ni math.
 """
 
 from __future__ import annotations
@@ -72,13 +73,25 @@ def matrix_sub(A: Matrix, B: Matrix) -> Matrix:
 
 
 def matrix_scale(A: Matrix, scalar: Any) -> Matrix:
-    """Producto por escalar: C_ij = k · A_ij."""
+    """Producto por escalar: recibe A y k, devuelve C con C_ij = k · A_ij."""
     k = parse_scalar(scalar)
     C = Matrix.zeros(A.rows, A.cols)
     for i in range(A.rows):
         for j in range(A.cols):
             C.set(i, j, k * A.get(i, j))
     return C
+
+
+def matrix_transpose(A: Matrix) -> Matrix:
+    """Transpuesta: si A es m×n, devuelve Aᵀ de n×m con (Aᵀ)_ji = A_ij.
+
+    No modifica A. El intercambio de índices es la definición, no un pivoteo.
+    """
+    transposed = Matrix.zeros(A.cols, A.rows)
+    for row_index in range(A.rows):
+        for col_index in range(A.cols):
+            transposed.set(col_index, row_index, A.get(row_index, col_index))
+    return transposed
 
 
 @dataclass(frozen=True)
@@ -100,18 +113,46 @@ class MultiplicationStepDetail:
     formula: str
 
 
+def _format_cell_formula(
+    row_index: int,
+    col_index: int,
+    term_texts: List[str],
+    total: Fraction,
+) -> str:
+    """Texto de la sumatoria de la celda C_ij para el inspector."""
+    total_text = format_scalar(total, mode="fraction")
+    sum_body = " + ".join(term_texts) if term_texts else "0"
+    return (
+        f"C_{row_index + 1},{col_index + 1} = Σ_k A_{row_index + 1}k · B_k{col_index + 1} "
+        f"= {sum_body} = {total_text}"
+    )
+
+
+def _cell_product(A: Matrix, B: Matrix, row_index: int, col_index: int) -> MultiplicationStepDetail:
+    """Producto punto de la fila row_index de A con la columna col_index de B."""
+    accum = Fraction(0, 1)
+    products: List[Tuple[Fraction, Fraction, Fraction]] = []
+    term_texts: List[str] = []
+    for shared in range(A.cols):
+        left = A.get(row_index, shared)
+        right = B.get(shared, col_index)
+        prod = left * right
+        accum += prod
+        products.append((left, right, prod))
+        left_text = format_scalar(left, mode="fraction")
+        right_text = format_scalar(right, mode="fraction")
+        term_texts.append(f"({left_text})·({right_text})")
+    return MultiplicationStepDetail(
+        row=row_index,
+        col=col_index,
+        products=products,
+        total=accum,
+        formula=_format_cell_formula(row_index, col_index, term_texts, accum),
+    )
+
+
 def matrix_multiply(A: Matrix, B: Matrix) -> Matrix:
-    """Producto matricial C = A · B mediante tres bucles anidados.
-
-    Condición de conformabilidad: A.cols == B.rows.
-    Cada celda se calcula como producto punto de la fila i de A con la
-    columna j de B:
-
-        C[i][j] = sum(A[i][k] * B[k][j] for k in range(n))
-
-    Raises:
-        DimensionMismatchError: Si las matrices no son conformables.
-    """
+    """Producto C = A · B. Exige columnas de A = filas de B y devuelve C."""
     result, _ = matrix_multiply_with_details(A, B)
     return result
 
@@ -120,58 +161,13 @@ def matrix_multiply_with_details(
     A: Matrix,
     B: Matrix,
 ) -> Tuple[Matrix, List[MultiplicationStepDetail]]:
-    """Producto A · B junto al desglose de cada celda para el inspector.
-
-    Algoritmo en Python estándar (tres bucles anidados, aritmética exacta):
-
-        C = Matrix.zeros(m, p)
-        for i in range(m):
-            for j in range(p):
-                accum = Fraction(0, 1)
-                for k in range(n):
-                    accum += A.get(i, k) * B.get(k, j)
-                C.set(i, j, accum)
-
-    Returns:
-        (C, detalles) donde `detalles` tiene una entrada por cada C_ij.
-    """
+    """Producto A · B y una ficha por cada C_ij. Devuelve (C, detalles)."""
     _require_conformable(A, B)
-
-    m, n = A.rows, A.cols
-    p = B.cols
-    C = Matrix.zeros(m, p)
+    result = Matrix.zeros(A.rows, B.cols)
     details: List[MultiplicationStepDetail] = []
-
-    for i in range(m):
-        for j in range(p):
-            accum = Fraction(0, 1)
-            products: List[Tuple[Fraction, Fraction, Fraction]] = []
-            term_texts: List[str] = []
-            for k in range(n):
-                a_ik = A.get(i, k)
-                b_kj = B.get(k, j)
-                prod = a_ik * b_kj
-                accum += prod
-                products.append((a_ik, b_kj, prod))
-                a_str = format_scalar(a_ik, mode="fraction")
-                b_str = format_scalar(b_kj, mode="fraction")
-                term_texts.append(f"({a_str})·({b_str})")
-
-            C.set(i, j, accum)
-            total_str = format_scalar(accum, mode="fraction")
-            sum_body = " + ".join(term_texts) if term_texts else "0"
-            formula = (
-                f"C_{i + 1},{j + 1} = Σ_k A_{i + 1}k · B_k{j + 1} "
-                f"= {sum_body} = {total_str}"
-            )
-            details.append(
-                MultiplicationStepDetail(
-                    row=i,
-                    col=j,
-                    products=products,
-                    total=accum,
-                    formula=formula,
-                )
-            )
-
-    return C, details
+    for row_index in range(A.rows):
+        for col_index in range(B.cols):
+            detail = _cell_product(A, B, row_index, col_index)
+            result.set(row_index, col_index, detail.total)
+            details.append(detail)
+    return result, details
