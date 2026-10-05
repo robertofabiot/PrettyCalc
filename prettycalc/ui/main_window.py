@@ -33,8 +33,9 @@ _MODULE_SUBTITLES = (
     "Sistemas de ecuaciones lineales  ·  eliminación por filas",
     "Álgebra matricial  ·  suma, escala y producto A · B",
     "Vectores en ℝⁿ  ·  operaciones y combinación lineal",
-    "Ecuaciones matriciales  ·  A x = b",
+    "Ecuaciones matriciales  ·  A x = b y propiedades de A · x",
 )
+
 
 
 class MainWindow(QMainWindow):

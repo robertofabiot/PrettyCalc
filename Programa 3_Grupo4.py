@@ -511,6 +511,104 @@ def menu_ecuacion() -> None:
         print("Igualdad matricial exacta verificada.")
 
 
+def menu_propiedades_ax() -> None:
+    """Verificación de las propiedades del producto matriz-vector A · x."""
+    print("\n" + "=" * 70)
+    print("  5. PROPIEDADES DEL PRODUCTO MATRIZ-VECTOR (A · x)")
+    print("=" * 70)
+    print("  1) Propiedad Distributiva:  A(u + v) = A·u + A·v")
+    print("  2) Propiedad de Homogeneidad: A(c·u) = c·(A·u)")
+    prop = input("Elija 1 o 2: ").strip()
+
+    if prop not in ("1", "2"):
+        print("Opción inválida.")
+        return
+
+    m = read_positive_int("Número de filas de A (m): ")
+    n = read_positive_int("Número de columnas de A (n): ")
+    A = read_matrix(m, n, "A")
+
+    if prop == "1":
+        print(f"\nIngrese dos vectores u y v en ℝ^{n} (compatibles con las {n} columnas de A):")
+        u = read_vector(n, "u")
+        v = read_vector(n, "v")
+
+        # LHS: A · (u + v)
+        u_plus_v = vector_add(u, v)
+        upv_col = [[u_plus_v[i]] for i in range(n)]
+        lhs = matrix_multiply(A, upv_col, verbose=False)
+        lhs_vec = [lhs[i][0] for i in range(m)]
+
+        # RHS: A·u + A·v
+        u_col = [[u[i]] for i in range(n)]
+        v_col = [[v[i]] for i in range(n)]
+        Au = matrix_multiply(A, u_col, verbose=False)
+        Av = matrix_multiply(A, v_col, verbose=False)
+        Au_vec = [Au[i][0] for i in range(m)]
+        Av_vec = [Av[i][0] for i in range(m)]
+        rhs_vec = vector_add(Au_vec, Av_vec)
+
+        print("\n" + "-" * 70)
+        print("DEMOSTRACIÓN DE LA PROPIEDAD DISTRIBUTIVA: A(u + v) = A·u + A·v")
+        print("-" * 70)
+        print_vector(u_plus_v, title="Paso 1 (LHS) - Suma intermedia (u + v):")
+        print_vector(lhs_vec, title="Paso 2 (LHS) - Resultado A · (u + v):")
+        print_vector(Au_vec, title="Paso 1 (RHS) - Producto A · u:")
+        print_vector(Av_vec, title="Paso 2 (RHS) - Producto A · v:")
+        print_vector(rhs_vec, title="Paso 3 (RHS) - Suma final (A·u) + (A·v):")
+
+        print("\nComprobación de igualdad componente a componente:")
+        all_equal = True
+        for i in range(m):
+            eq = lhs_vec[i] == rhs_vec[i]
+            all_equal = all_equal and eq
+            mark = "✓" if eq else "✗"
+            print(f"  {mark}  Fila {i + 1}:  LHS = {fmt(lhs_vec[i])}  ==  RHS = {fmt(rhs_vec[i])}")
+
+        if all_equal:
+            print("\n🟢  ¡Propiedad Distributiva verificada exitosamente! Ambos lados son idénticos.")
+        else:
+            print("\n🔴  Discrepancia encontrada.")
+
+    elif prop == "2":
+        print(f"\nIngrese el vector u en ℝ^{n} (compatible con las {n} columnas de A):")
+        u = read_vector(n, "u")
+        c = read_scalar("Ingrese el escalar c: ")
+
+        # LHS: A · (c · u)
+        cu = vector_scale(u, c)
+        cu_col = [[cu[i]] for i in range(n)]
+        lhs = matrix_multiply(A, cu_col, verbose=False)
+        lhs_vec = [lhs[i][0] for i in range(m)]
+
+        # RHS: c · (A · u)
+        u_col = [[u[i]] for i in range(n)]
+        Au = matrix_multiply(A, u_col, verbose=False)
+        Au_vec = [Au[i][0] for i in range(m)]
+        rhs_vec = vector_scale(Au_vec, c)
+
+        print("\n" + "-" * 70)
+        print("DEMOSTRACIÓN DE LA PROPIEDAD DE HOMOGENEIDAD: A(c·u) = c·(A·u)")
+        print("-" * 70)
+        print_vector(cu, title=f"Paso 1 (LHS) - Vector escalado ({fmt(c)}) · u:")
+        print_vector(lhs_vec, title="Paso 2 (LHS) - Resultado A · (c·u):")
+        print_vector(Au_vec, title="Paso 1 (RHS) - Producto A · u:")
+        print_vector(rhs_vec, title=f"Paso 2 (RHS) - Escalado final ({fmt(c)}) · (A·u):")
+
+        print("\nComprobación de igualdad componente a componente:")
+        all_equal = True
+        for i in range(m):
+            eq = lhs_vec[i] == rhs_vec[i]
+            all_equal = all_equal and eq
+            mark = "✓" if eq else "✗"
+            print(f"  {mark}  Fila {i + 1}:  LHS = {fmt(lhs_vec[i])}  ==  RHS = {fmt(rhs_vec[i])}")
+
+        if all_equal:
+            print("\n🟢  ¡Propiedad de Homogeneidad verificada exitosamente! Ambos lados son idénticos.")
+        else:
+            print("\n🔴  Discrepancia encontrada.")
+
+
 # ------------------------------------------------------------------------------
 # Menú principal
 # ------------------------------------------------------------------------------
@@ -525,6 +623,7 @@ def main() -> None:
         print("  2. Evaluación de combinación lineal  (Σ cᵢ vᵢ = b)")
         print("  3. Operaciones matriciales  (A ± B, k·A, A·B)")
         print("  4. Ecuaciones matriciales  (A x = b)")
+        print("  5. Propiedades del producto matriz-vector  (A · x)")
         print("  0. Salir")
         choice = input("\nSeleccione una opción: ").strip()
         if choice == "0":
@@ -535,6 +634,7 @@ def main() -> None:
             "2": menu_combinacion,
             "3": menu_matrices,
             "4": menu_ecuacion,
+            "5": menu_propiedades_ax,
         }
         action = handlers.get(choice)
         if action is None:
@@ -551,3 +651,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
