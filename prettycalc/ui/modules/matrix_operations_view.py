@@ -100,7 +100,7 @@ class MatrixOperationsView(QWidget):
     def _setup_ui(self) -> None:
         content = QWidget()
         root = QVBoxLayout(content)
-        root.setContentsMargins(0, 0, 0, 0)
+        root.setContentsMargins(4, 4, 10, 16)
         root.setSpacing(12)
 
         toolbar = QHBoxLayout()

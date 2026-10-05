@@ -18,7 +18,7 @@ except ImportError:
 
 from prettycalc.core.tracer import CalculationStep
 from prettycalc.ui.book_matrix import BookMatrixWidget
-from prettycalc.ui.mathtext import latex_to_book_html
+from prettycalc.ui.mathtext import latex_to_book_html, variable_symbol, variable_html
 from prettycalc.ui.theme import (
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_MUTED,
@@ -122,7 +122,20 @@ class AlgorithmStepperCarousel(QFrame):
                 font-weight: 500;
             }}
         """)
-        heuristic_layout.addWidget(self.heuristic_label)
+        heuristic_layout.addWidget(self.heuristic_label, stretch=1)
+
+        self.pivot_badge = QLabel("")
+        self.pivot_badge.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.pivot_badge.setStyleSheet(f"""
+            QLabel {{
+                color: {COLOR_FEEDBACK_SUCCESS};
+                font-size: 15px;
+                font-weight: 600;
+                font-family: {FONT_FAMILY_SANS};
+                padding-left: 8px;
+            }}
+        """)
+        heuristic_layout.addWidget(self.pivot_badge)
         layout.addWidget(heuristic_box)
 
         self.mode_btn.toggled.connect(self._on_mode_toggled)
@@ -155,6 +168,7 @@ class AlgorithmStepperCarousel(QFrame):
                 f"<span style='color:{COLOR_TEXT_MUTED}; font-style:italic; font-size:16px;'>Esperando resolución</span>"
             )
             self.heuristic_label.setText("Ingresa el sistema y pulsa Resolver.")
+            self.pivot_badge.setText("")
             self.matrix_view.clear()
             self.prev_btn.setEnabled(False)
             self.next_btn.setEnabled(False)
@@ -171,6 +185,14 @@ class AlgorithmStepperCarousel(QFrame):
 
         self.formula_label.setText(latex_to_book_html(step.latex_formula))
         self.heuristic_label.setText(step.heuristic_text)
+
+        if step.pivot_pos is not None:
+            pr, pc = step.pivot_pos
+            col_var = variable_html(pc, sub_size_px=11) if step.split_col is None or pc < step.split_col else "b"
+            self.pivot_badge.setTextFormat(Qt.RichText)
+            self.pivot_badge.setText(f"Pivote: Fila {pr + 1}, Columna {pc + 1} ({col_var})")
+        else:
+            self.pivot_badge.setText("")
 
         self.prev_btn.setEnabled(curr > 0)
         self.next_btn.setEnabled(curr < total - 1)

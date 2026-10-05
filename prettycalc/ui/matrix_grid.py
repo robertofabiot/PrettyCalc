@@ -64,7 +64,12 @@ class MatrixCellEdit(QLineEdit):
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
         self.selectAll()
-        QTimer.singleShot(0, self.selectAll)
+        def _safe_select_all():
+            try:
+                self.selectAll()
+            except RuntimeError:
+                pass
+        QTimer.singleShot(0, _safe_select_all)
 
     def _on_text_changed(self, text: str) -> None:
         cleaned = text.strip()
@@ -214,15 +219,24 @@ class DynamicMatrixGrid(QFrame):
         if self.show_headers:
             for c in range(total_cols):
                 if self.augmented:
-                    text = "b" if c == self.num_vars else variable_symbol(c)
+                    if c == self.num_vars:
+                        lbl = QLabel("b")
+                        lbl.setStyleSheet(
+                            f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
+                        )
+                    else:
+                        lbl = QLabel(f"<i>x</i><sub style='font-size:10px;'>{c + 1}</sub>")
+                        lbl.setTextFormat(Qt.RichText)
+                        lbl.setStyleSheet(
+                            f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 16px; background: transparent;"
+                        )
                 else:
-                    text = str(c + 1)
-                lbl = QLabel(text)
+                    lbl = QLabel(str(c + 1))
+                    lbl.setStyleSheet(
+                        f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
+                    )
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedHeight(22)
-                lbl.setStyleSheet(
-                    f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
-                )
                 self._grid_layout.addWidget(lbl, 0, c)
 
         for r in range(self.num_rows):

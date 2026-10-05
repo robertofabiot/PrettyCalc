@@ -33,8 +33,9 @@ _MODULE_SUBTITLES = (
     "Sistemas de ecuaciones lineales  ·  eliminación por filas",
     "Álgebra matricial  ·  A ± B, k·A, A·B y Aᵀ",
     "Vectores en ℝⁿ  ·  operaciones y combinación lineal",
-    "Ecuaciones matriciales  ·  A x = b",
+    "Ecuaciones matriciales  ·  A x = b y propiedades de A · x",
 )
+
 
 
 class MainWindow(QMainWindow):
@@ -43,7 +44,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PrettyCalc — Álgebra lineal")
-        self.resize(1480, 820)
+        self.setMinimumSize(1080, 680)
+        self.resize(1380, 800)
         self.setStyleSheet(get_global_stylesheet())
         self._setup_ui()
         self._setup_shortcuts()

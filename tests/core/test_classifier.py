@@ -27,6 +27,11 @@ class TestSystemClassifier(unittest.TestCase):
         self.assertEqual(analysis.rank_augmented, 3)
         self.assertEqual(analysis.unique_solution, [Fraction(2, 1), Fraction(3, 1), Fraction(-1, 1)])
         self.assertEqual(len(analysis.free_variables), 0)
+        self.assertEqual(analysis.pivot_columns, [0, 1, 2])
+        self.assertEqual(analysis.pivot_columns_1based, [1, 2, 3])
+        self.assertEqual(analysis.basic_variables_names, ["x1", "x2", "x3"])
+        self.assertEqual(analysis.free_variables_names, [])
+        self.assertFalse(analysis.has_augmented_pivot)
 
     def test_consistent_indetermined_sci(self):
         # Caso 2: Infinitas Soluciones
@@ -43,6 +48,11 @@ class TestSystemClassifier(unittest.TestCase):
         self.assertEqual(analysis.rank_augmented, 1)
         self.assertEqual(analysis.basic_variables, [0])  # x1 básica
         self.assertEqual(analysis.free_variables, [1, 2])  # x2, x3 libres
+        self.assertEqual(analysis.pivot_columns, [0])
+        self.assertEqual(analysis.pivot_columns_1based, [1])
+        self.assertEqual(analysis.basic_variables_names, ["x1"])
+        self.assertEqual(analysis.free_variables_names, ["x2", "x3"])
+        self.assertFalse(analysis.has_augmented_pivot)
 
         # x1 = 4 - 2*x2 + x3
         expr_x1 = analysis.parametric_solutions[0]
@@ -64,6 +74,11 @@ class TestSystemClassifier(unittest.TestCase):
         self.assertEqual(analysis.rank_augmented, 2)
         self.assertIsNone(analysis.unique_solution)
         self.assertIsNotNone(analysis.inconsistent_row)
+        self.assertEqual(analysis.pivot_columns, [0])
+        self.assertEqual(analysis.pivot_columns_1based, [1])
+        self.assertEqual(analysis.basic_variables, [0])
+        self.assertEqual(analysis.free_variables, [1])
+        self.assertTrue(analysis.has_augmented_pivot)
 
 
 if __name__ == "__main__":

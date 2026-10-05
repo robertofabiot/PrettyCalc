@@ -32,6 +32,34 @@ def variable_symbol(index_0: int) -> str:
     return f"x{to_subscript(index_0 + 1)}"
 
 
+_REV_SUBSCRIPTS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
+_VAR_PATTERN = re.compile(r"x([0-9]+|[\u2080-\u2089]+)", re.IGNORECASE)
+
+
+def variable_html(index_0: int, sub_size_px: Optional[int] = None, italic_x: bool = True) -> str:
+    """Nombre de variable en HTML con subíndice visualmente reducido.
+
+    Ejemplo: <i>x</i><sub style='font-size:11px;'>1</sub> o <i>x</i><sub>1</sub>
+    """
+    style_attr = f" style='font-size:{sub_size_px}px;'" if sub_size_px else ""
+    x_part = "<i>x</i>" if italic_x else "x"
+    return f"{x_part}<sub{style_attr}>{index_0 + 1}</sub>"
+
+
+def to_html_subscripts(text: str, sub_size_px: Optional[int] = None, italic_x: bool = True) -> str:
+    """Convierte apariciones de x1, x2 o x₁, x₂ a HTML con subíndice reducido y bajado."""
+    if not text:
+        return ""
+    style_attr = f" style='font-size:{sub_size_px}px;'" if sub_size_px else ""
+    x_part = "<i>x</i>" if italic_x else "x"
+
+    def _repl(m: re.Match) -> str:
+        digits = m.group(1).translate(_REV_SUBSCRIPTS)
+        return f"{x_part}<sub{style_attr}>{digits}</sub>"
+
+    return _VAR_PATTERN.sub(_repl, text)
+
+
 def row_symbol(index_0: int) -> str:
     """Nombre de fila con subíndice de libro: F₁, F₂, …"""
     return f"F{to_subscript(index_0 + 1)}"

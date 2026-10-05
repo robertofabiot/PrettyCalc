@@ -65,3 +65,18 @@ def test_prettify_equations():
     assert format_substitution_book("1*(2) + 1*(1) = 4 (Esperado: 4)") == "(2) + (1) = 4"
     assert "x₂" in prettify_math_text("6 - 2*x2 - 3*x3")
     assert "−" in prettify_math_text("6 - 2*x2")
+
+
+def test_variable_html_and_to_html_subscripts():
+    from prettycalc.ui.mathtext import variable_html, to_html_subscripts
+    assert "<sub>1</sub>" in variable_html(0)
+    assert "<i>x</i>" in variable_html(0)
+    assert "font-size:11px" in variable_html(1, sub_size_px=11)
+    
+    html = to_html_subscripts("2x1 + 3x2 = 5", sub_size_px=10)
+    assert "<i>x</i><sub style='font-size:10px;'>1</sub>" in html
+    assert "<i>x</i><sub style='font-size:10px;'>2</sub>" in html
+
+    html_unicode = to_html_subscripts("2x₁ + 3x₂ = 5", sub_size_px=12)
+    assert "<i>x</i><sub style='font-size:12px;'>1</sub>" in html_unicode
+    assert "<i>x</i><sub style='font-size:12px;'>2</sub>" in html_unicode

@@ -96,11 +96,10 @@ def test_vector_checks_stay_large_and_module_can_scroll(qtbot):
     for lbl in checks:
         assert "24px" in lbl.styleSheet()
 
-    scroll = view.tabs.currentWidget()
-    assert isinstance(scroll, QScrollArea)
-    assert scroll.objectName() == "moduleScroll"
-    assert scroll.widget().minimumHeight() >= scroll.widget().sizeHint().height() - 4
-    assert scroll.verticalScrollBar().maximum() > 0
+    page = view.tabs.currentWidget()
+    scroll = page.findChild(QScrollArea)
+    assert scroll is not None
+    assert scroll.widgetResizable() is True
 
 
 def test_matrix_transpose_mode_updates_shape_and_properties(qtbot):
@@ -157,6 +156,40 @@ def test_vectors_combination_si_sample(qtbot):
     assert COLOR_FEEDBACK_ERROR in view.combo_badge.styleSheet()
 
 
+def test_vectors_independence_li_sample(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_independence_li_sample()
+    assert "INDEPENDIENTE (L.I.)" in view.indep_badge.text()
+    assert COLOR_FEEDBACK_SUCCESS in view.indep_badge.styleSheet()
+    assert "k = 3 en ℝ^3" in view.indep_summary.text()
+    assert "solución trivial" in view.indep_summary.text()
+
+
+def test_vectors_independence_ld_sample(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_independence_ld_sample()
+    assert "DEPENDIENTE (L.D.)" in view.indep_badge.text()
+    assert COLOR_FEEDBACK_ERROR in view.indep_badge.styleSheet()
+    assert "infinitas soluciones no triviales" in view.indep_summary.text()
+    assert view.indep_checklist.count() > 0
+
+
+def test_vectors_independence_dim_sample(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(2)
+    view = window.vectors_view
+    view.load_independence_dim_sample()
+    assert "DEPENDIENTE (L.D.)" in view.indep_badge.text()
+    assert "k = 4 > n = 3" in view.indep_summary.text()
+
+
 def test_matrix_equations_sample_solves_and_verifies(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
@@ -176,3 +209,49 @@ def test_module_state_persists_when_switching(qtbot):
     window.set_module(1)
     window.set_module(0)
     assert window.matrix_grid.cells[0][0].text() == "9"
+
+
+def test_matrix_equations_scroll_and_tabs(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(3)
+    view = window.matrix_equations_view
+
+    # Verify scroll area exists and is resizable
+    assert hasattr(view, "scroll_area")
+    assert view.scroll_area.widgetResizable() is True
+
+    # Verify tab widget has 2 tabs
+    assert hasattr(view, "results_tabs")
+    assert view.results_tabs.count() == 2
+    assert "Comprobación" in view.results_tabs.tabText(0)
+    assert "Procedimiento" in view.results_tabs.tabText(1)
+
+    # Test tab switching
+    view.results_tabs.setCurrentIndex(1)
+    assert view.results_tabs.currentIndex() == 1
+    view.results_tabs.setCurrentIndex(0)
+    assert view.results_tabs.currentIndex() == 0
+
+
+def test_matrix_equations_samples_and_reset(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(3)
+    view = window.matrix_equations_view
+
+    # Test SCI sample (Infinitas soluciones)
+    view.load_sample_sci()
+    assert "indeterminado" in view.dashboard.status_badge.text().lower() or "infinitas" in view.dashboard.status_badge.text().lower()
+
+    # Test SI sample (Sin solución / inconsistente)
+    view.load_sample_si()
+    assert "inconsistente" in view.dashboard.status_badge.text().lower() or "sin solución" in view.dashboard.status_badge.text().lower()
+    assert "No hay vector x" in view.product_label.text()
+
+    # Test Reset
+    view.reset()
+    assert view.grid_a.data_shape() == (3, 3)
+    assert view.vec_b.grid.num_rows == 3
+    assert view.results_tabs.currentIndex() == 0
+

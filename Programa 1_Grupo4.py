@@ -186,9 +186,24 @@ def solve_system_cli():
                 is_inconsistent = True
                 inconsistent_row_idx = r
 
+    pivot_cols.sort()
+    basic_vars = list(pivot_cols)
+    free_vars = [c for c in range(n) if c not in basic_vars]
+
+    pivot_cols_str = ", ".join(f"Columna {c+1} (x{c+1})" for c in basic_vars) if basic_vars else "Ninguna"
+    basic_vars_str = ", ".join(f"x{c+1}" for c in basic_vars) if basic_vars else "Ninguna"
+    free_vars_str = ", ".join(f"x{c+1}" for c in free_vars) if free_vars else "Ninguna (0 variables libres)"
+
     print("\n" + "=" * 70)
     print("                       RESULTADOS Y CLASIFICACIÓN                     ")
     print("=" * 70)
+
+    print("\n--- Estructura de Variables y Pivotes ---")
+    print(f"   • Columnas con pivote en A : {pivot_cols_str}")
+    if is_inconsistent:
+        print(f"   • Columna pivote en [A|b]  : Columna {n+1} (término independiente b en fila {inconsistent_row_idx+1})")
+    print(f"   • Variables básicas         : {basic_vars_str}")
+    print(f"   • Variables libres          : {free_vars_str}")
 
     if is_inconsistent or rank_a < rank_augmented:
         print("\n🔴 CLASIFICACIÓN: SISTEMA INCONSISTENTE (SIN SOLUCIÓN)")
@@ -204,7 +219,7 @@ def solve_system_cli():
         for i in range(n):
             val = matrix[i][n]
             solution.append(val)
-            print(f"   • x{i+1} = {format_fraction(val)}  (Decimal: {float(val):.4f})")
+            print(f"   • x{i+1} = {format_fraction(val)}  (Decimal: {float(val):.4f})  [Variable básica - Columna {i+1}]")
 
         # 7. Verificación Automática por Sustitución
         print("\nComprobación de la Solución (Sustitución en Ecuaciones Originales):")
@@ -213,10 +228,9 @@ def solve_system_cli():
     else:
         print("\n🟡 CLASIFICACIÓN: SISTEMA CONSISTENTE INDETERMINADO (INFINITAS SOLUCIONES)")
         print(f"   • Rango(A) = Rango(A|b) = {rank_a} < {n} (Menor al número de incógnitas)")
-        free_vars = [c for c in range(n) if c not in pivot_cols]
-        print(f"   • Variables libres identificadas: {', '.join(f'x{v+1}' for v in free_vars)}")
-        print("\nSolución Paramétrica:")
-        for r_idx, lead_c in enumerate(pivot_cols):
+        print(f"   • Grados de libertad (variables libres): {len(free_vars)}")
+        print("\nSolución Paramétrica (Básicas en función de libres):")
+        for r_idx, lead_c in enumerate(basic_vars):
             b_val = matrix[r_idx][n]
             terms = [format_fraction(b_val)] if b_val != Fraction(0, 1) else []
             for f_v in free_vars:
@@ -224,7 +238,9 @@ def solve_system_cli():
                 if coeff != Fraction(0, 1):
                     terms.append(f"{format_fraction(coeff)}*x{f_v+1}")
             expr = " + ".join(terms) if terms else "0"
-            print(f"   • x{lead_c+1} = {expr}")
+            print(f"   • x{lead_c+1} = {expr}  [Variable básica - Columna {lead_c+1}]")
+        for f_v in free_vars:
+            print(f"   • x{f_v+1} es libre (parámetro real ∈ ℝ)  [Variable libre - Columna {f_v+1}]")
 
 
 if __name__ == "__main__":
