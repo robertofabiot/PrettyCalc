@@ -599,8 +599,7 @@ def get_global_stylesheet() -> str:
         background-color: transparent;
         border: none;
     }}
-    QScrollArea > QWidget#qt_scrollarea_viewport,
-    QScrollArea > QWidget {{
+    QScrollArea > QWidget#qt_scrollarea_viewport {{
         background: transparent;
         background-color: transparent;
     }}

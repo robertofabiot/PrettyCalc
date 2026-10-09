@@ -309,3 +309,19 @@ def test_linear_systems_view_no_white_rectangle(qtbot):
 
     assert light_pixels == 0, f"Se detectaron {light_pixels} píxeles blancos en la zona inferior izquierda de LinearSystemsView."
 
+
+def test_linear_systems_solve_button_is_styled_and_visible(qtbot):
+    """Verifica que el botón 'Resolver sistema' tenga fondo verde de acción principal y texto legible."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+
+    btn = window.linear_systems_view.solve_btn
+    assert btn.isVisible()
+    assert btn.text() == "Resolver sistema"
+    img = btn.grab().toImage()
+    center_color = img.pixelColor(btn.width() // 2, btn.height() // 2).name()
+    assert center_color in ("#7ba993", "#81b29a", "#7dad96"), f"Fondo de botón inesperado: {center_color}"
+
+

@@ -54,7 +54,6 @@ class LinearSystemsView(QWidget):
         body_splitter.setChildrenCollapsible(False)
 
         left_pane = QWidget()
-        left_pane.setStyleSheet("background: transparent;")
         left_layout = QVBoxLayout(left_pane)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(8)
@@ -124,12 +123,6 @@ class LinearSystemsView(QWidget):
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.NoFrame)
-        left_scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; } "
-            "QScrollArea > QWidget#qt_scrollarea_viewport, QScrollArea > QWidget { background: transparent; }"
-        )
-        left_scroll.viewport().setStyleSheet("background: transparent;")
-        left_scroll.viewport().setAutoFillBackground(False)
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         left_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         left_scroll.setWidget(left_pane)
