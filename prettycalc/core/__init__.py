@@ -24,13 +24,19 @@ from prettycalc.core.matrix_ops import (
     MultiplicationStepDetail,
 )
 from prettycalc.core.matrix_properties import (
+    MatrixAssociativeResult,
+    MatrixDistributiveResult,
     PropertyCheck,
     analyze_matrix,
     describe_matrix_kind,
     format_property_lines,
+    matrix_algebraic_identity_checks,
     matrix_trace,
     structural_checks,
     transpose_identity_checks,
+    verify_matrix_associative,
+    verify_matrix_distributive_left,
+    verify_matrix_distributive_right,
 )
 from prettycalc.core.linear_combination import (
     LinearCombinationResult,
@@ -97,6 +103,12 @@ __all__ = [
     "matrix_transpose",
     "MultiplicationStepDetail",
     "PropertyCheck",
+    "MatrixDistributiveResult",
+    "MatrixAssociativeResult",
+    "verify_matrix_distributive_left",
+    "verify_matrix_distributive_right",
+    "verify_matrix_associative",
+    "matrix_algebraic_identity_checks",
     "analyze_matrix",
     "describe_matrix_kind",
     "format_property_lines",
