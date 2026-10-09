@@ -194,6 +194,9 @@ class BookMatrixWidget(QWidget):
             self._flash.stop()
             self._flash_alpha = 0.0
 
+    def matrix(self) -> Optional[Matrix]:
+        return self._matrix
+
     def clear(self) -> None:
         self.set_matrix(None)
 

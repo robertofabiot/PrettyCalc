@@ -37,9 +37,16 @@ from prettycalc.core.matrix_ops import (
     matrix_sub,
     matrix_transpose,
 )
-from prettycalc.core.matrix_properties import PropertyCheck, analyze_matrix
+from prettycalc.core.matrix_properties import (
+    PropertyCheck,
+    analyze_matrix,
+    verify_matrix_associative,
+    verify_matrix_distributive_left,
+    verify_matrix_distributive_right,
+)
 from prettycalc.core.types import DimensionMismatchError, Matrix, format_scalar, parse_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
+from prettycalc.ui.mathtext import format_comparison_row_html, format_steps_to_rich_html
 from prettycalc.ui.module_scroll import make_module_scroll
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.theme import (
@@ -47,6 +54,7 @@ from prettycalc.ui.theme import (
     COLOR_FEEDBACK_ERROR,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
+    COLOR_SURFACE_INNER,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
@@ -66,7 +74,7 @@ def _badge_style(ok: bool) -> str:
 
 
 def _checks_to_html(checks: Sequence[PropertyCheck]) -> str:
-    """Tarjetas en HTML: verde si cumple, coral si no, gris si no aplica."""
+    """Tarjetas en HTML con tamaño grande (22px): verde si cumple, coral si no, gris si no aplica."""
     colors = {
         "cumple": COLOR_FEEDBACK_SUCCESS,
         "no_cumple": COLOR_FEEDBACK_ERROR,
@@ -78,9 +86,12 @@ def _checks_to_html(checks: Sequence[PropertyCheck]) -> str:
     for check in checks:
         text = html.escape(f"{check.name}: {check.detail}")
         color = colors[check.status]
+        bg = "rgba(129, 178, 154, 0.08)" if check.status == "cumple" else ("rgba(238, 108, 77, 0.08)" if check.status == "no_cumple" else "transparent")
+        border = "1px solid rgba(129, 178, 154, 0.35)" if check.status == "cumple" else ("1px solid rgba(238, 108, 77, 0.35)" if check.status == "no_cumple" else "1px solid transparent")
         rows.append(
-            f'<div style="color:{color}; font-size:24px; font-weight:600; '
-            f'margin: 8px 0;">{marks[check.status]}&nbsp;&nbsp;{text}</div>'
+            f'<div style="background-color:{bg}; border:{border}; border-radius:6px; '
+            f'padding:8px 12px; margin:6px 0; color:{color}; font-size:22px; font-weight:600;">'
+            f'{marks[check.status]}&nbsp;&nbsp;{text}</div>'
         )
     return "".join(rows)
 
@@ -118,21 +129,37 @@ class MatrixOperationsView(QWidget):
         self.transpose_mode_btn = QPushButton("Aᵀ")
         self.transpose_mode_btn.setObjectName("modeToggle")
         self.transpose_mode_btn.setCheckable(True)
+        self.distrib_mode_btn = QPushButton("A · (B + C)")
+        self.distrib_mode_btn.setObjectName("modeToggle")
+        self.distrib_mode_btn.setCheckable(True)
         mode_group.addButton(self.binary_mode_btn, 0)
         mode_group.addButton(self.scalar_mode_btn, 1)
         mode_group.addButton(self.transpose_mode_btn, 2)
+        mode_group.addButton(self.distrib_mode_btn, 3)
         mode_group.idClicked.connect(self._on_mode_changed)
         toolbar.addWidget(self.binary_mode_btn)
         toolbar.addWidget(self.scalar_mode_btn)
         toolbar.addWidget(self.transpose_mode_btn)
+        toolbar.addWidget(self.distrib_mode_btn)
         toolbar.addStretch(1)
 
         sample_ok = QPushButton("Ejemplo 2×3 · 3×2")
+        sample_ok.setObjectName("secondaryAction")
         sample_ok.clicked.connect(self.load_compatible_product_sample)
         sample_bad = QPushButton("Ejemplo incompatible")
+        sample_bad.setObjectName("secondaryAction")
         sample_bad.clicked.connect(self.load_incompatible_sample)
+        sample_dist = QPushButton("Ejemplo A(B+C)")
+        sample_dist.setObjectName("secondaryAction")
+        sample_dist.clicked.connect(self.load_distributive_matrix_sample)
         toolbar.addWidget(sample_ok)
         toolbar.addWidget(sample_bad)
+        toolbar.addWidget(sample_dist)
+
+        self.header_compute_btn = QPushButton("▶ Calcular")
+        self.header_compute_btn.setObjectName("primaryAction")
+        self.header_compute_btn.clicked.connect(self.compute)
+        toolbar.addWidget(self.header_compute_btn)
         root.addLayout(toolbar)
 
         self.badge = QLabel("")
@@ -144,11 +171,12 @@ class MatrixOperationsView(QWidget):
         self.pages.addWidget(self._build_binary_page())
         self.pages.addWidget(self._build_scalar_page())
         self.pages.addWidget(self._build_transpose_page())
+        self.pages.addWidget(self._build_distributive_page())
         root.addWidget(self.pages, stretch=1)
 
         actions = QHBoxLayout()
         actions.addStretch(1)
-        self.compute_btn = QPushButton("Calcular")
+        self.compute_btn = QPushButton("▶ Calcular")
         self.compute_btn.setObjectName("primaryAction")
         self.compute_btn.clicked.connect(self.compute)
         actions.addWidget(self.compute_btn)
@@ -281,14 +309,14 @@ class MatrixOperationsView(QWidget):
         if rich:
             label.setTextFormat(Qt.RichText)
         label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 24px; font-family: {FONT_FAMILY_MONO};"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO};"
         )
         layout.addWidget(label)
         setattr(self, target, label)
         return card
 
     def _build_transpose_page(self) -> QWidget:
-        """Página unaria: A a la izquierda, Aᵀ a la derecha y el escalar k."""
+        """Página unaria: A a la izquierda, Aᵀ al centro, (Aᵀ)ᵀ = A a la derecha y el escalar k."""
         page = QWidget()
         outer = QVBoxLayout(page)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -298,7 +326,7 @@ class MatrixOperationsView(QWidget):
         return page
 
     def _transpose_matrix_row(self) -> QHBoxLayout:
-        """Fila visual A → Aᵀ. El resultado cambia de m×n a n×m."""
+        """Fila visual A → Aᵀ → (Aᵀ)ᵀ = A. El resultado cambia de m×n a n×m y vuelve a m×n."""
         row = QHBoxLayout()
         row.setSpacing(10)
         self.grid_transpose = DynamicMatrixGrid(
@@ -306,13 +334,21 @@ class MatrixOperationsView(QWidget):
         )
         self.grid_transpose.matrixChanged.connect(self._on_operands_changed)
         row.addWidget(self._wrap_matrix_card("Matriz A", self.grid_transpose), stretch=3)
-        arrow = QLabel("→")
-        arrow.setStyleSheet(
+        arrow1 = QLabel("→")
+        arrow1.setStyleSheet(
             f"font-size: 28px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;"
         )
-        row.addWidget(arrow, 0, Qt.AlignCenter)
+        row.addWidget(arrow1, 0, Qt.AlignCenter)
         self.transpose_result_view = BookMatrixWidget()
         row.addWidget(self._wrap_matrix_card("Aᵀ", self.transpose_result_view), stretch=3)
+
+        arrow2 = QLabel("→")
+        arrow2.setStyleSheet(
+            f"font-size: 28px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;"
+        )
+        row.addWidget(arrow2, 0, Qt.AlignCenter)
+        self.double_transpose_result_view = BookMatrixWidget()
+        row.addWidget(self._wrap_matrix_card("(Aᵀ)ᵀ = A", self.double_transpose_result_view), stretch=3)
         return row
 
     def _transpose_identity_bar(self) -> QHBoxLayout:
@@ -339,7 +375,86 @@ class MatrixOperationsView(QWidget):
         extras.addStretch(1)
         return extras
 
-    def _wrap_matrix_card(self, title: str, body: QWidget) -> QFrame:
+    def _build_distributive_page(self) -> QWidget:
+        """Página ternaria: Propiedad distributiva A(B+C) = AB + AC, (A+B)C = AC + BC y asociativa A(BC) = (AB)C."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        # Barra de selección de propiedad
+        prop_bar = QHBoxLayout()
+        prop_bar.setSpacing(8)
+        prop_title = QLabel("Propiedad a comprobar:")
+        prop_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        prop_bar.addWidget(prop_title)
+
+        self.dist_prop_group = QButtonGroup(self)
+        self.dist_prop_group.setExclusive(True)
+        self.dist_left_btn = QPushButton("A · (B + C) = A·B + A·C")
+        self.dist_left_btn.setObjectName("modeToggle")
+        self.dist_left_btn.setCheckable(True)
+        self.dist_left_btn.setChecked(True)
+        self.dist_right_btn = QPushButton("(A + B) · C = A·C + B·C")
+        self.dist_right_btn.setObjectName("modeToggle")
+        self.dist_right_btn.setCheckable(True)
+        self.dist_assoc_btn = QPushButton("A · (B · C) = (A · B) · C")
+        self.dist_assoc_btn.setObjectName("modeToggle")
+        self.dist_assoc_btn.setCheckable(True)
+
+        self.dist_prop_group.addButton(self.dist_left_btn, 0)
+        self.dist_prop_group.addButton(self.dist_right_btn, 1)
+        self.dist_prop_group.addButton(self.dist_assoc_btn, 2)
+        self.dist_prop_group.idClicked.connect(self._on_dist_prop_changed)
+
+        prop_bar.addWidget(self.dist_left_btn)
+        prop_bar.addWidget(self.dist_right_btn)
+        prop_bar.addWidget(self.dist_assoc_btn)
+        prop_bar.addStretch(1)
+        layout.addLayout(prop_bar)
+
+        # Fila de 3 matrices de entrada: A, B, C
+        grids_row = QHBoxLayout()
+        grids_row.setSpacing(10)
+        self.grid_dist_a = DynamicMatrixGrid(initial_rows=2, initial_cols=2, augmented=False)
+        self.grid_dist_a.matrixChanged.connect(self._on_operands_changed)
+        grids_row.addWidget(self._wrap_matrix_card("Matriz A", self.grid_dist_a), stretch=1)
+
+        self.grid_dist_b = DynamicMatrixGrid(initial_rows=2, initial_cols=2, augmented=False)
+        self.grid_dist_b.matrixChanged.connect(self._on_operands_changed)
+        grids_row.addWidget(self._wrap_matrix_card("Matriz B", self.grid_dist_b), stretch=1)
+
+        self.grid_dist_c = DynamicMatrixGrid(initial_rows=2, initial_cols=2, augmented=False)
+        self.grid_dist_c.matrixChanged.connect(self._on_operands_changed)
+        grids_row.addWidget(self._wrap_matrix_card("Matriz C", self.grid_dist_c), stretch=1)
+        layout.addLayout(grids_row)
+
+        # Fila de resultados: Miembro Izquierdo (LHS) = Miembro Derecho (RHS)
+        results_row = QHBoxLayout()
+        results_row.setSpacing(10)
+
+        self.dist_lhs_view = BookMatrixWidget()
+        self.dist_rhs_view = BookMatrixWidget()
+
+        lhs_card, self.dist_lhs_title_lbl = self._create_titled_matrix_card("Miembro izquierdo: A · (B + C)", self.dist_lhs_view)
+        rhs_card, self.dist_rhs_title_lbl = self._create_titled_matrix_card("Miembro derecho: A·B + A·C", self.dist_rhs_view)
+
+        results_row.addWidget(lhs_card, stretch=1)
+        eq_lbl = QLabel("=")
+        eq_lbl.setStyleSheet(f"font-size: 32px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;")
+        results_row.addWidget(eq_lbl, 0, Qt.AlignCenter)
+        results_row.addWidget(rhs_card, stretch=1)
+        layout.addLayout(results_row)
+
+        # Tarjeta destacada de comprobación grande (≥22px)
+        self.dist_comparison_label = QLabel("")
+        self.dist_comparison_label.setTextFormat(Qt.RichText)
+        self.dist_comparison_label.setWordWrap(True)
+        layout.addWidget(self.dist_comparison_label)
+
+        return page
+
+    def _create_titled_matrix_card(self, title: str, body: QWidget) -> Tuple[QFrame, QLabel]:
         card = QFrame()
         apply_widget_class(card, "elevated-card")
         layout = QVBoxLayout(card)
@@ -352,6 +467,10 @@ class MatrixOperationsView(QWidget):
         layout.addWidget(lbl)
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         layout.addWidget(body, stretch=1)
+        return card, lbl
+
+    def _wrap_matrix_card(self, title: str, body: QWidget) -> QFrame:
+        card, _ = self._create_titled_matrix_card(title, body)
         return card
 
     def _on_mode_changed(self, index: int) -> None:
@@ -374,14 +493,26 @@ class MatrixOperationsView(QWidget):
     def _is_transpose_mode(self) -> bool:
         return self.pages.currentIndex() == 2
 
+    def _is_distributive_mode(self) -> bool:
+        return self.pages.currentIndex() == 3
+
+    def _on_dist_prop_changed(self, prop_id: int) -> None:
+        self._clear_result()
+        self._refresh_compatibility()
+
     def _refresh_compatibility(self) -> None:
         ok, message = self._compatibility_state()
         self.badge.setText(message)
         self.badge.setStyleSheet(_badge_style(ok))
         self.compute_btn.setEnabled(ok)
         self.compute_btn.setToolTip("" if ok else message)
+        if hasattr(self, "header_compute_btn"):
+            self.header_compute_btn.setEnabled(ok)
+            self.header_compute_btn.setToolTip("" if ok else message)
 
     def _compatibility_state(self) -> Tuple[bool, str]:
+        if self._is_distributive_mode():
+            return self._distributive_compatibility()
         if self._is_transpose_mode():
             return self._transpose_compatibility()
         if self._is_scalar_mode():
@@ -421,6 +552,72 @@ class MatrixOperationsView(QWidget):
             "El producto A (m×n) · B (n×p) exige que las columnas de A igualen las filas de B.",
         )
 
+    def _distributive_compatibility(self) -> Tuple[bool, str]:
+        """Comprueba dimensiones de A, B y C para la propiedad seleccionada."""
+        if (
+            not self.grid_dist_a.is_all_valid()
+            or not self.grid_dist_b.is_all_valid()
+            or not self.grid_dist_c.is_all_valid()
+        ):
+            return False, "✕ Hay celdas no numéricas en A, B o C. Corrige las entradas marcadas."
+
+        ra, ca = self.grid_dist_a.data_shape()
+        rb, cb = self.grid_dist_b.data_shape()
+        rc, cc = self.grid_dist_c.data_shape()
+        prop_id = self.dist_prop_group.checkedId()
+
+        if prop_id == 0:  # A · (B + C) = A·B + A·C
+            if (rb, cb) != (rc, cc):
+                return (
+                    False,
+                    f"✕ Dimensiones incompatibles para B + C: B es {rb}×{cb} y C es {rc}×{cc}. "
+                    "Para sumarse, B y C deben tener idénticas dimensiones.",
+                )
+            if ca != rb:
+                return (
+                    False,
+                    f"✕ Dimensiones incompatibles para A · (B + C): Columnas de A ({ca}) ≠ Filas de (B+C) ({rb}). "
+                    f"El producto exige que las columnas de A igualen las filas de B.",
+                )
+            return (
+                True,
+                f"✓ Compatible para distributiva izquierda: A ({ra}×{ca}) · [B+C ({rb}×{cb})] = A·B + A·C ⇒ ({ra}×{cb})",
+            )
+
+        if prop_id == 1:  # (A + B) · C = A·C + B·C
+            if (ra, ca) != (rb, cb):
+                return (
+                    False,
+                    f"✕ Dimensiones incompatibles para A + B: A es {ra}×{ca} y B es {rb}×{cb}. "
+                    "Para sumarse, A y B deben tener idénticas dimensiones.",
+                )
+            if ca != rc:
+                return (
+                    False,
+                    f"✕ Dimensiones incompatibles para (A + B) · C: Columnas de (A+B) ({ca}) ≠ Filas de C ({rc}). "
+                    f"El producto exige que las columnas de (A+B) igualen las filas de C.",
+                )
+            return (
+                True,
+                f"✓ Compatible para distributiva derecha: [A+B ({ra}×{ca})] · C ({rc}×{cc}) = A·C + B·C ⇒ ({ra}×{cc})",
+            )
+
+        # prop_id == 2: A · (B · C) = (A · B) · C
+        if ca != rb:
+            return (
+                False,
+                f"✕ Incompatible para A · B: Columnas de A ({ca}) ≠ Filas de B ({rb}).",
+            )
+        if cb != rc:
+            return (
+                False,
+                f"✕ Incompatible para B · C: Columnas de B ({cb}) ≠ Filas de C ({rc}).",
+            )
+        return (
+            True,
+            f"✓ Compatible para asociatividad: A ({ra}×{ca}) · B ({rb}×{cb}) · C ({rc}×{cc}) ⇒ Resultado ({ra}×{cc})",
+        )
+
     def _transpose_compatibility(self) -> Tuple[bool, str]:
         """La transpuesta siempre existe; solo exige entradas válidas en A y en k."""
         if not self.grid_transpose.is_all_valid():
@@ -438,11 +635,15 @@ class MatrixOperationsView(QWidget):
         ok, message = self._compatibility_state()
         if not ok:
             self.compute_btn.setEnabled(False)
+            if hasattr(self, "header_compute_btn"):
+                self.header_compute_btn.setEnabled(False)
             self.badge.setText(message)
             return
 
         try:
-            if self._is_transpose_mode():
+            if self._is_distributive_mode():
+                self._compute_distributive()
+            elif self._is_transpose_mode():
                 self._compute_transpose()
             elif self._is_scalar_mode():
                 self._compute_scalar()
@@ -452,6 +653,8 @@ class MatrixOperationsView(QWidget):
             self.badge.setText(f"✕ {exc}")
             self.badge.setStyleSheet(_badge_style(False))
             self.compute_btn.setEnabled(False)
+            if hasattr(self, "header_compute_btn"):
+                self.header_compute_btn.setEnabled(False)
         except Exception as exc:
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Critical)
@@ -503,21 +706,118 @@ class MatrixOperationsView(QWidget):
         self._show_properties(primary, other, None)
 
     def _compute_transpose(self) -> None:
-        """Calcula Aᵀ y publica las propiedades estructurales y las identidades."""
+        """Calcula Aᵀ, comprueba (Aᵀ)ᵀ = A y publica las propiedades estructurales."""
         primary = self.grid_transpose.get_matrix()
         result = matrix_transpose(primary)
+        double_result = matrix_transpose(result)
         self.transpose_result_view.set_matrix(
             result, split_col=None, clickable=False, show_headers=False
+        )
+        self.double_transpose_result_view.set_matrix(
+            double_result, split_col=None, clickable=False, show_headers=False
         )
         self._result = result
         self._details = []
         rows, cols = primary.shape
         self.inspector_label.setText(
-            f"A es {rows}×{cols} y Aᵀ es {cols}×{rows}. Cada columna de A pasa a ser una fila."
+            f"<b>Transpuesta doble:</b> (Aᵀ)ᵀ = A.<br/>"
+            f"A es {rows}×{cols}, Aᵀ es {cols}×{rows}, y (Aᵀ)ᵀ vuelve a ser {rows}×{cols} exactamente igual a A."
         )
+        self.inspector_label.setTextFormat(Qt.RichText)
         other = self._optional_partner()
         scalar = self._optional_identity_scalar()
         self._show_properties(primary, other, scalar)
+
+    def _compute_distributive(self) -> None:
+        """Comprueba identidades algebraicas con tres matrices A, B, C."""
+        A = self.grid_dist_a.get_matrix()
+        B = self.grid_dist_b.get_matrix()
+        C = self.grid_dist_c.get_matrix()
+        prop_id = self.dist_prop_group.checkedId()
+
+        if prop_id == 0:  # A · (B + C) = A·B + A·C
+            res = verify_matrix_distributive_left(A, B, C)
+            self.dist_lhs_title_lbl.setText("LHS: A · (B + C)")
+            self.dist_rhs_title_lbl.setText("RHS: A·B + A·C")
+            self.dist_lhs_view.set_matrix(res.lhs_result, split_col=None, clickable=False, show_headers=False)
+            self.dist_rhs_view.set_matrix(res.rhs_result, split_col=None, clickable=False, show_headers=False)
+            self._result = res.lhs_result
+            self._details = []
+            dim_str = f"{res.lhs_result.shape[0]}×{res.lhs_result.shape[1]}"
+            self.dist_comparison_label.setText(
+                format_comparison_row_html(
+                    mark="✓" if res.is_equal else "✗",
+                    label="Distributiva izquierda",
+                    lhs_expr="A · (B + C)",
+                    rhs_expr="A·B + A·C",
+                    ok=res.is_equal,
+                    font_size_px=22,
+                )
+            )
+            self.inspector_label.setText(
+                f"<b>Comprobación distributiva por la izquierda:</b><br/>"
+                f"LHS = A · (B + C): Matriz {dim_str}<br/>"
+                f"RHS = (A · B) + (A · C): Matriz {dim_str}<br/>"
+                f"¿Ambas matrices son idénticas elemento a elemento? <b>{'✓ SÍ, coinciden exactamente' if res.is_equal else '✗ No coinciden'}</b>"
+            )
+            self.inspector_label.setTextFormat(Qt.RichText)
+
+        elif prop_id == 1:  # (A + B) · C = A·C + B·C
+            res = verify_matrix_distributive_right(A, B, C)
+            self.dist_lhs_title_lbl.setText("LHS: (A + B) · C")
+            self.dist_rhs_title_lbl.setText("RHS: A·C + B·C")
+            self.dist_lhs_view.set_matrix(res.lhs_result, split_col=None, clickable=False, show_headers=False)
+            self.dist_rhs_view.set_matrix(res.rhs_result, split_col=None, clickable=False, show_headers=False)
+            self._result = res.lhs_result
+            self._details = []
+            dim_str = f"{res.lhs_result.shape[0]}×{res.lhs_result.shape[1]}"
+            self.dist_comparison_label.setText(
+                format_comparison_row_html(
+                    mark="✓" if res.is_equal else "✗",
+                    label="Distributiva derecha",
+                    lhs_expr="(A + B) · C",
+                    rhs_expr="A·C + B·C",
+                    ok=res.is_equal,
+                    font_size_px=22,
+                )
+            )
+            self.inspector_label.setText(
+                f"<b>Comprobación distributiva por la derecha:</b><br/>"
+                f"LHS = (A + B) · C: Matriz {dim_str}<br/>"
+                f"RHS = (A · C) + (B · C): Matriz {dim_str}<br/>"
+                f"¿Ambas matrices son idénticas elemento a elemento? <b>{'✓ SÍ, coinciden exactamente' if res.is_equal else '✗ No coinciden'}</b>"
+            )
+            self.inspector_label.setTextFormat(Qt.RichText)
+
+        else:  # A · (B · C) = (A · B) · C
+            res = verify_matrix_associative(A, B, C)
+            self.dist_lhs_title_lbl.setText("LHS: A · (B · C)")
+            self.dist_rhs_title_lbl.setText("RHS: (A · B) · C")
+            self.dist_lhs_view.set_matrix(res.lhs_result, split_col=None, clickable=False, show_headers=False)
+            self.dist_rhs_view.set_matrix(res.rhs_result, split_col=None, clickable=False, show_headers=False)
+            self._result = res.lhs_result
+            self._details = []
+            dim_str = f"{res.lhs_result.shape[0]}×{res.lhs_result.shape[1]}"
+            self.dist_comparison_label.setText(
+                format_comparison_row_html(
+                    mark="✓" if res.is_equal else "✗",
+                    label="Asociativa",
+                    lhs_expr="A · (B · C)",
+                    rhs_expr="(A · B) · C",
+                    ok=res.is_equal,
+                    font_size_px=22,
+                )
+            )
+            self.inspector_label.setText(
+                f"<b>Comprobación asociativa:</b><br/>"
+                f"LHS = A · (B · C): Matriz {dim_str}<br/>"
+                f"RHS = (A · B) · C: Matriz {dim_str}<br/>"
+                f"¿Ambas matrices son idénticas elemento a elemento? <b>{'✓ SÍ, coinciden exactamente' if res.is_equal else '✗ No coinciden'}</b>"
+            )
+            self.inspector_label.setTextFormat(Qt.RichText)
+
+        checks = analyze_matrix(A, B, C=C)
+        self.properties_label.setText(_checks_to_html(checks))
 
     def _optional_partner(self) -> Optional[Matrix]:
         """Devuelve B solo si el usuario pidió comprobar las identidades binarias."""
@@ -579,6 +879,14 @@ class MatrixOperationsView(QWidget):
         self.result_view.clear()
         self.scalar_result_view.clear()
         self.transpose_result_view.clear()
+        if hasattr(self, "double_transpose_result_view"):
+            self.double_transpose_result_view.clear()
+        if hasattr(self, "dist_lhs_view"):
+            self.dist_lhs_view.clear()
+        if hasattr(self, "dist_rhs_view"):
+            self.dist_rhs_view.clear()
+        if hasattr(self, "dist_comparison_label"):
+            self.dist_comparison_label.clear()
         self._clear_highlights()
         self.inspector_label.setText(
             "Calcula un producto A · B y pulsa una celda de C para ver la fila de A, "
@@ -607,3 +915,13 @@ class MatrixOperationsView(QWidget):
         self.grid_b.set_matrix(Matrix([[1, 2], [3, 4]]))
         self._clear_result()
         self._refresh_compatibility()
+
+    def load_distributive_matrix_sample(self) -> None:
+        self.distrib_mode_btn.setChecked(True)
+        self.pages.setCurrentIndex(3)
+        self.dist_left_btn.setChecked(True)
+        self.grid_dist_a.set_matrix(Matrix([[1, 2], [3, 4]]))
+        self.grid_dist_b.set_matrix(Matrix([[5, 6], [7, 8]]))
+        self.grid_dist_c.set_matrix(Matrix([[2, -1], [0, 3]]))
+        self.compute()
+
