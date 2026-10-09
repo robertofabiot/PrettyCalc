@@ -5,15 +5,28 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 try:
-    from PySide6.QtWidgets import QWidget, QSizePolicy
+    from PySide6.QtWidgets import QWidget, QSizePolicy, QMenu
     from PySide6.QtCore import Qt, Signal, QRect, QSize, Property, QPropertyAnimation, QEasingCurve
-    from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPaintEvent, QMouseEvent
+    from PySide6.QtGui import (
+        QPainter,
+        QPen,
+        QColor,
+        QFont,
+        QFontMetrics,
+        QPaintEvent,
+        QMouseEvent,
+        QKeyEvent,
+        QContextMenuEvent,
+        QKeySequence,
+        QAction,
+    )
 except ImportError:
     QWidget = object  # type: ignore
     Property = lambda *args, **kwargs: None  # type: ignore
     Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.types import Matrix, format_scalar
+from prettycalc.ui.clipboard import copy_matrix_to_clipboard
 from prettycalc.ui.mathtext import variable_symbol
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
@@ -148,6 +161,7 @@ class BookMatrixWidget(QWidget):
         self.setMinimumHeight(180)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setFocusPolicy(Qt.ClickFocus)
 
     def _get_flash_alpha(self) -> float:
         return self._flash_alpha
@@ -395,6 +409,8 @@ class BookMatrixWidget(QWidget):
             self._cell_rects.append(row_rects)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        if self._matrix is not None:
+            self.setFocus()
         if self._clickable and self._matrix is not None:
             pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
             for r, row_rects in enumerate(self._cell_rects):
@@ -406,3 +422,29 @@ class BookMatrixWidget(QWidget):
                         self.update()
                         return
         super().mousePressEvent(event)
+
+    def copy_to_clipboard(self) -> bool:
+        """Copia la matriz visualizada al portapapeles en formato TSV universal."""
+        if self._matrix is None:
+            return False
+        return copy_matrix_to_clipboard(self._matrix, mode=self._mode)
+
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        if self._matrix is None:
+            return
+
+        menu = QMenu(self)
+        copy_action = menu.addAction("Copiar matriz")
+        copy_action.setShortcut(QKeySequence.Copy)
+        copy_action.triggered.connect(self.copy_to_clipboard)
+        menu.exec(event.globalPos())
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if self._matrix is not None and (
+            event.matches(QKeySequence.Copy)
+            or (event.key() == Qt.Key_C and event.modifiers() == Qt.ControlModifier)
+        ):
+            self.copy_to_clipboard()
+            event.accept()
+            return
+        super().keyPressEvent(event)
