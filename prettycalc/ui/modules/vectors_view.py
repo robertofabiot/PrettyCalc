@@ -66,6 +66,7 @@ class VectorColumnEditor(QFrame):
 
     removed = Signal()
     changed = Signal()
+    dimensionChanged = Signal(int)
 
     def __init__(
         self,
@@ -77,6 +78,7 @@ class VectorColumnEditor(QFrame):
         super().__init__(parent)
         apply_widget_class(self, "elevated-card")
         self._title = title
+        self._current_dim = dimension
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(6)
@@ -105,14 +107,21 @@ class VectorColumnEditor(QFrame):
             row_expandable=False,
             col_expandable=False,
         )
-        self.grid.matrixChanged.connect(self.changed.emit)
+        self.grid.matrixChanged.connect(self._on_grid_changed)
         layout.addWidget(self.grid)
+
+    def _on_grid_changed(self) -> None:
+        if self.grid.num_rows != self._current_dim:
+            self._current_dim = self.grid.num_rows
+            self.dimensionChanged.emit(self._current_dim)
+        self.changed.emit()
 
     def set_title(self, title: str) -> None:
         self._title = title
         self.title_lbl.setText(title)
 
     def set_dimension(self, n: int) -> None:
+        self._current_dim = n
         current = [row[0] if row else "0" for row in self.grid.get_raw_strings()]
         while len(current) < n:
             current.append("0")
@@ -123,7 +132,14 @@ class VectorColumnEditor(QFrame):
         return Vector.from_column_matrix(self.grid.get_matrix())
 
     def set_vector(self, vector: Vector) -> None:
+        self._current_dim = vector.dimension
         self.grid.set_matrix(vector.to_column_matrix())
+
+    def copy_to_clipboard(self) -> bool:
+        return self.grid.copy_to_clipboard()
+
+    def paste_from_clipboard(self) -> bool:
+        return self.grid.paste_from_clipboard()
 
     def is_valid(self) -> bool:
         return self.grid.is_all_valid()
@@ -199,11 +215,13 @@ class VectorsView(QWidget):
         body = QHBoxLayout()
         self.vec_u = VectorColumnEditor(3, "Vector u")
         self.vec_u.changed.connect(self._refresh_basic_badge)
+        self.vec_u.dimensionChanged.connect(self._on_basic_editor_dimension_changed)
         body.addWidget(self.vec_u)
 
         self.basic_mid = QStackedWidget()
         self.vec_v = VectorColumnEditor(3, "Vector v")
         self.vec_v.changed.connect(self._refresh_basic_badge)
+        self.vec_v.dimensionChanged.connect(self._on_basic_editor_dimension_changed)
         self.basic_mid.addWidget(self.vec_v)
 
         scale_card = QFrame()
@@ -314,6 +332,7 @@ class VectorsView(QWidget):
         self.target_editor.setStyleSheet(
             f"QFrame {{ border: 2px solid {COLOR_INTERACTIVE_IDLE}; border-radius: 8px; }}"
         )
+        self.target_editor.dimensionChanged.connect(self._on_combo_editor_dimension_changed)
         body.addWidget(self.target_editor, stretch=1)
         layout.addLayout(body, stretch=2)
 
@@ -372,6 +391,10 @@ class VectorsView(QWidget):
         self.vec_v.set_dimension(n)
         self.basic_result.clear()
         self._refresh_basic_badge()
+
+    def _on_basic_editor_dimension_changed(self, n: int) -> None:
+        if 2 <= n <= 10 and self.basic_dim.value() != n:
+            self.basic_dim.setValue(n)
 
     def _on_basic_op(self, op_id: int) -> None:
         self.basic_mid.setCurrentIndex(1 if op_id == 2 else 0)
@@ -432,6 +455,10 @@ class VectorsView(QWidget):
             editor.set_dimension(n)
         self.target_editor.set_dimension(n)
 
+    def _on_combo_editor_dimension_changed(self, n: int) -> None:
+        if 2 <= n <= 10 and self.combo_dim.value() != n:
+            self.combo_dim.setValue(n)
+
     def _retitle_combo_vectors(self) -> None:
         for i, editor in enumerate(self._combo_editors):
             editor.set_title(f"v{i + 1}")
@@ -443,6 +470,7 @@ class VectorsView(QWidget):
             removable=True,
         )
         editor.removed.connect(lambda e=editor: self._remove_combo_vector(e))
+        editor.dimensionChanged.connect(self._on_combo_editor_dimension_changed)
         self._combo_editors.append(editor)
         self.combo_list_layout.addWidget(editor)
         self._retitle_combo_vectors()
@@ -701,6 +729,7 @@ class VectorsView(QWidget):
             parent=self.indep_list_host,
         )
         editor.removed.connect(lambda e=editor: self._remove_indep_vector(e))
+        editor.dimensionChanged.connect(self._on_indep_editor_dimension_changed)
         self._indep_editors.append(editor)
         self.indep_list_layout.addWidget(editor)
         self._refresh_indep_titles()
@@ -721,6 +750,10 @@ class VectorsView(QWidget):
     def _on_indep_dimension(self, n: int) -> None:
         for ed in self._indep_editors:
             ed.set_dimension(n)
+
+    def _on_indep_editor_dimension_changed(self, n: int) -> None:
+        if 1 <= n <= 10 and self.indep_dim.value() != n:
+            self.indep_dim.setValue(n)
 
     def _toggle_indep_steps(self) -> None:
         self.indep_stepper.setVisible(self.indep_show_steps_btn.isChecked())
