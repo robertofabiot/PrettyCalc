@@ -18,12 +18,29 @@ try:
         QMenu,
     )
     from PySide6.QtCore import Qt, Signal, QRect, QPoint, QTimer
-    from PySide6.QtGui import QKeyEvent, QFont, QPainter, QColor, QPaintEvent, QAction, QFocusEvent
+    from PySide6.QtGui import (
+        QKeyEvent,
+        QFont,
+        QPainter,
+        QColor,
+        QPaintEvent,
+        QAction,
+        QFocusEvent,
+        QContextMenuEvent,
+        QKeySequence,
+        QGuiApplication,
+    )
 except ImportError:
     QWidget = object  # type: ignore
     Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.types import Matrix, parse_scalar, format_scalar
+from prettycalc.ui.clipboard import (
+    copy_matrix_to_clipboard,
+    get_clipboard_text,
+    get_matrix_from_clipboard,
+    has_matrix_in_clipboard,
+)
 from prettycalc.ui.mathtext import variable_symbol
 from prettycalc.ui.book_matrix import draw_square_brackets, draw_split_bar
 from prettycalc.ui.theme import (
@@ -48,18 +65,33 @@ class MatrixCellEdit(QLineEdit):
 
     navigate = Signal(int, int, str)
 
-    def __init__(self, row: int, col: int, default_val: str = "0", parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        row: int,
+        col: int,
+        default_val: str = "0",
+        parent: Optional[QWidget] = None,
+        grid: Optional[DynamicMatrixGrid] = None,
+    ):
         super().__init__(default_val, parent)
         self.row = row
         self.col = col
+        self._grid = grid
         self.setFixedSize(58, 38)
         self.setAlignment(Qt.AlignCenter)
         self.setFont(QFont("Fira Code", 12))
         self.setFrame(False)
         apply_widget_class(self, "matrix-cell")
-        self.setContextMenuPolicy(Qt.NoContextMenu)
+        self.setContextMenuPolicy(Qt.DefaultContextMenu)
         self.textChanged.connect(self._on_text_changed)
         self._is_valid = True
+
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        if self._grid is not None:
+            self._grid.show_cell_context_menu(self, event.globalPos())
+            event.accept()
+        else:
+            super().contextMenuEvent(event)
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
@@ -98,6 +130,30 @@ class MatrixCellEdit(QLineEdit):
         return parse_scalar(text)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.matches(QKeySequence.Copy) or (
+            event.key() == Qt.Key_C and event.modifiers() == Qt.ControlModifier
+        ):
+            # Si el usuario seleccionó un fragmento parcial dentro de la celda (ej: '1' en '1/2')
+            if self.hasSelectedText() and len(self.selectedText()) < len(self.text()):
+                super().keyPressEvent(event)
+                return
+            # Si no hay selección o toda la celda está seleccionada, copiar la matriz completa
+            if self._grid is not None:
+                self._grid.copy_to_clipboard()
+                event.accept()
+                return
+
+        if event.matches(QKeySequence.Paste) or (
+            event.key() == Qt.Key_V and event.modifiers() == Qt.ControlModifier
+        ):
+            clip_text = get_clipboard_text().strip()
+            # Si el portapapeles contiene una estructura de matriz o múltiples valores
+            if ("\t" in clip_text or "\n" in clip_text or "[" in clip_text or "\\begin{" in clip_text) and has_matrix_in_clipboard():
+                if self._grid is not None:
+                    self._grid.paste_from_clipboard()
+                    event.accept()
+                    return
+
         if event.key() == Qt.Key_Up:
             self.navigate.emit(self.row, self.col, "up")
             return
@@ -242,7 +298,7 @@ class DynamicMatrixGrid(QFrame):
         for r in range(self.num_rows):
             row_cells: List[MatrixCellEdit] = []
             for c in range(total_cols):
-                cell = MatrixCellEdit(r, c)
+                cell = MatrixCellEdit(r, c, grid=self)
                 cell.navigate.connect(self._handle_cell_navigation)
                 cell.textChanged.connect(lambda: self.matrixChanged.emit())
                 self._grid_layout.addWidget(cell, r + header_row, c)
@@ -316,29 +372,62 @@ class DynamicMatrixGrid(QFrame):
 
     def _show_context_menu(self, pos: QPoint) -> None:
         cell = self._cell_at(pos)
-        if cell is None:
-            return
+        self.show_cell_context_menu(cell, self.mapToGlobal(pos))
 
+    def show_cell_context_menu(self, cell: Optional[MatrixCellEdit], global_pos: QPoint) -> None:
         menu = QMenu(self)
-        delete_row = QAction("Eliminar fila", menu)
-        delete_col = QAction("Eliminar columna", menu)
 
-        can_delete_row = self.num_rows > 1
-        can_delete_col = self.num_vars > 1 and (self.augmented is False or cell.col < self.num_vars)
-        delete_row.setEnabled(can_delete_row)
-        delete_col.setEnabled(can_delete_col)
-        if self.augmented and cell.col >= self.num_vars:
-            delete_col.setToolTip("La columna de términos independientes no se puede eliminar.")
-        elif self.num_vars <= 1:
-            delete_col.setToolTip("Debe quedar al menos una columna.")
-        if self.num_rows <= 1:
-            delete_row.setToolTip("Debe quedar al menos una ecuación.")
+        copy_action = menu.addAction("Copiar matriz")
+        copy_action.setShortcut(QKeySequence.Copy)
+        copy_action.triggered.connect(self.copy_to_clipboard)
 
-        delete_row.triggered.connect(lambda: self.remove_row(cell.row))
-        delete_col.triggered.connect(lambda: self.remove_column(cell.col))
-        menu.addAction(delete_row)
-        menu.addAction(delete_col)
-        menu.exec(self.mapToGlobal(pos))
+        paste_action = menu.addAction("Pegar matriz")
+        paste_action.setShortcut(QKeySequence.Paste)
+        paste_action.setEnabled(has_matrix_in_clipboard())
+        paste_action.triggered.connect(self.paste_from_clipboard)
+
+        if cell is not None:
+            menu.addSeparator()
+
+            copy_cell_action = menu.addAction("Copiar valor de celda")
+            copy_cell_action.triggered.connect(
+                lambda: QGuiApplication.clipboard().setText(cell.text())
+                if QGuiApplication.clipboard() is not None
+                else None
+            )
+
+            def _paste_cell_val():
+                txt = get_clipboard_text().strip()
+                if txt:
+                    cell.setText(txt)
+
+            paste_cell_action = menu.addAction("Pegar en celda")
+            paste_cell_action.setEnabled(bool(get_clipboard_text().strip()))
+            paste_cell_action.triggered.connect(_paste_cell_val)
+
+            menu.addSeparator()
+
+            delete_row = menu.addAction("Eliminar fila")
+            delete_col = menu.addAction("Eliminar columna")
+
+            can_delete_row = self.num_rows > 1 and self.row_expandable
+            can_delete_col = self.num_vars > 1 and self.col_expandable and (
+                self.augmented is False or cell.col < self.num_vars
+            )
+            delete_row.setEnabled(can_delete_row)
+            delete_col.setEnabled(can_delete_col)
+
+            if self.augmented and cell.col >= self.num_vars:
+                delete_col.setToolTip("La columna de términos independientes no se puede eliminar.")
+            elif self.num_vars <= 1 or not self.col_expandable:
+                delete_col.setToolTip("Debe quedar al menos una columna.")
+            if self.num_rows <= 1 or not self.row_expandable:
+                delete_row.setToolTip("Debe quedar al menos una fila.")
+
+            delete_row.triggered.connect(lambda: self.remove_row(cell.row))
+            delete_col.triggered.connect(lambda: self.remove_column(cell.col))
+
+        menu.exec(global_pos)
 
     def remove_row(self, index: int) -> None:
         """Elimina una ecuación. No permite dejar la matriz sin filas."""
@@ -444,3 +533,74 @@ class DynamicMatrixGrid(QFrame):
 
     def is_all_valid(self) -> bool:
         return all(cell.is_valid for row in self.cells for cell in row)
+
+    def copy_to_clipboard(self) -> bool:
+        """Copia la matriz completa al portapapeles en formato TSV universal."""
+        try:
+            mat = self.get_matrix()
+            return copy_matrix_to_clipboard(mat, mode="fraction")
+        except Exception:
+            raw = self.get_raw_strings()
+            return copy_matrix_to_clipboard(raw)
+
+    def paste_from_clipboard(self) -> bool:
+        """Pega una matriz del portapapeles redimensionando la cuadrícula automáticamente."""
+        pasted_mat = get_matrix_from_clipboard()
+        if pasted_mat is None:
+            return False
+
+        p_rows = pasted_mat.rows
+        p_cols = pasted_mat.cols
+
+        if self.augmented:
+            if p_cols >= 2:
+                self.num_rows = p_rows
+                self.num_vars = p_cols - 1
+                self._build_grid()
+                for r in range(p_rows):
+                    for c in range(p_cols):
+                        val_str = format_scalar(pasted_mat.get(r, c), mode="fraction")
+                        self.cells[r][c].setText(val_str)
+            else:
+                self.num_rows = p_rows
+                self.num_vars = 1
+                self._build_grid()
+                for r in range(p_rows):
+                    val_str = format_scalar(pasted_mat.get(r, 0), mode="fraction")
+                    self.cells[r][0].setText(val_str)
+                    self.cells[r][1].setText("0")
+        else:
+            if not self.col_expandable and self.num_vars == 1 and p_rows == 1 and p_cols > 1:
+                # Transponer vector fila 1xK a vector columna Kx1 para editor de vectores columna
+                self.num_rows = p_cols
+                self.num_vars = 1
+                self._build_grid()
+                for r in range(p_cols):
+                    val_str = format_scalar(pasted_mat.get(0, r), mode="fraction")
+                    self.cells[r][0].setText(val_str)
+            else:
+                self.num_rows = p_rows
+                self.num_vars = p_cols
+                self._build_grid()
+                for r in range(p_rows):
+                    for c in range(p_cols):
+                        val_str = format_scalar(pasted_mat.get(r, c), mode="fraction")
+                        self.cells[r][c].setText(val_str)
+
+        self.matrixChanged.emit()
+        return True
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.matches(QKeySequence.Copy) or (
+            event.key() == Qt.Key_C and event.modifiers() == Qt.ControlModifier
+        ):
+            self.copy_to_clipboard()
+            event.accept()
+            return
+        if event.matches(QKeySequence.Paste) or (
+            event.key() == Qt.Key_V and event.modifiers() == Qt.ControlModifier
+        ):
+            if self.paste_from_clipboard():
+                event.accept()
+                return
+        super().keyPressEvent(event)
