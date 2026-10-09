@@ -412,6 +412,11 @@ class Vector:
         return self._dimension
 
     @property
+    def dim(self) -> int:
+        """Alias de dimensión."""
+        return self._dimension
+
+    @property
     def components(self) -> List[Fraction]:
         """Copia de las componentes exactas."""
         return list(self._components)
