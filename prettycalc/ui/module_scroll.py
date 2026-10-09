@@ -30,15 +30,16 @@ class ModuleScroll(QScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet(
-            "QScrollArea#moduleScroll { background: transparent; border: none; }"
+            f"QScrollArea#moduleScroll {{ background: transparent; border: none; }} "
+            f"QScrollArea#moduleScroll > QWidget#qt_scrollarea_viewport {{ background-color: {COLOR_BG_BASE}; }}"
         )
         self.viewport().setAutoFillBackground(False)
-        self.viewport().setStyleSheet(f"background-color: {COLOR_BG_BASE};")
         layout = content.layout()
         if layout is not None:
             layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         self._syncing = False
         self.setWidget(content)
+        content.setAutoFillBackground(False)
         self._watch(content)
         self._sync_natural_height()
 

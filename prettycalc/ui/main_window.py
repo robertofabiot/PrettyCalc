@@ -13,7 +13,7 @@ try:
         QApplication,
         QStackedWidget,
     )
-    from PySide6.QtGui import QAction, QKeySequence
+    from PySide6.QtGui import QAction, QKeySequence, QColor, QPalette
     from PySide6.QtCore import Qt
 except ImportError:
     QMainWindow = object  # type: ignore
@@ -25,6 +25,9 @@ from prettycalc.ui.modules.matrix_equations_view import MatrixEquationsView
 from prettycalc.ui.navigation_bar import ModularNavigationBar
 from prettycalc.ui.theme import (
     get_global_stylesheet,
+    get_app_palette,
+    COLOR_BG_BASE,
+    COLOR_SURFACE_ELEVATED,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
 )
@@ -46,6 +49,12 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PrettyCalc — Álgebra lineal")
         self.setMinimumSize(1080, 680)
         self.resize(1380, 800)
+        app = QApplication.instance()
+        palette = get_app_palette()
+        if palette is not None:
+            if app is not None:
+                app.setPalette(palette)
+            self.setPalette(palette)
         self.setStyleSheet(get_global_stylesheet())
         self._setup_ui()
         self._setup_shortcuts()
@@ -151,6 +160,9 @@ class MainWindow(QMainWindow):
 def run_app():
     """Arranque de la aplicación GUI."""
     app = QApplication(sys.argv)
+    palette = get_app_palette()
+    if palette is not None:
+        app.setPalette(palette)
     app.setStyleSheet(get_global_stylesheet())
     window = MainWindow()
     window.show()

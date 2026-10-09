@@ -54,6 +54,7 @@ class LinearSystemsView(QWidget):
         body_splitter.setChildrenCollapsible(False)
 
         left_pane = QWidget()
+        left_pane.setStyleSheet("background: transparent;")
         left_layout = QVBoxLayout(left_pane)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(8)
@@ -103,24 +104,36 @@ class LinearSystemsView(QWidget):
         samples_layout.addWidget(samples_lbl)
 
         btn_case1 = QPushButton("I  ·  Solución única")
+        btn_case1.setObjectName("secondaryAction")
         btn_case1.clicked.connect(self.load_sample_case1)
         samples_layout.addWidget(btn_case1)
 
         btn_case2 = QPushButton("II  ·  Infinitas soluciones")
+        btn_case2.setObjectName("secondaryAction")
         btn_case2.clicked.connect(self.load_sample_case2)
         samples_layout.addWidget(btn_case2)
 
         btn_case3 = QPushButton("III  ·  Sin solución")
+        btn_case3.setObjectName("secondaryAction")
         btn_case3.clicked.connect(self.load_sample_case3)
         samples_layout.addWidget(btn_case3)
+
+        left_layout.addWidget(samples_box)
+        left_layout.addStretch(1)
 
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.NoFrame)
-        left_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        left_scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; } "
+            "QScrollArea > QWidget#qt_scrollarea_viewport, QScrollArea > QWidget { background: transparent; }"
+        )
+        left_scroll.viewport().setStyleSheet("background: transparent;")
+        left_scroll.viewport().setAutoFillBackground(False)
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         left_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         left_scroll.setWidget(left_pane)
+        left_pane.setAutoFillBackground(False)
         body_splitter.addWidget(left_scroll)
 
         center_pane = QWidget()

@@ -12,6 +12,7 @@ Tokens Oficiales:
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 try:
@@ -22,6 +23,29 @@ except ImportError:
     _WA_STYLED_BG = 0  # type: ignore
     QColor = object  # type: ignore
     QPalette = object  # type: ignore
+
+_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+_UP_ARROW_SVG = str(_ASSETS_DIR / "arrow_up.svg").replace("\\", "/")
+_DOWN_ARROW_SVG = str(_ASSETS_DIR / "arrow_down.svg").replace("\\", "/")
+
+
+def _ensure_assets() -> None:
+    _ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    up = _ASSETS_DIR / "arrow_up.svg"
+    down = _ASSETS_DIR / "arrow_down.svg"
+    if not up.exists():
+        up.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
+            '<polygon points="5,0 10,6 0,6" fill="#E0FBFC"/></svg>'
+        )
+    if not down.exists():
+        down.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
+            '<polygon points="5,6 10,0 0,0" fill="#E0FBFC"/></svg>'
+        )
+
+
+_ensure_assets()
 
 # Constantes de Color
 COLOR_BG_BASE = "#1A181B"
@@ -111,6 +135,25 @@ def apply_message_box_theme(box: Any) -> None:
         pass
 
 
+def get_app_palette() -> Any:
+    """Retorna la paleta cromática oficial de PrettyCalc para QApplication y widgets."""
+    if QPalette is object or QColor is object:
+        return None
+    palette = QPalette()
+    bg = QColor(COLOR_BG_BASE)
+    fg = QColor(COLOR_TEXT_PRIMARY)
+    elevated = QColor(COLOR_SURFACE_ELEVATED)
+    for group in (QPalette.Active, QPalette.Inactive, QPalette.Disabled):
+        palette.setColor(group, QPalette.Window, bg)
+        palette.setColor(group, QPalette.Base, bg)
+        palette.setColor(group, QPalette.AlternateBase, elevated)
+        palette.setColor(group, QPalette.WindowText, fg)
+        palette.setColor(group, QPalette.Text, fg)
+        palette.setColor(group, QPalette.Button, elevated)
+        palette.setColor(group, QPalette.ButtonText, fg)
+    return palette
+
+
 def get_global_stylesheet() -> str:
     """Genera la hoja de estilos global QSS para la aplicación."""
     return f"""
@@ -177,58 +220,90 @@ def get_global_stylesheet() -> str:
 
     QPushButton:disabled {{
         background-color: {COLOR_INTERACTIVE_DISABLED};
-        color: {COLOR_TEXT_MUTED};
+        color: #A8A3B2;
         border-color: {COLOR_INTERACTIVE_DISABLED};
     }}
 
-    QPushButton#primaryAction {{
+    QPushButton#primaryAction, QPushButton[class="primaryAction"] {{
         background-color: {COLOR_FEEDBACK_SUCCESS};
         color: {COLOR_BG_BASE};
-        border: none;
-        font-size: 16px;
-        padding: 10px 20px;
+        border: 1px solid {COLOR_FEEDBACK_SUCCESS};
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 8px 18px;
     }}
 
-    QPushButton#primaryAction:hover {{
+    QPushButton#primaryAction:hover, QPushButton[class="primaryAction"]:hover {{
         background-color: #93C4AE;
         color: {COLOR_BG_BASE};
+        border: 1px solid #93C4AE;
     }}
-    QPushButton#primaryAction:disabled {{
+    QPushButton#primaryAction:disabled, QPushButton[class="primaryAction"]:disabled {{
         background-color: {COLOR_INTERACTIVE_DISABLED};
-        color: {COLOR_TEXT_MUTED};
-        border: none;
+        color: #A8A3B2;
+        border: 1px solid {COLOR_INTERACTIVE_DISABLED};
     }}
 
-    QPushButton#secondaryAction {{
+    QPushButton#secondaryAction, QPushButton[class="secondaryAction"] {{
         background-color: transparent;
         color: {COLOR_INTERACTIVE_IDLE};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
         font-size: 15px;
-        padding: 10px 18px;
+        font-weight: 600;
+        padding: 8px 16px;
     }}
 
-    QPushButton#secondaryAction:hover {{
+    QPushButton#secondaryAction:hover, QPushButton[class="secondaryAction"]:hover {{
         background-color: {COLOR_INTERACTIVE_IDLE};
         color: {COLOR_BG_BASE};
     }}
+    QPushButton#secondaryAction:disabled, QPushButton[class="secondaryAction"]:disabled {{
+        background-color: {COLOR_INTERACTIVE_DISABLED};
+        color: #A8A3B2;
+        border-color: {COLOR_INTERACTIVE_DISABLED};
+    }}
 
-    QPushButton#modeToggle {{
+    QPushButton#deleteAction, QPushButton[class="deleteAction"], QPushButton[class="delete-btn"] {{
+        background-color: transparent;
+        color: {COLOR_FEEDBACK_ERROR};
+        border: 1px solid rgba(238, 108, 77, 0.45);
+        border-radius: 4px;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 0px;
+        min-width: 28px;
+        max-width: 32px;
+        min-height: 28px;
+        max-height: 32px;
+    }}
+
+    QPushButton#deleteAction:hover, QPushButton[class="deleteAction"]:hover, QPushButton[class="delete-btn"]:hover {{
+        background-color: {COLOR_FEEDBACK_ERROR};
+        color: {COLOR_BG_BASE};
+        border: 1px solid {COLOR_FEEDBACK_ERROR};
+    }}
+
+    QPushButton#modeToggle, QPushButton[class="modeToggle"] {{
         background-color: transparent;
         color: {COLOR_INTERACTIVE_IDLE};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
-        font-size: 15px;
-        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 12px;
     }}
-    QPushButton#modeToggle:checked {{
+    QPushButton#modeToggle:checked, QPushButton[class="modeToggle"]:checked {{
         background-color: {COLOR_INTERACTIVE_IDLE};
         color: {COLOR_BG_BASE};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
     }}
-    QPushButton#modeToggle:hover {{
+    QPushButton#modeToggle:hover, QPushButton[class="modeToggle"]:hover {{
         background-color: rgba(152, 193, 217, 0.28);
         color: {COLOR_TEXT_PRIMARY};
     }}
-    QPushButton#modeToggle:checked:hover {{
+    QPushButton#modeToggle:checked:hover, QPushButton[class="modeToggle"]:checked:hover {{
         background-color: #B3D4E6;
         color: {COLOR_BG_BASE};
     }}
@@ -355,14 +430,62 @@ def get_global_stylesheet() -> str:
         font-family: {FONT_FAMILY_SANS};
         min-height: 28px;
     }}
-    QSpinBox::up-button, QSpinBox::down-button {{
+    QSpinBox::up-button {{
+        subcontrol-origin: border;
+        subcontrol-position: top right;
         background: {COLOR_SURFACE_ELEVATED};
-        width: 18px;
+        border-left: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-bottom: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-top-right-radius: 5px;
+        width: 22px;
+    }}
+    QSpinBox::up-button:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+    }}
+    QSpinBox::up-arrow {{
+        image: url("{_UP_ARROW_SVG}");
+        width: 10px;
+        height: 6px;
+    }}
+    QSpinBox::down-button {{
+        subcontrol-origin: border;
+        subcontrol-position: bottom right;
+        background: {COLOR_SURFACE_ELEVATED};
+        border-left: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-bottom-right-radius: 5px;
+        width: 22px;
+    }}
+    QSpinBox::down-button:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+    }}
+    QSpinBox::down-arrow {{
+        image: url("{_DOWN_ARROW_SVG}");
+        width: 10px;
+        height: 6px;
+    }}
+    QComboBox::drop-down {{
+        subcontrol-origin: padding;
+        subcontrol-position: top right;
+        width: 26px;
+        border-left: 1px solid {COLOR_INTERACTIVE_IDLE};
+        background: {COLOR_SURFACE_ELEVATED};
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px;
+    }}
+    QComboBox::drop-down:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+    }}
+    QComboBox::down-arrow {{
+        image: url("{_DOWN_ARROW_SVG}");
+        width: 10px;
+        height: 6px;
     }}
     QComboBox QAbstractItemView {{
         background-color: {COLOR_SURFACE_INNER};
         color: {COLOR_TEXT_PRIMARY};
         selection-background-color: {COLOR_SURFACE_ELEVATED};
+        selection-color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
     }}
 
     QTabWidget::pane {{
@@ -393,14 +516,22 @@ def get_global_stylesheet() -> str:
         border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
     }}
 
-    QPushButton#opSelect {{
+    QPushButton#opSelect, QPushButton[class="opSelect"] {{
+        background-color: {COLOR_SURFACE_ELEVATED};
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        border-radius: 6px;
         min-width: 52px;
         min-height: 44px;
         font-size: 22px;
         font-weight: 700;
         padding: 8px;
     }}
-    QPushButton#opSelect:checked {{
+    QPushButton#opSelect:hover, QPushButton[class="opSelect"]:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+    }}
+    QPushButton#opSelect:checked, QPushButton[class="opSelect"]:checked {{
         background-color: {COLOR_INTERACTIVE_IDLE};
         color: {COLOR_BG_BASE};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
@@ -437,6 +568,10 @@ def get_global_stylesheet() -> str:
         background: transparent;
     }}
 
+    QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{
+        background: #B3D4E6;
+    }}
+
     QLineEdit#scalarField {{
         background-color: {COLOR_SURFACE_INNER};
         color: {COLOR_TEXT_PRIMARY};
@@ -459,33 +594,17 @@ def get_global_stylesheet() -> str:
         font-family: {FONT_FAMILY_SANS};
     }}
 
-    QScrollBar:vertical, QScrollBar:horizontal {{
-        background: {COLOR_BG_BASE};
-        border: none;
-        width: 10px;
-        height: 10px;
-        margin: 0px;
-    }}
-    QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
-        background: {COLOR_SURFACE_ELEVATED};
-        border-radius: 5px;
-        min-height: 24px;
-        min-width: 24px;
-    }}
-    QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{
-        background: {COLOR_INTERACTIVE_IDLE};
-    }}
-    QScrollBar::add-line, QScrollBar::sub-line {{
-        background: none;
-        width: 0px;
-        height: 0px;
-    }}
-
     QScrollArea {{
         background: transparent;
+        background-color: transparent;
         border: none;
     }}
-    QScrollArea > QWidget > QWidget {{
+    QScrollArea > QWidget#qt_scrollarea_viewport,
+    QScrollArea > QWidget {{
         background: transparent;
+        background-color: transparent;
+    }}
+    QWidget#linearSystemsView, QWidget#matrixOperationsView, QWidget#vectorsView {{
+        background-color: {COLOR_BG_BASE};
     }}
     """ + get_message_box_stylesheet()
