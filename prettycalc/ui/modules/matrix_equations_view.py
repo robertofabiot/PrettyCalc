@@ -25,7 +25,7 @@ from prettycalc.core.classifier import SystemType
 from prettycalc.core.matrix_equations import solve_matrix_equation
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
-from prettycalc.ui.mathtext import to_superscript
+from prettycalc.ui.mathtext import format_comparison_row_html, to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.matrix_vector_properties_view import MatrixVectorPropertiesView
@@ -98,18 +98,21 @@ class MatrixEquationsView(QWidget):
         samples_row.setSpacing(8)
 
         sample_scd = QPushButton("Ejemplo SCD (3×3)")
+        sample_scd.setObjectName("secondaryAction")
         sample_scd.setToolTip("Cargar sistema con solución única: x = (2, 1, 1)")
         sample_scd.setCursor(Qt.PointingHandCursor)
         sample_scd.clicked.connect(self.load_sample)
         samples_row.addWidget(sample_scd)
 
         sample_sci = QPushButton("Ejemplo SCI (2×3)")
+        sample_sci.setObjectName("secondaryAction")
         sample_sci.setToolTip("Cargar sistema con infinitas soluciones y variables libres")
         sample_sci.setCursor(Qt.PointingHandCursor)
         sample_sci.clicked.connect(self.load_sample_sci)
         samples_row.addWidget(sample_sci)
 
         sample_si = QPushButton("Ejemplo SI (3×2)")
+        sample_si.setObjectName("secondaryAction")
         sample_si.setToolTip("Cargar sistema incompatible sin solución")
         sample_si.setCursor(Qt.PointingHandCursor)
         sample_si.clicked.connect(self.load_sample_si)
@@ -291,6 +294,7 @@ class MatrixEquationsView(QWidget):
         root.addWidget(self.results_tabs)
 
         self.scroll_area.setWidget(content)
+        content.setAutoFillBackground(False)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.scroll_area, "Ecuación  A · x = b")
@@ -396,23 +400,44 @@ class MatrixEquationsView(QWidget):
         self.dashboard.display_results(result.analysis, verifications)
 
         if result.product_Ax is not None and result.solution is not None:
-            lines = ["A · x  ≟  b", ""]
             all_ok = result.product_matches
+            status_color = COLOR_FEEDBACK_SUCCESS if all_ok else COLOR_FEEDBACK_ERROR
+            status_text = "✓ ¡Igualdad exacta comprobada!  A · x = b (igualdad exacta)" if all_ok else "✕ No coincide la igualdad"
+
+            rows = [
+                f'<div style="background-color:rgba(129, 178, 154, 0.12); border:1px solid rgba(129, 178, 154, 0.40); '
+                f'border-radius:6px; padding:10px 14px; margin-bottom:12px;">'
+                f'<span style="font-size:22px; font-weight:700; color:{status_color};">{status_text}</span>'
+                f'</div>'
+            ]
             for label, got, expected, ok in result.verification_checklist:
-                mark = "✓" if ok else "✗"
-                lines.append(
-                    f"{mark}  {label}:  (A x) = {format_scalar(got)}  |  b = {format_scalar(expected)}"
+                comp_idx = label.split()[-1] if " " in label else label
+                rows.append(
+                    format_comparison_row_html(
+                        "✓" if ok else "✗",
+                        label,
+                        f"(A·x)_{comp_idx} = {format_scalar(got)}",
+                        f"b_{comp_idx} = {format_scalar(expected)}",
+                        ok,
+                        font_size_px=22,
+                    )
                 )
             if result.analysis.system_type == SystemType.CONSISTENT_INDETERMINED:
-                lines.append("")
-                lines.append(f"Solución general: {result.parametric_solution}")
-            status = "igualdad exacta" if all_ok else "no coincide"
-            lines.insert(1, f"Resultado: {status}.")
-            self.product_label.setText("\n".join(lines))
+                rows.append(
+                    f'<div style="font-size:20px; font-weight:600; color:{COLOR_TEXT_PRIMARY}; '
+                    f'padding:10px 0; font-family:{FONT_FAMILY_MONO};">'
+                    f'Solución general: {result.parametric_solution}</div>'
+                )
+            self.product_label.setTextFormat(Qt.RichText)
+            self.product_label.setText("".join(rows))
         else:
+            self.product_label.setTextFormat(Qt.PlainText)
             self.product_label.setText(
                 "No hay vector x que satisfaga A x = b (sistema inconsistente)."
             )
+
+        if hasattr(self, "scroll_area") and hasattr(self, "results_tabs"):
+            self.scroll_area.ensureWidgetVisible(self.results_tabs)
 
     def load_sample(self) -> None:
         """Caso SCD canónico (3×3 con solución única)."""
@@ -451,6 +476,7 @@ class MatrixEquationsView(QWidget):
         self.x_subtitle.setText("Incógnita a resolver")
         self.stepper.set_steps([])
         self.dashboard.clear()
+        self.product_label.setTextFormat(Qt.PlainText)
         self.product_label.setText("Resuelve para verificar el producto matricial.")
         self.results_tabs.setCurrentIndex(0)
         self._refresh_formula()

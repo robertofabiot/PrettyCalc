@@ -242,19 +242,18 @@ class ResultsDashboardCard(QFrame):
         lbl = QLabel()
         lbl.setWordWrap(True)
         lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        lbl.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO}; "
+            f"font-weight: 600; padding: 6px 2px;"
+        )
         if tag:
             lbl.setTextFormat(Qt.RichText)
             lbl.setText(
-                f"<span style='color:{COLOR_TEXT_PRIMARY}; font-size:22px; font-family:{FONT_FAMILY_MONO};'>{text}</span>"
-                f"&nbsp;&nbsp;<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:14px; font-style:italic;'>({tag})</span>"
+                f"<span style='color:{COLOR_TEXT_PRIMARY}; font-size:22px; font-family:{FONT_FAMILY_MONO}; font-weight:600;'>{text}</span>"
+                f"&nbsp;&nbsp;<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:16px; font-style:italic;'>({tag})</span>"
             )
         else:
             lbl.setText(text)
-            lbl.setStyleSheet(
-                f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO}; "
-                f"padding: 6px 2px;"
-            )
-        lbl.setStyleSheet("padding: 4px 2px;")
         return lbl
 
     def _free_var_line(self, text: str) -> QLabel:
@@ -263,8 +262,8 @@ class ResultsDashboardCard(QFrame):
         lbl.setWordWrap(True)
         lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
         lbl.setStyleSheet(
-            f"color: {COLOR_ACCENT_WARNING}; font-size: 18px; font-family:{FONT_FAMILY_MONO}; "
-            f"font-weight: 600; padding: 4px 2px;"
+            f"color: {COLOR_ACCENT_WARNING}; font-size: 20px; font-family:{FONT_FAMILY_MONO}; "
+            f"font-weight: 600; padding: 6px 2px;"
         )
         return lbl
 
@@ -273,10 +272,10 @@ class ResultsDashboardCard(QFrame):
         lbl.setWordWrap(True)
         lbl.setTextFormat(Qt.RichText)
         lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        lbl.setStyleSheet("padding: 2px 0px;")
+        lbl.setStyleSheet("padding: 4px 0px;")
         lbl.setText(
-            f"<span style='color:{COLOR_INTERACTIVE_IDLE}; font-weight:600; font-size:15px;'>{label}:</span>&nbsp;&nbsp;"
-            f"<span style='color:{value_color}; font-family:{FONT_FAMILY_MONO}; font-size:15px; font-weight:600;'>{value}</span>"
+            f"<span style='color:{COLOR_INTERACTIVE_IDLE}; font-weight:600; font-size:17px;'>{label}:</span>&nbsp;&nbsp;"
+            f"<span style='color:{value_color}; font-family:{FONT_FAMILY_MONO}; font-size:18px; font-weight:600;'>{value}</span>"
         )
         return lbl
 
@@ -284,15 +283,15 @@ class ResultsDashboardCard(QFrame):
         card = QFrame()
         card.setStyleSheet(f"QFrame {{ background: transparent; }}")
         col = QVBoxLayout(card)
-        col.setContentsMargins(0, 2, 0, 2)
-        col.setSpacing(2)
+        col.setContentsMargins(0, 4, 0, 4)
+        col.setSpacing(4)
 
         mark = "✓" if v.is_valid else "✗"
         mark_color = COLOR_FEEDBACK_SUCCESS if v.is_valid else COLOR_FEEDBACK_ERROR
         eq = format_equation_book(v.equation_str)
-        eq_html = to_html_subscripts(eq, sub_size_px=11)
+        eq_html = to_html_subscripts(eq, sub_size_px=14)
         sub = format_substitution_book(v.substitution_str)
-        sub_html = to_html_subscripts(sub, sub_size_px=11)
+        sub_html = to_html_subscripts(sub, sub_size_px=14)
 
         head = QLabel(f"{mark}   ({v.equation_index + 1})   {eq}")
         head.setWordWrap(True)
@@ -300,7 +299,7 @@ class ResultsDashboardCard(QFrame):
         head.setText(
             f"<span style='color:{mark_color}; font-weight:bold; font-size:24px;'>{mark}</span>"
             f"&nbsp;&nbsp;<span style='color:{COLOR_INTERACTIVE_IDLE}; font-size:22px;'>({v.equation_index + 1})</span>"
-            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-size:22px; font-family:{FONT_FAMILY_MONO};'>{eq_html}</span>"
+            f"&nbsp;&nbsp;<span style='color:{COLOR_TEXT_PRIMARY}; font-size:22px; font-weight:600; font-family:{FONT_FAMILY_MONO};'>{eq_html}</span>"
         )
         col.addWidget(head)
 

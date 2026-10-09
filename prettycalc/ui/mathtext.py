@@ -15,6 +15,11 @@ _LATEX_TEXT = re.compile(r"\\text\{([^}]*)\}")
 _F_SUB_BRACES = re.compile(r"f_\{(\d+)\}")
 _F_SUB_PLAIN = re.compile(r"\bf(\d+)\b")
 _X_SUB = re.compile(r"\bx(\d+)\b")
+_SUB_DIGITS_BRACES = re.compile(r"_\{(\d+)\}")
+_SUB_DIGITS_PLAIN = re.compile(r"_(\d+)")
+_SUB_HTML_BRACES = re.compile(r"_\{([^}]+)\}")
+_SUB_HTML_PLAIN = re.compile(r"_([0-9a-zA-Z]+)")
+_UNICODE_SUB_DIGITS = re.compile(r"([₀₁₂₃₄₅₆₇₈₉]+)")
 
 
 def to_subscript(value: int | str) -> str:
@@ -74,6 +79,8 @@ def prettify_math_text(text: str) -> str:
     result = _F_SUB_BRACES.sub(lambda m: row_symbol(int(m.group(1)) - 1), result)
     result = _F_SUB_PLAIN.sub(lambda m: row_symbol(int(m.group(1)) - 1), result)
     result = _X_SUB.sub(lambda m: variable_symbol(int(m.group(1)) - 1), result)
+    result = _SUB_DIGITS_BRACES.sub(lambda m: to_subscript(m.group(1)), result)
+    result = _SUB_DIGITS_PLAIN.sub(lambda m: to_subscript(m.group(1)), result)
     result = result.replace("*", "")
     result = re.sub(r"(?<![\d.])1(?=x)", "", result)
     result = re.sub(r"(-?\d+/\d+)(?=x)", r"(\1)", result)
@@ -84,6 +91,19 @@ def prettify_math_text(text: str) -> str:
     result = result.replace("+-", " − ")
     result = result.replace(" - ", " − ")
     return result
+
+
+def format_subscripts_html(text: str, sub_size_px: Optional[int] = None) -> str:
+    r"""Convierte subíndices de notación LaTeX (_\{k\}), ASCII (_k) o Unicode (ₖ) a HTML <sub>."""
+    if not text:
+        return ""
+    style_attr = f" style='font-size:{sub_size_px}px;'" if sub_size_px else ""
+    res = _SUB_HTML_BRACES.sub(rf"<sub{style_attr}>\1</sub>", text)
+    res = _SUB_HTML_PLAIN.sub(rf"<sub{style_attr}>\1</sub>", res)
+    res = _UNICODE_SUB_DIGITS.sub(
+        lambda m: f"<sub{style_attr}>{m.group(1).translate(_REV_SUBSCRIPTS)}</sub>", res
+    )
+    return res
 
 
 def latex_to_book_html(latex: str) -> str:
@@ -136,3 +156,116 @@ def format_parametric_book(expression_text: str, var_names: Optional[list[str]] 
     """Expresión paramétrica en notación de libro."""
     del var_names
     return prettify_math_text(expression_text)
+
+
+def format_comparison_row_html(
+    mark: str,
+    label: str,
+    lhs_expr: str,
+    rhs_expr: str,
+    ok: bool,
+    font_size_px: int = 22,
+) -> str:
+    """Fila de comprobación formal en HTML con tipografía grande y colores semánticos."""
+    from prettycalc.ui.theme import (
+        COLOR_FEEDBACK_ERROR,
+        COLOR_FEEDBACK_SUCCESS,
+        COLOR_INTERACTIVE_IDLE,
+        COLOR_SURFACE_INNER,
+        FONT_FAMILY_MONO,
+    )
+
+    mark_color = COLOR_FEEDBACK_SUCCESS if ok else COLOR_FEEDBACK_ERROR
+    bg_color = "rgba(129, 178, 154, 0.10)" if ok else "rgba(238, 108, 77, 0.10)"
+    border_color = "rgba(129, 178, 154, 0.40)" if ok else "rgba(238, 108, 77, 0.40)"
+    status_text = "Coinciden exactamente" if ok else "No coinciden"
+
+    lhs_has_eq = "=" in lhs_expr and not lhs_expr.startswith("=")
+    rhs_has_eq = "=" in rhs_expr and not rhs_expr.startswith("=")
+
+    if lhs_has_eq and rhs_has_eq:
+        lhs_name, lhs_val = [p.strip() for p in lhs_expr.split("=", 1)]
+        rhs_name, rhs_val = [p.strip() for p in rhs_expr.split("=", 1)]
+
+        lhs_name_clean = format_subscripts_html(prettify_math_text(lhs_name))
+        rhs_name_clean = format_subscripts_html(prettify_math_text(rhs_name))
+        lhs_val_clean = format_subscripts_html(prettify_math_text(lhs_val))
+        rhs_val_clean = format_subscripts_html(prettify_math_text(rhs_val))
+
+        if ok and (lhs_val == rhs_val or not rhs_val):
+            comparison_content = (
+                f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{lhs_name_clean}</span>'
+                f'&nbsp;&nbsp;<span style="color:{COLOR_INTERACTIVE_IDLE}; font-size:{font_size_px}px; font-weight:700;">=</span>&nbsp;&nbsp;'
+                f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{rhs_name_clean}</span>'
+                f'&nbsp;&nbsp;<span style="color:{COLOR_INTERACTIVE_IDLE}; font-size:{font_size_px}px; font-weight:700;">=</span>&nbsp;&nbsp;'
+                f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{lhs_val_clean}</span>'
+            )
+        else:
+            comparison_content = (
+                f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{lhs_name_clean} = {lhs_val_clean}</span>'
+                f'&nbsp;&nbsp;<span style="color:{COLOR_INTERACTIVE_IDLE}; font-size:{font_size_px}px; font-weight:700;">≠</span>&nbsp;&nbsp;'
+                f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{rhs_name_clean} = {rhs_val_clean}</span>'
+            )
+    else:
+        eq_symbol = "=" if ok else "≠"
+        lhs_clean = format_subscripts_html(prettify_math_text(lhs_expr))
+        rhs_clean = format_subscripts_html(prettify_math_text(rhs_expr))
+        comparison_content = (
+            f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{lhs_clean}</span>'
+            f'&nbsp;&nbsp;<span style="color:{COLOR_INTERACTIVE_IDLE}; font-size:{font_size_px}px; font-weight:700;">{eq_symbol}</span>&nbsp;&nbsp;'
+            f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{rhs_clean}</span>'
+        )
+
+    return (
+        f'<div style="background-color:{bg_color}; border:1px solid {border_color}; '
+        f'border-radius:6px; padding:10px 14px; margin:6px 0; font-family:{FONT_FAMILY_MONO};">'
+        f'<span style="color:{mark_color}; font-weight:700; font-size:{font_size_px + 2}px;">{mark}</span>'
+        f'&nbsp;&nbsp;&nbsp;&nbsp;'
+        f'<span style="color:{COLOR_INTERACTIVE_IDLE}; font-weight:600; font-size:{font_size_px - 2}px;">{label}:</span>'
+        f'&nbsp;&nbsp;&nbsp;&nbsp;'
+        f'{comparison_content}'
+        f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{mark_color}; font-size:{font_size_px - 4}px; font-style:italic;">({status_text})</span>'
+        f'</div>'
+    )
+
+
+def format_steps_to_rich_html(title: str, steps: Sequence[str]) -> str:
+    """Convierte listas de pasos algebraicos en bloques HTML estructurados y estilizados."""
+    from prettycalc.ui.theme import (
+        COLOR_INTERACTIVE_IDLE,
+        COLOR_SURFACE_INNER,
+        COLOR_TEXT_PRIMARY,
+        FONT_FAMILY_MONO,
+        FONT_FAMILY_SANS,
+    )
+
+    rows: list[str] = [
+        f'<div style="font-family:{FONT_FAMILY_SANS}; padding:6px 0;">',
+        f'<div style="font-size:18px; font-weight:700; color:{COLOR_INTERACTIVE_IDLE}; '
+        f'padding-bottom:10px; border-bottom:1px solid {COLOR_INTERACTIVE_IDLE};">{title}</div>',
+    ]
+
+    for step in steps:
+        s = step.strip()
+        if not s or s.startswith("===="):
+            continue
+        if s.startswith("---") and s.endswith("---"):
+            section_name = s.replace("---", "").strip()
+            rows.append(
+                f'<div style="font-size:16px; font-weight:700; color:{COLOR_INTERACTIVE_IDLE}; '
+                f'margin-top:14px; margin-bottom:6px;">{section_name}</div>'
+            )
+        elif s.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.")):
+            rows.append(
+                f'<div style="font-size:15px; font-weight:600; color:{COLOR_TEXT_PRIMARY}; '
+                f'margin-top:8px; margin-bottom:4px;">{s}</div>'
+            )
+        else:
+            pretty_s = prettify_math_text(s)
+            rows.append(
+                f'<div style="font-family:{FONT_FAMILY_MONO}; font-size:14px; color:{COLOR_TEXT_PRIMARY}; '
+                f'padding-left:18px; margin:2px 0;">{pretty_s}</div>'
+            )
+
+    rows.append('</div>')
+    return "".join(rows)

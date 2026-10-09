@@ -1,4 +1,5 @@
-"""Pruebas de integración del shell multi-módulo (Sprint 2)."""
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
 from prettycalc.ui.main_window import MainWindow
 from prettycalc.ui.theme import COLOR_FEEDBACK_ERROR, COLOR_FEEDBACK_SUCCESS
@@ -254,4 +255,114 @@ def test_matrix_equations_samples_and_reset(qtbot):
     assert view.grid_a.data_shape() == (3, 3)
     assert view.vec_b.grid.num_rows == 3
     assert view.results_tabs.currentIndex() == 0
+
+
+def test_matrix_operations_transpose_and_double_transpose(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(1)
+    view = window.matrix_operations_view
+
+    view.transpose_mode_btn.click()
+    assert view._is_transpose_mode() is True
+
+    from prettycalc.core.types import Matrix
+    mat_a = Matrix([[1, 2, 3], [4, 5, 6]])
+    view.grid_transpose.set_matrix(mat_a)
+    view.compute()
+
+    # Transpose result must be 3x2
+    assert view.transpose_result_view.matrix() == Matrix([[1, 4], [2, 5], [3, 6]])
+    # Double transpose result must equal original A (2x3)
+    assert view.double_transpose_result_view.matrix() == mat_a
+    assert "(Aᵀ)ᵀ = A" in view.inspector_label.text()
+    assert "(Aᵀ)ᵀ = A" in view.properties_label.text()
+    assert "font-size:22px" in view.properties_label.text()
+
+
+def test_matrix_operations_distributive_left_and_right_and_assoc(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(1)
+    view = window.matrix_operations_view
+
+    # 1. Left distributive: A(B + C) = AB + AC
+    view.load_distributive_matrix_sample()
+    assert view._is_distributive_mode() is True
+    assert view.dist_lhs_view.matrix() is not None
+    assert view.dist_rhs_view.matrix() is not None
+    assert view.dist_lhs_view.matrix() == view.dist_rhs_view.matrix()
+    assert "A · (B + C)" in view.dist_comparison_label.text()
+    assert "22px" in view.dist_comparison_label.text()
+    assert "Distributiva izquierda" in view.dist_comparison_label.text()
+
+    # 2. Right distributive: (A + B)C = AC + BC
+    view.dist_right_btn.click()
+    view.compute()
+    assert view.dist_lhs_view.matrix() == view.dist_rhs_view.matrix()
+    assert "(A + B) · C" in view.dist_comparison_label.text()
+    assert "22px" in view.dist_comparison_label.text()
+    assert "Distributiva derecha" in view.dist_comparison_label.text()
+
+    # 3. Associative: A(BC) = (AB)C
+    view.dist_assoc_btn.click()
+    view.compute()
+    assert view.dist_lhs_view.matrix() == view.dist_rhs_view.matrix()
+    assert "A · (B · C)" in view.dist_comparison_label.text()
+    assert "22px" in view.dist_comparison_label.text()
+    assert "Asociativa" in view.dist_comparison_label.text()
+
+
+def test_matrix_operations_distributive_incompatible(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(1)
+    view = window.matrix_operations_view
+
+    view.load_distributive_matrix_sample()
+    from prettycalc.core.types import Matrix
+    # Set C with incompatible dimension (3x2 instead of 2x2 for B+C)
+    view.grid_dist_c.set_matrix(Matrix([[1, 2], [3, 4], [5, 6]]))
+    ok, msg = view._compatibility_state()
+    assert ok is False
+    assert "incompatibles" in msg.lower()
+    assert view.compute_btn.isEnabled() is False
+
+
+def test_all_verification_font_sizes_are_large_and_rich(qtbot):
+    """Verifica que las comprobaciones nunca se muestren en chiquito (≥22px) ni en texto plano."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    # 1. SEL Module (Dashboard)
+    window.set_module(0)
+    window.linear_systems_view.load_sample_case1()
+    dash = window.linear_systems_view.dashboard_card
+    assert dash.checklist_container.count() > 0
+    first_check = dash.checklist_container.itemAt(0).widget()
+    labels = first_check.findChildren(QLabel)
+    assert any("22px" in lbl.text() or "24px" in lbl.text() for lbl in labels)
+
+    # 2. Vectors View (Linear combination checklist)
+    window.set_module(2)
+    window.vectors_view.load_combination_scd_sample()
+    assert window.vectors_view.combo_checklist.count() > 0
+    row_label = window.vectors_view.combo_checklist.itemAt(0).widget()
+    assert "font-size: 24px" in row_label.styleSheet()
+
+    # 3. Matrix Equations View (A x = b checklist)
+    window.set_module(3)
+    window.matrix_equations_view.load_sample()
+    eq_lbl = window.matrix_equations_view.product_label
+    assert eq_lbl.textFormat() == Qt.RichText
+    assert "22px" in eq_lbl.text()
+
+    # 4. Matrix-Vector Properties View (A(u+v) checklist and steps)
+    prop_view = window.matrix_equations_view.properties_view
+    prop_view.load_distributive_sample()
+    assert prop_view.checklist_label.textFormat() == Qt.RichText
+    assert "22px" in prop_view.checklist_label.text()
+    assert prop_view.steps_text.textFormat() == Qt.RichText
+
+
 

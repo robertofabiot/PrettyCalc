@@ -36,7 +36,7 @@ from prettycalc.core.linear_independence import (
 )
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar, parse_scalar
 from prettycalc.core.vector_ops import vector_add, vector_scale, vector_sub
-from prettycalc.ui.mathtext import to_superscript
+from prettycalc.ui.mathtext import to_subscript, to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
@@ -90,8 +90,8 @@ class VectorColumnEditor(QFrame):
         header.addStretch(1)
         if removable:
             delete_btn = QPushButton("×")
-            delete_btn.setObjectName("secondaryAction")
-            delete_btn.setFixedWidth(34)
+            delete_btn.setObjectName("deleteAction")
+            delete_btn.setFixedSize(30, 30)
             delete_btn.setToolTip("Eliminar este vector")
             delete_btn.clicked.connect(self.removed.emit)
             header.addWidget(delete_btn)
@@ -235,7 +235,7 @@ class VectorsView(QWidget):
 
         actions = QHBoxLayout()
         actions.addStretch(1)
-        self.basic_compute_btn = QPushButton("Calcular")
+        self.basic_compute_btn = QPushButton("▶ Calcular")
         self.basic_compute_btn.setObjectName("primaryAction")
         self.basic_compute_btn.clicked.connect(self._compute_basic)
         actions.addWidget(self.basic_compute_btn)
@@ -243,6 +243,7 @@ class VectorsView(QWidget):
 
         self._refresh_basic_badge()
         scroll.setWidget(page)
+        page.setAutoFillBackground(False)
         main_layout.addWidget(scroll)
         return container
 
@@ -273,8 +274,10 @@ class VectorsView(QWidget):
         top.addWidget(self.combo_dim)
         top.addStretch(1)
         sample_ok = QPushButton("Ejemplo SCD")
+        sample_ok.setObjectName("secondaryAction")
         sample_ok.clicked.connect(self.load_combination_scd_sample)
         sample_si = QPushButton("Ejemplo SI")
+        sample_si.setObjectName("secondaryAction")
         sample_si.clicked.connect(self.load_combination_si_sample)
         top.addWidget(sample_ok)
         top.addWidget(sample_si)
@@ -284,6 +287,7 @@ class VectorsView(QWidget):
 
         generators = QFrame()
         apply_widget_class(generators, "elevated-card")
+        generators.setMinimumHeight(355)
         gen_layout = QVBoxLayout(generators)
         gen_title = QLabel("Conjunto {v₁, …, vₖ}")
         gen_title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
@@ -295,7 +299,9 @@ class VectorsView(QWidget):
         scroll_gen = QScrollArea()
         scroll_gen.setWidgetResizable(True)
         scroll_gen.setFrameShape(QFrame.NoFrame)
+        scroll_gen.setMinimumHeight(240)
         scroll_gen.setWidget(self.combo_list_host)
+        self.combo_list_host.setAutoFillBackground(False)
         gen_layout.addWidget(scroll_gen, stretch=1)
 
         add_btn = QPushButton("+  Agregar vector")
@@ -313,7 +319,7 @@ class VectorsView(QWidget):
 
         actions = QHBoxLayout()
         actions.addStretch(1)
-        self.combo_btn = QPushButton("Evaluar combinación lineal")
+        self.combo_btn = QPushButton("▶ Evaluar combinación lineal")
         self.combo_btn.setObjectName("primaryAction")
         self.combo_btn.clicked.connect(self._evaluate_combination)
         actions.addWidget(self.combo_btn)
@@ -357,6 +363,7 @@ class VectorsView(QWidget):
         self._add_combo_vector()
 
         scroll.setWidget(page)
+        page.setAutoFillBackground(False)
         main_layout.addWidget(scroll)
         return container
 
@@ -590,12 +597,16 @@ class VectorsView(QWidget):
         top.addStretch(1)
 
         sample_li = QPushButton("Ejemplo L.I.")
+        sample_li.setObjectName("secondaryAction")
         sample_li.clicked.connect(self.load_independence_li_sample)
         sample_ld = QPushButton("Ejemplo L.D.")
+        sample_ld.setObjectName("secondaryAction")
         sample_ld.clicked.connect(self.load_independence_ld_sample)
         sample_dim = QPushButton("Ejemplo k > n (L.D.)")
+        sample_dim.setObjectName("secondaryAction")
         sample_dim.clicked.connect(self.load_independence_dim_sample)
         theorems_btn = QPushButton("Teoremas clave")
+        theorems_btn.setObjectName("secondaryAction")
         theorems_btn.clicked.connect(self.show_theorems_dialog)
 
         top.addWidget(sample_li)
@@ -607,6 +618,7 @@ class VectorsView(QWidget):
         # Editores de vectores
         generators = QFrame()
         apply_widget_class(generators, "elevated-card")
+        generators.setMinimumHeight(355)
         gen_layout = QVBoxLayout(generators)
         gen_title = QLabel("Conjunto de vectores {v₁, …, vₖ}")
         gen_title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
@@ -618,7 +630,9 @@ class VectorsView(QWidget):
         scroll_gen = QScrollArea()
         scroll_gen.setWidgetResizable(True)
         scroll_gen.setFrameShape(QFrame.NoFrame)
+        scroll_gen.setMinimumHeight(240)
         scroll_gen.setWidget(self.indep_list_host)
+        self.indep_list_host.setAutoFillBackground(False)
         gen_layout.addWidget(scroll_gen, stretch=1)
 
         add_btn = QPushButton("+  Agregar vector")
@@ -630,7 +644,7 @@ class VectorsView(QWidget):
         # Acciones
         actions = QHBoxLayout()
         actions.addStretch(1)
-        self.indep_btn = QPushButton("Evaluar Independencia Lineal")
+        self.indep_btn = QPushButton("▶ Evaluar Independencia Lineal")
         self.indep_btn.setObjectName("primaryAction")
         self.indep_btn.clicked.connect(self._evaluate_independence)
         actions.addWidget(self.indep_btn)
@@ -673,6 +687,7 @@ class VectorsView(QWidget):
         self._add_indep_vector()
 
         scroll.setWidget(page)
+        page.setAutoFillBackground(False)
         main_layout.addWidget(scroll)
         return container
 
@@ -766,17 +781,21 @@ class VectorsView(QWidget):
             title_lbl.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; margin-top: 8px;")
             self.indep_checklist.addWidget(title_lbl)
 
-            terms = [f"({format_scalar(w)})·v_{i+1}" for i, w in enumerate(res.nontrivial_weights) if w != Fraction(0, 1)]
+            terms = [f"({format_scalar(w)})·v{to_subscript(i+1)}" for i, w in enumerate(res.nontrivial_weights) if w != Fraction(0, 1)]
             eq_lbl = QLabel(f"   {' + '.join(terms)} = 0")
             eq_lbl.setStyleSheet(
-                f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO}; "
-                f"font-weight: 600; padding: 6px; background-color: {COLOR_SURFACE_INNER}; border-radius: 4px;"
+                f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO}; "
+                f"font-weight: 600; padding: 8px 12px; background-color: {COLOR_SURFACE_INNER}; border-radius: 4px;"
             )
             self.indep_checklist.addWidget(eq_lbl)
 
             for label, val, matches in res.verification_checklist:
                 row = QLabel(f"   ✓ {label}: Σ cᵢ·vᵢ = {format_scalar(val)} (coincide con 0)")
-                row.setStyleSheet(f"color: {COLOR_FEEDBACK_SUCCESS}; font-size: 14px; font-family: {FONT_FAMILY_MONO};")
+                row.setStyleSheet(
+                    f"color: {COLOR_FEEDBACK_SUCCESS}; font-size: 22px; font-weight: 600; "
+                    f"font-family: {FONT_FAMILY_MONO}; padding: 6px 10px; "
+                    f"background-color: {COLOR_SURFACE_INNER}; border-radius: 4px;"
+                )
                 self.indep_checklist.addWidget(row)
 
         self.indep_stepper.set_steps(res.tracer.get_steps())

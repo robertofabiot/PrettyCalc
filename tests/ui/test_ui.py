@@ -125,8 +125,10 @@ def test_cell_selects_all_on_focus(qtbot):
     window.show()
     cell = window.matrix_grid.cells[0][0]
     assert cell.text() == "0"
-    cell.setFocus()
+    window.solve_btn.setFocus()
     qtbot.wait(20)
+    cell.setFocus()
+    qtbot.wait(50)
     assert cell.text() == "0"
     assert cell.hasSelectedText()
     assert cell.selectedText() == "0"
@@ -283,3 +285,27 @@ def test_results_dashboard_shows_pivots_and_variables(qtbot):
     assert "Variables libres" in full_text
     assert "<sub" in full_text
     assert "libre" in full_text
+
+
+def test_linear_systems_view_no_white_rectangle(qtbot):
+    """Verifica que el panel izquierdo de LinearSystemsView no presente rectángulos blancos en la zona inferior."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.resize(1200, 800)
+    window.show()
+    qtbot.waitExposed(window)
+
+    img = window.grab().toImage()
+    lsv = window.linear_systems_view
+    p = lsv.mapTo(window, lsv.rect().topLeft())
+
+    # Contar píxeles blancos/claros en la zona inferior bajo 'Casos de prueba'
+    light_pixels = 0
+    for x in range(p.x() + 20, p.x() + 280):
+        for y in range(p.y() + 450, p.y() + 680):
+            pc = img.pixelColor(x, y)
+            if pc.red() > 200 and pc.green() > 200 and pc.blue() > 200:
+                light_pixels += 1
+
+    assert light_pixels == 0, f"Se detectaron {light_pixels} píxeles blancos en la zona inferior izquierda de LinearSystemsView."
+

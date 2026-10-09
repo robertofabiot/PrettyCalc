@@ -80,3 +80,62 @@ def test_variable_html_and_to_html_subscripts():
     html_unicode = to_html_subscripts("2x₁ + 3x₂ = 5", sub_size_px=12)
     assert "<i>x</i><sub style='font-size:12px;'>1</sub>" in html_unicode
     assert "<i>x</i><sub style='font-size:12px;'>2</sub>" in html_unicode
+
+
+def test_format_comparison_row_html():
+    from prettycalc.ui.mathtext import format_comparison_row_html
+
+    row = format_comparison_row_html("✓", "Componente 1", "A(u + v) = 5", "Au + Av = 5", ok=True, font_size_px=22)
+    assert "font-size:22px" in row
+    assert "✓" in row
+    assert "Componente 1:" in row
+    assert "Coinciden exactamente" in row
+    assert "A(u + v)" in row
+    assert "Au + Av" in row
+    assert ">5</span>" in row
+
+    # Test matrix-vector equation verification rendering: (A·x)₁ = b₁ = 4
+    row_ax = format_comparison_row_html("✓", "Componente 1", "(A·x)_1 = 4", "b_1 = 4", ok=True, font_size_px=22)
+    assert "(A·x)<sub>1</sub>" in row_ax
+    assert "b<sub>1</sub>" in row_ax
+    assert "(A·x)_1" not in row_ax
+    assert "b_1" not in row_ax
+    assert "= 4 = b_1 = 4" not in row_ax
+    assert "Coinciden exactamente" in row_ax
+
+    # Test inequality when not matching
+    row_neq = format_comparison_row_html("✗", "Componente 1", "(A·x)_1 = 4", "b_1 = 5", ok=False, font_size_px=22)
+    assert "(A·x)<sub>1</sub> = 4" in row_neq
+    assert "b<sub>1</sub> = 5" in row_neq
+    assert "≠" in row_neq
+    assert "No coinciden" in row_neq
+
+
+def test_format_subscripts_html():
+    from prettycalc.ui.mathtext import format_subscripts_html
+
+    assert format_subscripts_html("(A·x)_1") == "(A·x)<sub>1</sub>"
+    assert format_subscripts_html("b_1") == "b<sub>1</sub>"
+    assert format_subscripts_html("b_{12}") == "b<sub>12</sub>"
+    assert format_subscripts_html("(A·(u + v))_1") == "(A·(u + v))<sub>1</sub>"
+    assert format_subscripts_html("(A·x)₁") == "(A·x)<sub>1</sub>"
+    assert format_subscripts_html("C_ij") == "C<sub>ij</sub>"
+    assert format_subscripts_html("b_1", sub_size_px=14) == "b<sub style='font-size:14px;'>1</sub>"
+
+
+def test_prettify_math_text_subscripts():
+    from prettycalc.ui.mathtext import prettify_math_text
+
+    assert prettify_math_text("(A·x)_1 = 4") == "(A·x)₁ = 4"
+    assert prettify_math_text("b_1 = 4") == "b₁ = 4"
+    assert prettify_math_text("b_{2} = 5") == "b₂ = 5"
+    assert prettify_math_text("(A·(u + v))_1") == "(A·(u + v))₁"
+
+
+def test_format_steps_to_rich_html():
+    from prettycalc.ui.mathtext import format_steps_to_rich_html
+
+    html = format_steps_to_rich_html("DEMOSTRACIÓN", ["1. Suma intermedia", "   (u+v)_1 = 3"])
+    assert "DEMOSTRACIÓN" in html
+    assert "1. Suma intermedia" in html
+

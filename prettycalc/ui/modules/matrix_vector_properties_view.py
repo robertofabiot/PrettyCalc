@@ -41,7 +41,7 @@ from prettycalc.core.types import (
     parse_scalar,
 )
 from prettycalc.ui.book_matrix import BookMatrixWidget
-from prettycalc.ui.mathtext import to_superscript
+from prettycalc.ui.mathtext import format_comparison_row_html, format_steps_to_rich_html, to_superscript
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.vectors_view import VectorColumnEditor
 from prettycalc.ui.theme import (
@@ -121,19 +121,22 @@ class MatrixVectorPropertiesView(QWidget):
         presets_layout = QHBoxLayout()
         presets_layout.setSpacing(8)
 
-        sample_dist = QPushButton("Ejemplo Distributiva (2×3)")
+        sample_dist = QPushButton("Distributiva (2×3)")
+        sample_dist.setObjectName("secondaryAction")
         sample_dist.setToolTip("Cargar ejemplo de A(u + v) = Au + Av")
         sample_dist.setCursor(Qt.PointingHandCursor)
         sample_dist.clicked.connect(self.load_distributive_sample)
         presets_layout.addWidget(sample_dist)
 
-        sample_homo = QPushButton("Ejemplo Homogeneidad (2×3)")
+        sample_homo = QPushButton("Homogeneidad (2×3)")
+        sample_homo.setObjectName("secondaryAction")
         sample_homo.setToolTip("Cargar ejemplo de A(c·u) = c·(Au)")
         sample_homo.setCursor(Qt.PointingHandCursor)
         sample_homo.clicked.connect(self.load_homogeneity_sample)
         presets_layout.addWidget(sample_homo)
 
-        sample_incomp = QPushButton("Ejemplo Incompatible")
+        sample_incomp = QPushButton("Incompatible")
+        sample_incomp.setObjectName("secondaryAction")
         sample_incomp.setToolTip("Cargar dimensiones incompatibles para verificar validación de error")
         sample_incomp.setCursor(Qt.PointingHandCursor)
         sample_incomp.clicked.connect(self.load_incompatible_sample)
@@ -308,6 +311,7 @@ class MatrixVectorPropertiesView(QWidget):
         root.addWidget(self.results_tabs)
 
         self.scroll_area.setWidget(content)
+        content.setAutoFillBackground(False)
         main_layout.addWidget(self.scroll_area)
 
     def _wrap_card(self, title: str, body: QWidget) -> QFrame:
@@ -325,6 +329,7 @@ class MatrixVectorPropertiesView(QWidget):
         scroll.viewport().setAutoFillBackground(False)
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         scroll.setWidget(body)
+        body.setAutoFillBackground(False)
         layout.addWidget(scroll, stretch=1)
         return card
 
@@ -527,13 +532,14 @@ class MatrixVectorPropertiesView(QWidget):
         chk_layout.setContentsMargins(12, 8, 12, 8)
         chk_layout.setSpacing(4)
         chk_title = QLabel("Comprobación rigurosa componente a componente:")
-        chk_title.setStyleSheet(f"font-weight: 600; color: {COLOR_INTERACTIVE_IDLE}; font-size: 14px;")
+        chk_title.setStyleSheet(f"font-weight: 600; color: {COLOR_INTERACTIVE_IDLE}; font-size: 16px;")
         chk_layout.addWidget(chk_title)
 
         self.checklist_label = QLabel("Presione 'Verificar Propiedad' para ver la comparación fila a fila.")
         self.checklist_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.checklist_label.setWordWrap(True)
         self.checklist_label.setStyleSheet(
-            f"font-family: {FONT_FAMILY_MONO}; font-size: 14px; color: {COLOR_TEXT_PRIMARY};"
+            f"font-family: {FONT_FAMILY_MONO}; font-size: 22px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
         )
         chk_layout.addWidget(self.checklist_label)
         layout.addWidget(checklist_card)
@@ -547,7 +553,7 @@ class MatrixVectorPropertiesView(QWidget):
         layout.setSpacing(10)
 
         header_lbl = QLabel("Desglose analítico de las transformaciones algebraicas:")
-        header_lbl.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        header_lbl.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
         layout.addWidget(header_lbl)
 
         self.steps_text = QLabel("El procedimiento detallado aparecerá tras pulsar 'Verificar Propiedad'.")
@@ -555,7 +561,7 @@ class MatrixVectorPropertiesView(QWidget):
         self.steps_text.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.steps_text.setStyleSheet(
             f"background-color: {COLOR_SURFACE_INNER}; color: {COLOR_TEXT_PRIMARY}; "
-            f"font-family: {FONT_FAMILY_MONO}; font-size: 14px; padding: 14px; border-radius: 6px;"
+            f"font-family: {FONT_FAMILY_MONO}; font-size: 15px; padding: 14px; border-radius: 6px;"
         )
         scroll_steps = QScrollArea()
         scroll_steps.setWidgetResizable(True)
@@ -731,6 +737,8 @@ class MatrixVectorPropertiesView(QWidget):
             self._verify_distributive()
         else:
             self._verify_homogeneity()
+        if hasattr(self, "scroll_area") and hasattr(self, "results_tabs"):
+            self.scroll_area.ensureWidgetVisible(self.results_tabs)
 
     def _verify_distributive(self) -> None:
         try:
@@ -787,33 +795,39 @@ class MatrixVectorPropertiesView(QWidget):
         self.rhs_final_view.set_matrix(result.rhs_result.to_column_matrix())
 
         # Checklist de verificación
-        chk_lines = []
+        chk_rows = []
         for label, lhs_val, rhs_val, ok in result.verification_checklist:
-            mark = "✓" if ok else "✗"
-            chk_lines.append(
-                f"  {mark}  {label}:  A(u + v) = {format_scalar(lhs_val)}  |  Au + Av = {format_scalar(rhs_val)}  (Coinciden exactamente)"
+            comp_idx = label.split()[-1] if " " in label else label
+            chk_rows.append(
+                format_comparison_row_html(
+                    "✓" if ok else "✗",
+                    label,
+                    f"(A·(u + v))_{comp_idx} = {format_scalar(lhs_val)}",
+                    f"(A·u + A·v)_{comp_idx} = {format_scalar(rhs_val)}",
+                    ok,
+                    font_size_px=22,
+                )
             )
-        self.checklist_label.setText("\n".join(chk_lines))
+        self.checklist_label.setTextFormat(Qt.RichText)
+        self.checklist_label.setText("".join(chk_rows))
 
         # Pasos detallados
-        steps_full = [
-            "================================================================================",
-            "DEMOSTRACIÓN PASO A PASO: PROPIEDAD DISTRIBUTIVA DEL PRODUCTO MATRIZ-VECTOR",
-            "Identidad: A · (u + v) = A · u + A · v",
-            "================================================================================",
-            "",
-            "--- LADO IZQUIERDO (LHS) ---",
-            *result.lhs_steps,
-            "",
-            "--- LADO DERECHO (RHS) ---",
-            *result.rhs_steps,
-            "",
-            "--- CONCLUSIÓN FORMAL ---",
-            f"Para toda componente i = 1, ..., {A.rows}:",
-            "  (A(u + v))_i = Σ_j A_ij (u_j + v_j) = Σ_j (A_ij u_j + A_ij v_j) = Σ_j A_ij u_j + Σ_j A_ij v_j = (Au)_i + (Av)_i",
-            "Por lo tanto, se verifica rigurosamente la igualdad matricial en todo ℝᵐ.",
-        ]
-        self.steps_text.setText("\n".join(steps_full))
+        self.steps_text.setTextFormat(Qt.RichText)
+        self.steps_text.setText(
+            format_steps_to_rich_html(
+                "DEMOSTRACIÓN PASO A PASO: PROPIEDAD DISTRIBUTIVA DEL PRODUCTO MATRIZ-VECTOR: A(u + v) = A·u + A·v",
+                [
+                    "--- LADO IZQUIERDO (LHS) ---",
+                    *result.lhs_steps,
+                    "--- LADO DERECHO (RHS) ---",
+                    *result.rhs_steps,
+                    "--- CONCLUSIÓN FORMAL ---",
+                    f"Para toda componente i = 1, ..., {A.rows}:",
+                    "  (A(u + v))_i = Σ_j A_ij (u_j + v_j) = Σ_j (A_ij u_j + A_ij v_j) = Σ_j A_ij u_j + Σ_j A_ij v_j = (Au)_i + (Av)_i",
+                    "Por lo tanto, se verifica rigurosamente la igualdad matricial en todo ℝᵐ.",
+                ],
+            )
+        )
 
     def _verify_homogeneity(self) -> None:
         try:
@@ -870,33 +884,39 @@ class MatrixVectorPropertiesView(QWidget):
         self.rhs_final_view.set_matrix(result.rhs_result.to_column_matrix())
 
         # Checklist de verificación
-        chk_lines = []
+        chk_rows = []
         for label, lhs_val, rhs_val, ok in result.verification_checklist:
-            mark = "✓" if ok else "✗"
-            chk_lines.append(
-                f"  {mark}  {label}:  A(c·u) = {format_scalar(lhs_val)}  |  c(Au) = {format_scalar(rhs_val)}  (Coinciden exactamente)"
+            comp_idx = label.split()[-1] if " " in label else label
+            chk_rows.append(
+                format_comparison_row_html(
+                    "✓" if ok else "✗",
+                    label,
+                    f"(A·(c·u))_{comp_idx} = {format_scalar(lhs_val)}",
+                    f"(c·(A·u))_{comp_idx} = {format_scalar(rhs_val)}",
+                    ok,
+                    font_size_px=22,
+                )
             )
-        self.checklist_label.setText("\n".join(chk_lines))
+        self.checklist_label.setTextFormat(Qt.RichText)
+        self.checklist_label.setText("".join(chk_rows))
 
         # Pasos detallados
-        steps_full = [
-            "================================================================================",
-            "DEMOSTRACIÓN PASO A PASO: PROPIEDAD DE HOMOGENEIDAD (MULTIPLICACIÓN POR ESCALAR)",
-            f"Identidad: A · (c · u) = c · (A · u)   con escalar c = {c_fmt}",
-            "================================================================================",
-            "",
-            "--- LADO IZQUIERDO (LHS) ---",
-            *result.lhs_steps,
-            "",
-            "--- LADO DERECHO (RHS) ---",
-            *result.rhs_steps,
-            "",
-            "--- CONCLUSIÓN FORMAL ---",
-            f"Para toda componente i = 1, ..., {A.rows}:",
-            "  (A(c u))_i = Σ_j A_ij (c u_j) = c Σ_j A_ij u_j = c (Au)_i = (c (Au))_i",
-            "Por lo tanto, la multiplicación por escalar conmuta con el producto matriz-vector en todo ℝᵐ.",
-        ]
-        self.steps_text.setText("\n".join(steps_full))
+        self.steps_text.setTextFormat(Qt.RichText)
+        self.steps_text.setText(
+            format_steps_to_rich_html(
+                f"DEMOSTRACIÓN PASO A PASO: PROPIEDAD DE HOMOGENEIDAD (MULTIPLICACIÓN POR ESCALAR): A(c·u) = c·(A·u) (c = {c_fmt})",
+                [
+                    "--- LADO IZQUIERDO (LHS) ---",
+                    *result.lhs_steps,
+                    "--- LADO DERECHO (RHS) ---",
+                    *result.rhs_steps,
+                    "--- CONCLUSIÓN FORMAL ---",
+                    f"Para toda componente i = 1, ..., {A.rows}:",
+                    "  (A(c u))_i = Σ_j A_ij (c u_j) = c Σ_j A_ij u_j = c (Au)_i = (c (Au))_i",
+                    "Por lo tanto, la multiplicación por escalar conmuta con el producto matriz-vector en todo ℝᵐ.",
+                ],
+            )
+        )
 
     # --------------------------------------------------------------------------
     # Presets y ejemplos académicos
@@ -982,7 +1002,9 @@ class MatrixVectorPropertiesView(QWidget):
             f"background-color: {COLOR_SURFACE_INNER}; color: {COLOR_TEXT_PRIMARY}; "
             f"font-size: 16px; font-weight: 600; padding: 10px; border-radius: 6px;"
         )
+        self.checklist_label.setTextFormat(Qt.PlainText)
         self.checklist_label.setText("Presione 'Verificar Propiedad' para ver la comparación fila a fila.")
+        self.steps_text.setTextFormat(Qt.PlainText)
         self.steps_text.setText("El procedimiento detallado aparecerá tras pulsar 'Verificar Propiedad'.")
         self.results_tabs.setCurrentIndex(0)
         self._refresh_validation()
