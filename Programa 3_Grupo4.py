@@ -26,7 +26,13 @@ from fractions import Fraction
 from typing import List, Optional, Sequence, Tuple
 
 from prettycalc.core.matrix_ops import matrix_transpose as transpose_core
-from prettycalc.core.matrix_properties import analyze_matrix, format_property_lines
+from prettycalc.core.matrix_properties import (
+    analyze_matrix,
+    format_property_lines,
+    verify_matrix_associative,
+    verify_matrix_distributive_left,
+    verify_matrix_distributive_right,
+)
 from prettycalc.core.types import Matrix
 
 
@@ -437,13 +443,71 @@ def _rows_from_matrix(matrix: Matrix) -> List[List[Fraction]]:
 
 
 def menu_transpose() -> None:
-    """Lee A y muestra A y Aᵀ alineadas, con el cambio de dimensión m×n → n×m."""
+    """Lee A y muestra A, Aᵀ y (Aᵀ)ᵀ = A alineadas, con el cambio de dimensión m×n → n×m."""
     rows = read_positive_int("Filas de A (m): ")
     cols = read_positive_int("Columnas de A (n): ")
     original = read_matrix(rows, cols, "A")
-    transposed = _rows_from_matrix(transpose_core(Matrix(original)))
+    mat_a = Matrix(original)
+    mat_at = transpose_core(mat_a)
+    mat_att = transpose_core(mat_at)
+    transposed = _rows_from_matrix(mat_at)
+    double_transposed = _rows_from_matrix(mat_att)
     print_matrix(original, title=f"A   ({rows}×{cols})")
     print_matrix(transposed, title=f"Aᵀ   ({cols}×{rows})")
+    print_matrix(double_transposed, title=f"(Aᵀ)ᵀ = A   ({rows}×{cols})")
+    holds = mat_att == mat_a
+    mark = "✓" if holds else "✗"
+    print(f"\n{mark} Comprobación de doble transpuesta: (Aᵀ)ᵀ == A {'(Se verifica idénticamente)' if holds else '(Discrepancia)'}")
+
+
+def menu_propiedades_distributivas() -> None:
+    """Comprueba A(B+C) = AB + AC, (A+B)C = AC + BC y A(BC) = (AB)C."""
+    print("\n" + "=" * 70)
+    print("PROPIEDADES DISTRIBUTIVA Y ASOCIATIVA DE MATRICES")
+    print("=" * 70)
+    print("  1) Distributiva izquierda: A · (B + C) = A · B + A · C")
+    print("  2) Distributiva derecha:   (A + B) · C = A · C + B · C")
+    print("  3) Asociativa:             A · (B · C) = (A · B) · C")
+    prop = input("Elija 1, 2 o 3: ").strip()
+    if prop == "1":
+        m = read_positive_int("Filas de A (m): ")
+        n = read_positive_int("Columnas de A / Filas de B y C (n): ")
+        p = read_positive_int("Columnas de B y C (p): ")
+        A = Matrix(read_matrix(m, n, "A"))
+        B = Matrix(read_matrix(n, p, "B"))
+        C = Matrix(read_matrix(n, p, "C"))
+        res = verify_matrix_distributive_left(A, B, C)
+        print_matrix(res.left_side.to_list(), title=f"LHS = A · (B + C)   ({m}×{p})")
+        print_matrix(res.right_side.to_list(), title=f"RHS = A·B + A·C   ({m}×{p})")
+        mark = "✓" if res.holds else "✗"
+        print(f"\n{mark} Comprobación: A(B + C) == AB + AC {'(Se verifica exactamente)' if res.holds else '(Discrepancia)'}")
+    elif prop == "2":
+        m = read_positive_int("Filas de A y B (m): ")
+        n = read_positive_int("Columnas de A y B / Filas de C (n): ")
+        p = read_positive_int("Columnas de C (p): ")
+        A = Matrix(read_matrix(m, n, "A"))
+        B = Matrix(read_matrix(m, n, "B"))
+        C = Matrix(read_matrix(n, p, "C"))
+        res = verify_matrix_distributive_right(A, B, C)
+        print_matrix(res.left_side.to_list(), title=f"LHS = (A + B) · C   ({m}×{p})")
+        print_matrix(res.right_side.to_list(), title=f"RHS = A·C + B·C   ({m}×{p})")
+        mark = "✓" if res.holds else "✗"
+        print(f"\n{mark} Comprobación: (A + B)C == AC + BC {'(Se verifica exactamente)' if res.holds else '(Discrepancia)'}")
+    elif prop == "3":
+        m = read_positive_int("Filas de A (m): ")
+        n = read_positive_int("Columnas de A / Filas de B (n): ")
+        p = read_positive_int("Columnas de B / Filas de C (p): ")
+        q = read_positive_int("Columnas de C (q): ")
+        A = Matrix(read_matrix(m, n, "A"))
+        B = Matrix(read_matrix(n, p, "B"))
+        C = Matrix(read_matrix(p, q, "C"))
+        res = verify_matrix_associative(A, B, C)
+        print_matrix(res.left_side.to_list(), title=f"LHS = A · (B · C)   ({m}×{q})")
+        print_matrix(res.right_side.to_list(), title=f"RHS = (A · B) · C   ({m}×{q})")
+        mark = "✓" if res.holds else "✗"
+        print(f"\n{mark} Comprobación: A(BC) == (AB)C {'(Se verifica exactamente)' if res.holds else '(Discrepancia)'}")
+    else:
+        print("Opción no válida.")
 
 
 def menu_propiedades() -> None:
@@ -453,15 +517,21 @@ def menu_propiedades() -> None:
     primary = Matrix(read_matrix(rows, cols, "A"))
     other: Optional[Matrix] = None
     scalar: Optional[Fraction] = None
-    answer = input("¿Comprobar (A+B)ᵀ, (k·A)ᵀ y (A·B)ᵀ? (s/n): ").strip().lower()
+    c_matrix: Optional[Matrix] = None
+    answer = input("¿Comprobar (A+B)ᵀ, (k·A)ᵀ, (A·B)ᵀ y A·(B+C)? (s/n): ").strip().lower()
     if answer == "s":
         rows_b = read_positive_int("Filas de B: ")
         cols_b = read_positive_int("Columnas de B: ")
         other = Matrix(read_matrix(rows_b, cols_b, "B"))
         scalar = read_scalar("Escalar k: ")
+        ans_c = input("¿Incluir matriz C para distributiva/asociativa? (s/n): ").strip().lower()
+        if ans_c == "s":
+            rows_c = read_positive_int("Filas de C: ")
+            cols_c = read_positive_int("Columnas de C: ")
+            c_matrix = Matrix(read_matrix(rows_c, cols_c, "C"))
     print("\n" + "-" * 70)
-    print("Propiedades de A y comprobaciones de la transpuesta")
-    for line in format_property_lines(analyze_matrix(primary, other, scalar)):
+    print("Propiedades de A y comprobaciones algebraicas")
+    for line in format_property_lines(analyze_matrix(primary, other, scalar, C=c_matrix)):
         print(f"  {line}")
 
 
@@ -471,13 +541,18 @@ def menu_matrices() -> None:
     print("  3. OPERACIONES MATRICIALES")
     print("=" * 70)
     print("  1) A + B     2) A − B     3) k · A     4) A · B (con desglose)")
-    print("  5) Aᵀ        6) Propiedades de A y de la transpuesta")
-    op = input("Elija 1-6: ").strip()
+    print("  5) Aᵀ y (Aᵀ)ᵀ = A")
+    print("  6) Propiedades de A y de la transpuesta")
+    print("  7) Propiedades distributiva y asociativa: A(B+C) = AB + AC, (A+B)C = AC + BC, A(BC) = (AB)C")
+    op = input("Elija 1-7: ").strip()
     if op == "5":
         menu_transpose()
         return
     if op == "6":
         menu_propiedades()
+        return
+    if op == "7":
+        menu_propiedades_distributivas()
         return
     if op not in ("1", "2", "3", "4"):
         print("Opción no válida.")

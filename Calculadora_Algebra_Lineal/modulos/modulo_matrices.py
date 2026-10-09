@@ -183,18 +183,24 @@ def producto_matrices_interactivo() -> None:
 
 
 def traspuesta_matriz_interactivo() -> None:
-    """Operación 4: Traspuesta A^T."""
+    """Operación 4: Traspuesta A^T y doble traspuesta (A^T)^T = A."""
     print("\n" + "-" * 60)
-    print("TRASPUESTA DE UNA MATRIZ (A^T)")
+    print("TRASPUESTA Y DOBLE TRASPUESTA DE UNA MATRIZ (A^T) Y ((A^T)^T = A)")
     print("-" * 60)
     rows = read_positive_int("Número de filas m: ")
     cols = read_positive_int("Número de columnas n: ")
     A = read_matrix(rows, cols, "A")
 
     At = [[A[r][c] for r in range(rows)] for c in range(cols)]
+    Att = [[At[r][c] for r in range(cols)] for c in range(rows)]
 
-    print_matrix(A, f"Matriz A ({rows}×{cols})")
+    print_matrix(A, f"Matriz Original A ({rows}×{cols})")
     print_matrix(At, f"Matriz Traspuesta A^T ({cols}×{rows})")
+    print_matrix(Att, f"Matriz Doble Traspuesta (A^T)^T ({rows}×{cols})")
+
+    holds = Att == A
+    mark = "✓" if holds else "✗"
+    print(f"\n{mark} Comprobación de identidad: (A^T)^T == A {'(Se verifica idénticamente)' if holds else '(Discrepancia)'}")
 
 
 def inversa_matriz_interactivo() -> None:
@@ -289,6 +295,70 @@ def inversa_matriz_interactivo() -> None:
         print("   ✓ Producto A · A⁻¹ comprobado exactamente igual a la matriz identidad I_n.")
 
 
+def propiedades_distributivas_interactivo() -> None:
+    """Operación 6: Propiedad distributiva A(B+C) = AB + AC y asociativa A(BC) = (AB)C."""
+    print("\n" + "-" * 60)
+    print("PROPIEDADES DISTRIBUTIVAS Y ASOCIATIVAS MATRICIALES")
+    print("-" * 60)
+    print(" 1. Distributiva izquierda: A · (B + C) = A · B + A · C")
+    print(" 2. Distributiva derecha:   (A + B) · C = A · C + B · C")
+    print(" 3. Asociativa:             A · (B · C) = (A · B) · C")
+    opc = input("Seleccione una opción (1-3): ").strip()
+    if opc == "1":
+        m = read_positive_int("Filas de A (m): ")
+        n = read_positive_int("Columnas de A / Filas de B y C (n): ")
+        p = read_positive_int("Columnas de B y C (p): ")
+        A = read_matrix(m, n, "A")
+        B = read_matrix(n, p, "B")
+        C = read_matrix(n, p, "C")
+        B_plus_C = [[B[i][j] + C[i][j] for j in range(p)] for i in range(n)]
+        lhs = [[sum(A[i][k] * B_plus_C[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        ab = [[sum(A[i][k] * B[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        ac = [[sum(A[i][k] * C[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        rhs = [[ab[i][j] + ac[i][j] for j in range(p)] for i in range(m)]
+        print_matrix(lhs, f"LHS: A · (B + C) ({m}×{p})")
+        print_matrix(rhs, f"RHS: A·B + A·C ({m}×{p})")
+        holds = lhs == rhs
+        mark = "✓" if holds else "✗"
+        print(f"\n{mark} Comprobación: A(B + C) == AB + AC {'(Se cumple la igualdad)' if holds else '(Discrepancia)'}")
+    elif opc == "2":
+        m = read_positive_int("Filas de A y B (m): ")
+        n = read_positive_int("Columnas de A y B / Filas de C (n): ")
+        p = read_positive_int("Columnas de C (p): ")
+        A = read_matrix(m, n, "A")
+        B = read_matrix(m, n, "B")
+        C = read_matrix(n, p, "C")
+        A_plus_B = [[A[i][j] + B[i][j] for j in range(n)] for i in range(m)]
+        lhs = [[sum(A_plus_B[i][k] * C[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        ac = [[sum(A[i][k] * C[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        bc = [[sum(B[i][k] * C[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        rhs = [[ac[i][j] + bc[i][j] for j in range(p)] for i in range(m)]
+        print_matrix(lhs, f"LHS: (A + B) · C ({m}×{p})")
+        print_matrix(rhs, f"RHS: A·C + B·C ({m}×{p})")
+        holds = lhs == rhs
+        mark = "✓" if holds else "✗"
+        print(f"\n{mark} Comprobación: (A + B)C == AC + BC {'(Se cumple la igualdad)' if holds else '(Discrepancia)'}")
+    elif opc == "3":
+        m = read_positive_int("Filas de A (m): ")
+        n = read_positive_int("Columnas de A / Filas de B (n): ")
+        p = read_positive_int("Columnas de B / Filas de C (p): ")
+        q = read_positive_int("Columnas de C (q): ")
+        A = read_matrix(m, n, "A")
+        B = read_matrix(n, p, "B")
+        C = read_matrix(p, q, "C")
+        bc = [[sum(B[i][k] * C[k][j] for k in range(p)) for j in range(q)] for i in range(n)]
+        lhs = [[sum(A[i][k] * bc[k][j] for k in range(n)) for j in range(q)] for i in range(m)]
+        ab = [[sum(A[i][k] * B[k][j] for k in range(n)) for j in range(p)] for i in range(m)]
+        rhs = [[sum(ab[i][k] * C[k][j] for k in range(p)) for j in range(q)] for i in range(m)]
+        print_matrix(lhs, f"LHS: A · (B · C) ({m}×{q})")
+        print_matrix(rhs, f"RHS: (A · B) · C ({m}×{q})")
+        holds = lhs == rhs
+        mark = "✓" if holds else "✗"
+        print(f"\n{mark} Comprobación: A(BC) == (AB)C {'(Se cumple la igualdad)' if holds else '(Discrepancia)'}")
+    else:
+        print("   ⚠️  Opción no válida.")
+
+
 def menu_matrices() -> None:
     """Menú principal del Módulo 3 con Logotipo ASCII requerido."""
     while True:
@@ -300,12 +370,13 @@ def menu_matrices() -> None:
         print(" 1. Suma y Resta de Matrices (A ± B)")
         print(" 2. Multiplicación de Matriz por Escalar (k · A)")
         print(" 3. Multiplicación de Matrices (A · B)")
-        print(" 4. Traspuesta de una Matriz (A^T)")
+        print(" 4. Traspuesta y Doble Traspuesta ((A^T)^T = A)")
         print(" 5. Cálculo de Matriz Inversa por Gauss-Jordan (A⁻¹)")
-        print(" 6. Volver al Menú Principal")
+        print(" 6. Propiedades Distributiva y Asociativa (A(B+C) = AB + AC, A(BC) = (AB)C)")
+        print(" 7. Volver al Menú Principal")
         print("=" * 54)
 
-        opc = input("Seleccione una opción (0-6): ").strip()
+        opc = input("Seleccione una opción (0-7): ").strip()
 
         if opc == "0":
             mostrar_teoremas_matrices()
@@ -326,9 +397,12 @@ def menu_matrices() -> None:
             inversa_matriz_interactivo()
             input("\nPresione ENTER para continuar...")
         elif opc == "6":
+            propiedades_distributivas_interactivo()
+            input("\nPresione ENTER para continuar...")
+        elif opc == "7":
             break
         else:
-            print("   ⚠️  Opción no reconocida. Ingrese un número entre 0 y 6.")
+            print("   ⚠️  Opción no reconocida. Ingrese un número entre 0 y 7.")
 
 
 if __name__ == "__main__":
