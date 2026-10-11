@@ -25,12 +25,12 @@ except ImportError:
     QWidget = object  # type: ignore
 
 from prettycalc.core.lu_decomposition import (
-    LUFactorizationResult,
     LUPivotZeroError,
     LUSingularError,
-    LUSystemSolutionResult,
-    lu_decompose,
-    solve_from_factorization,
+    PLUFactorizationResult,
+    PLUSystemSolutionResult,
+    plu_decompose,
+    solve_from_plu_factorization,
 )
 from prettycalc.core.matrix_inversion import NonSquareMatrixError
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
@@ -210,6 +210,14 @@ class LUFactorizationView(QWidget):
         right_layout.setContentsMargins(16, 14, 16, 14)
         right_layout.setSpacing(8)
         right_layout.addWidget(self._section_title("Factores"))
+        self.p_view, self.p_readout = self._matrix_block(right_layout, "P  matriz de permutación", "pReadout")
+        self.permutation_note = QLabel("")
+        self.permutation_note.setObjectName("luPermutationNote")
+        self.permutation_note.setWordWrap(True)
+        self.permutation_note.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-weight: 600;"
+        )
+        right_layout.addWidget(self.permutation_note)
         self.l_view, self.l_readout = self._matrix_block(right_layout, "L  triangular inferior unitaria", "lReadout")
         self.u_view, self.u_readout = self._matrix_block(right_layout, "U  forma escalonada", "uReadout")
         self.checklist_label = QLabel("L · U = A")
@@ -255,7 +263,8 @@ class LUFactorizationView(QWidget):
         forward_layout = QVBoxLayout(forward_box)
         forward_layout.setContentsMargins(0, 0, 0, 0)
         forward_layout.setSpacing(8)
-        forward_layout.addWidget(self._section_title("Etapa 1 · Ly = b"))
+        self.forward_title = self._section_title("Etapa 1 · Ly = b")
+        forward_layout.addWidget(self.forward_title)
         self.forward_stepper = AlgorithmStepperCarousel()
         self.forward_stepper.setObjectName("luForwardStepper")
         forward_layout.addWidget(self.forward_stepper, stretch=1)
@@ -281,6 +290,13 @@ class LUFactorizationView(QWidget):
         answer_layout.setContentsMargins(16, 14, 16, 14)
         answer_layout.setSpacing(8)
         answer_layout.addWidget(self._section_title("Solución"))
+        self.pb_label = QLabel("")
+        self.pb_label.setObjectName("luPermutedLoad")
+        self.pb_label.setWordWrap(True)
+        self.pb_label.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO};"
+        )
+        answer_layout.addWidget(self.pb_label)
         self.y_view, self.y_label = self._matrix_block(answer_layout, "Vector intermedio y", "yReadout")
         self.x_view, self.x_label = self._matrix_block(answer_layout, "Solución x", "xReadout")
         self.ax_label = QLabel("A · x = b")
@@ -378,6 +394,8 @@ class LUFactorizationView(QWidget):
         self.x_view.clear()
         self.y_label.setText("")
         self.x_label.setText("")
+        self.pb_label.setText("")
+        self.forward_title.setText("Etapa 1 · Ly = b")
         self.ax_label.setText("A · x = b")
         self.ax_label.setStyleSheet(
             f"color: {COLOR_TEXT_MUTED}; font-size: 16px; font-weight: 600;"
@@ -388,8 +406,11 @@ class LUFactorizationView(QWidget):
         self.factor_stepper.set_steps([])
         self.l_view.clear()
         self.u_view.clear()
+        self.p_view.clear()
         self.l_readout.setText("")
         self.u_readout.setText("")
+        self.p_readout.setText("")
+        self.permutation_note.setText("")
         self.checklist_label.setText("L · U = A")
         self.checklist_label.setStyleSheet(
             f"color: {COLOR_TEXT_MUTED}; font-size: 16px; font-weight: 600;"
@@ -495,7 +516,7 @@ class LUFactorizationView(QWidget):
         self.decompose()
 
     def decompose(self) -> None:
-        """Calcula L y U y comprueba L · U = A."""
+        """Calcula P, L y U y comprueba P · A = L · U. Si P = I, eso es A = L U."""
         reason = self._blocking_reason()
         if reason is not None:
             self.badge.setText(reason)
@@ -503,16 +524,7 @@ class LUFactorizationView(QWidget):
             self.decompose_btn.setEnabled(False)
             return
         matrix = self.grid.get_matrix()
-        try:
-            factorization = lu_decompose(matrix)
-        except LUPivotZeroError as exc:
-            self._clear_results()
-            if exc.tracer is not None:
-                self.factor_stepper.set_steps(exc.tracer.get_steps())
-            self.badge.setText(str(exc))
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
-            self._sync_controls()
-            return
+        factorization = plu_decompose(matrix)
         self.last_factorization = factorization
         self._publish_factors(factorization)
         self._sync_controls()
@@ -529,7 +541,7 @@ class LUFactorizationView(QWidget):
             return
         load = Vector.from_column_matrix(self.b_grid.get_matrix())
         try:
-            solution = solve_from_factorization(self.last_factorization, load)
+            solution = solve_from_plu_factorization(self.last_factorization, load)
         except (LUSingularError, LUPivotZeroError, NonSquareMatrixError, DimensionMismatchError, ValueError) as exc:
             self._clear_solution()
             tracer = getattr(exc, "tracer", None)
@@ -544,7 +556,8 @@ class LUFactorizationView(QWidget):
         self._publish_solution(solution)
         self._sync_controls()
 
-    def _publish_factors(self, factorization: LUFactorizationResult) -> None:
+    def _publish_factors(self, factorization: PLUFactorizationResult) -> None:
+        self._show_matrix(self.p_view, self.p_readout, factorization.P)
         self._show_matrix(self.l_view, self.l_readout, factorization.L)
         self._show_matrix(self.u_view, self.u_readout, factorization.U)
         self.factor_stepper.set_steps(factorization.tracer.get_steps())
@@ -552,13 +565,24 @@ class LUFactorizationView(QWidget):
         self.multiplier_label.setText(
             f"{count} multiplicador{'es' if count != 1 else ''} guardado{'s' if count != 1 else ''} en L."
         )
+        swapped = factorization.permutation_count > 0
+        if swapped:
+            self.permutation_note.setText(
+                f"Se intercambiaron filas {factorization.permutation_count} "
+                f"{'vez' if factorization.permutation_count == 1 else 'veces'}. "
+                "La identidad es P · A = L · U. Al resolver se usa el vector Pb."
+            )
+            identity_text = "✓  P · A = L · U" if factorization.is_valid else "P · A no coincide con L · U"
+        else:
+            self.permutation_note.setText("No se requirieron permutaciones de fila (A = LU).")
+            identity_text = "✓  L · U = A" if factorization.is_valid else "L · U no coincide con A"
         if factorization.is_valid:
-            self.checklist_label.setText("✓  L · U = A")
+            self.checklist_label.setText(identity_text)
             self.checklist_label.setStyleSheet(
                 f"color: {COLOR_FEEDBACK_SUCCESS}; font-size: 16px; font-weight: 600;"
             )
         else:
-            self.checklist_label.setText("L · U no coincide con A")
+            self.checklist_label.setText(identity_text)
             self.checklist_label.setStyleSheet(
                 f"color: {COLOR_FEEDBACK_ERROR}; font-size: 16px; font-weight: 600;"
             )
@@ -569,8 +593,13 @@ class LUFactorizationView(QWidget):
             and any(factorization.U.get(index, index) == 0 for index in range(original.rows))
         )
         if not factorization.is_valid:
-            self.badge.setText("La comprobación L · U = A no cerró.")
+            self.badge.setText("La comprobación P · A = L · U no cerró.")
             self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+        elif factorization.permutation_count > 0 and original.rows == original.cols and not singular:
+            self.badge.setText(
+                "P · A = L · U verificada. Hay permutación de filas: la primera etapa resuelve L y = P b."
+            )
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
         elif original.rows != original.cols:
             self.badge.setText(
                 f"A = LU verificada. A es {original.rows}×{original.cols}: "
@@ -587,7 +616,7 @@ class LUFactorizationView(QWidget):
             self.badge.setText("A = LU verificada. Ya se puede resolver Ly = b y Ux = y.")
             self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
 
-    def _publish_solution(self, solution: LUSystemSolutionResult) -> None:
+    def _publish_solution(self, solution: PLUSystemSolutionResult) -> None:
         self.y_view.set_matrix(solution.y_intermediate.to_column_matrix(), show_headers=False)
         self.x_view.set_matrix(solution.x_solution.to_column_matrix(), show_headers=False)
         self.y_label.setText(f"y = {_vector_inline(solution.y_intermediate)}")
@@ -596,14 +625,21 @@ class LUFactorizationView(QWidget):
         self.backward_steps_label.setText("\n".join(solution.backward_steps))
         self.forward_stepper.set_steps(solution.forward_tracer.get_steps())
         self.backward_stepper.set_steps(solution.backward_tracer.get_steps())
+        swapped = solution.factorization.permutation_count > 0
+        self.forward_title.setText("Etapa 1 · Ly = Pb" if swapped else "Etapa 1 · Ly = b")
+        if swapped:
+            self.pb_label.setText(f"Pb = {_vector_inline(solution.permuted_b)}")
+        else:
+            self.pb_label.setText("P = I, así que Pb = b.")
         if solution.verification_passed:
             self.ax_label.setText("✓  A · x = b")
             self.ax_label.setStyleSheet(
                 f"color: {COLOR_FEEDBACK_SUCCESS}; font-size: 16px; font-weight: 600;"
             )
+            stage = "L y = P b" if swapped else "L y = b"
             self.badge.setText(
                 f"x = {_vector_inline(solution.x_solution)}. "
-                "Se comprobó L y = b, U x = y y A x = b."
+                f"Se comprobó {stage}, U x = y y A x = b."
             )
             self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
         else:

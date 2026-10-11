@@ -82,7 +82,7 @@ def test_session12_rectangular_example_disables_the_unique_solve(qtbot):
     assert any("no tiene pivote" in step.heuristic_text for step in view.factor_stepper._steps)
 
 
-def test_zero_pivot_uses_error_badge_without_crashing(qtbot):
+def test_zero_pivot_factors_with_a_permutation_matrix(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
     view = window.lu_view
@@ -92,11 +92,14 @@ def test_zero_pivot_uses_error_badge_without_crashing(qtbot):
     ]))
     view.decompose()
 
-    assert view.last_factorization is None
-    assert "PLU" in view.badge.text()
-    assert COLOR_FEEDBACK_ERROR in view.badge.styleSheet()
+    assert view.last_factorization is not None
+    assert view.last_factorization.permutation_count == 1
+    assert view.last_factorization.is_valid
+    assert "P · A = L · U" in view.checklist_label.text()
+    assert "permutación" in view.badge.text()
+    assert COLOR_FEEDBACK_SUCCESS in view.badge.styleSheet()
     assert view.factor_stepper._steps
-    assert not view.solve_btn.isEnabled()
+    assert view.solve_btn.isEnabled()
 
 
 def test_singular_factorization_explains_the_missing_unique_solution(qtbot):
