@@ -29,6 +29,7 @@ from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
+from prettycalc.ui.modules.applied_models_panel import AppliedModelsPanel
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
 from prettycalc.ui.module_scroll import make_module_scroll
@@ -47,6 +48,7 @@ class LinearSystemsView(QWidget):
         self.setObjectName("linearSystemsView")
         self._solver = "gauss"
         self.last_cramer = None
+        self.last_applied = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -152,7 +154,17 @@ class LinearSystemsView(QWidget):
         btn_cramer.clicked.connect(self.load_cramer_sample)
         samples_layout.addWidget(btn_cramer)
 
+        self.applications_toggle = QPushButton("V  ·  Aplicaciones")
+        self.applications_toggle.setObjectName("secondaryAction")
+        self.applications_toggle.clicked.connect(self.toggle_applications)
+        samples_layout.addWidget(self.applications_toggle)
+
         left_layout.addWidget(samples_box)
+
+        self.applications_panel = AppliedModelsPanel()
+        self.applications_panel.model_ready.connect(self._present_applied_model)
+        self.applications_panel.setVisible(False)
+        left_layout.addWidget(self.applications_panel)
         left_layout.addStretch(1)
 
         left_scroll = QScrollArea()
@@ -210,6 +222,19 @@ class LinearSystemsView(QWidget):
 
     def _on_solver_changed(self, solver_id: int) -> None:
         self._solver = "cramer" if solver_id == 1 else "gauss"
+
+    def toggle_applications(self) -> None:
+        """Muestra u oculta el asistente de química, Leontief, dieta y tráfico."""
+        self.applications_panel.setVisible(not self.applications_panel.isVisible())
+
+    def _present_applied_model(self, result) -> None:
+        """Carga la matriz que armó el asistente y conserva su explicación en el carrusel."""
+        self.last_applied = result
+        self.gauss_method_btn.setChecked(True)
+        self._solver = "gauss"
+        self.matrix_grid.set_matrix(result.augmented_matrix)
+        self.solve_system()
+        self.stepper_carousel.set_steps(result.tracer.get_steps())
 
     def solve_system(self) -> None:
         """Ejecuta el método seleccionado: Gauss-Jordan o la Regla de Cramer."""

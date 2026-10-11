@@ -125,3 +125,21 @@ Cuando \(A\) es cuadrada y la diagonal de \(U\) no tiene ceros, \(Ax = b\) se re
 2. Sustitución hacia atrás: \(Ux = y\).
 
 La comprobación exige \(LU = A\), \(Ly = b\), \(Ux = y\) y \(Ax = b\) en aritmética exacta. Si \(U\) tiene un cero en la diagonal, la factorización puede existir igual y el sistema no tiene solución única.
+
+---
+
+## 8. Aplicaciones de sistemas lineales
+
+El asistente arma la matriz aumentada. El estudiante no la transcribe.
+
+### 8.1. Balanceo químico
+Cada elemento es una ecuación homogénea: átomos en los reactivos menos átomos en los productos. Con un solo grado de libertad, el generador del núcleo se convierte en enteros positivos mínimos: se multiplica por el mínimo común múltiplo de los denominadores y se divide por el máximo común divisor. El propano queda \(1\,C_3H_8 + 5\,O_2 \rightarrow 3\,CO_2 + 4\,H_2O\).
+
+### 8.2. Modelo cerrado de Leontief
+\(C\) es la tabla de consumo. En el modelo cerrado cada columna suma 1. Los precios de equilibrio resuelven \((I - C)p = 0\). La última variable libre se normaliza en 1. Para carbón, electricidad y acero el vector relativo es \(\left(\frac{31}{33}, \frac{28}{33}, 1\right)\), que la diapositiva redondea a \(0.94\), \(0.85\) y \(1\).
+
+### 8.3. Dieta
+\(Ax = b\) con una columna por alimento y una fila por nutriente. Una componente negativa no es una mezcla realizable. La dieta Cambridge, con la grasa del suero en \(\frac{11}{10}\), tiene solución única; cada unidad son 100 g.
+
+### 8.4. Redes de flujo
+Cada nodo conserva el flujo. En una calle de un solo sentido, \(x_i \ge 0\). Con una variable libre, esas desigualdades recortan un intervalo. En la red de Baltimore la libre es \(x_5\) y el intervalo es \([0, 500]\): \(x_4 = 500 - x_5\) no puede ser negativa, y el resto de las calles queda dentro de un rango cerrado. Con más de una variable libre se escribe la solución general y no se cierran las cotas por símplex.

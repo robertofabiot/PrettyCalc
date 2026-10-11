@@ -30,6 +30,7 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 │        (100% Python Estándar - Cero dependencias externas)             │
 │  - Tipos: Matrix, Vector, Scalar (Fraction / Float)                    │
 │  - Algoritmos: Gauss, Gauss-Jordan, Inversa, Determinantes, Cramer, LU │
+│  - Aplicaciones: Leontief, balanceo químico, dieta y redes de flujo   │
 │  - StepTracer: Registro de pasos (matriz, pivote, operación elemental) │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -72,6 +73,7 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 * **Pestaña Determinantes y Cramer en la UI:** `DeterminantsView` es el quinto módulo de la barra (atajo Ctrl+5). El orden n va de 1 a 8. En sistemas lineales, el selector Gauss-Jordan / Regla de Cramer muestra det(A), cada \(A_i(b)\) y las fracciones \(x_i\).
 * **Factorización LU (`lu_decomposition.py`):** `lu_decompose` construye \(A = LU\) sin permutar filas. `forward_substitution` y `backward_substitution` resuelven \(Ly = b\) y \(Ux = y\). `solve_many_via_lu` factoriza una vez y reutiliza \(L\) y \(U\) con varios vectores \(b\). Un pivote nulo con una entrada no nula debajo lanza `LUPivotZeroError` (haría falta PLU). Un cero en la diagonal de \(U\) lanza `LUSingularError`: la factorización puede existir, pero no hay solución única.
 * **Pestaña Factorización LU:** `LUFactorizationView` es el sexto módulo (atajo Ctrl+6). Muestra \(L\) y \(U\) en paralelo, el carrusel de multiplicadores y las dos etapas de sustitución. Acepta el ejemplo rectangular \(4 \times 5\); el solucionador único queda habilitado solo si \(A\) es cuadrada y \(U\) no tiene pivotes diagonales nulos.
+* **Aplicaciones de la sesión 8 (`applied_models.py`):** `balance_chemical_reaction` arma la conservación de átomos y los enteros mínimos. `solve_leontief_exchange` resuelve \((I - C)p = 0\). `solve_nutrition_mix` resuelve la mezcla y rechaza cantidades negativas. `analyze_network_flow` escribe la solución general y, con una variable libre, las cotas \(x_i \ge 0\). En Sistemas Lineales, **V · Aplicaciones** muestra esos formularios y carga la matriz aumentada en la cuadrícula. El compendio de teoremas está en `theorems.py`; la consola de `Calculadora_Algebra_Lineal` solo lo imprime.
 
 ## 3. Principios de Diseño Arquitectónico
 1. **Desacoplamiento Absoluto:** El motor matemático es 100% independiente de Qt/PySide6, testeable vía CLI y pytest.
