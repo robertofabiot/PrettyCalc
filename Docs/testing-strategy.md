@@ -32,6 +32,10 @@
 * **Visor Stepper/Carrusel y Dashboard:**
   * Verificación de avance y retroceso (`[ ◀ Anterior ]`, `[ Siguiente ▶ ]`) y estado deshabilitado inicial en el Paso 1.
   * Comprobación de que el Badge de estado refleje el color correcto (Verde, Amarillo, Rojo).
+* **Contrato de renderizado LaTeX (`tests/ui/test_mathtext.py`):**
+  * Cada fórmula nueva del `StepTracer` entra al corpus de `latex_to_book_html`.
+  * El test centinela falla si el HTML conserva `\`, `{`, `}`, `_` o `^`.
+  * El detalle de la tabla y de las pruebas obligatorias está en [latex-rendering-spec.md](latex-rendering-spec.md).
 
 ---
 

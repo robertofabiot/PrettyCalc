@@ -52,7 +52,8 @@ La aplicación prioriza la elegancia, la claridad cognitiva y la eliminación to
     * Botón **`[ Siguiente Paso ▶ ]`**.
 * **Atención Visual y Resaltado:**
   * **Pivote Activo y Fila Mutada:** La celda pivote de la iteración se resalta visualmente con un acento suave o badge de color `color-feedback-success` (`#81B29A`).
-  * **Explicación de Heurística:** Debajo de la matriz, se muestra la fórmula formal en `color-interactive-idle` y un texto en cursiva explicando la mutación ocurrida:
+  * **Fórmula en notación de libro:** El `QLabel` de la fórmula usa `Qt.RichText` y `latex_to_book_html`. No se muestra el LaTeX crudo del `StepTracer` (`\det`, `_{ }`, `^`, `\text{...}`). El contrato está en [latex-rendering-spec.md](latex-rendering-spec.md).
+* **Explicación de Heurística:** Debajo de la matriz, se muestra la fórmula formal en `color-interactive-idle` y un texto en cursiva explicando la mutación ocurrida:
     $$\text{Paso: } f_2 \underset{\sim}\rightarrow -3f_1 + f_2$$
     *“Se multiplicó la Fila 1 por -3 y se sumó a la Fila 2.”*
 
