@@ -1,3 +1,5 @@
-"""Calculadora de Álgebra Lineal - Suite Modular Universitaria (UAM Grupo 4).
-100% Python estándar sin librerías externas.
+"""Consola histórica de la asignatura.
+
+El cálculo vive en ``prettycalc.core``. Este paquete solo lee datos, imprime
+el compendio de teoremas y delega. No es un segundo motor.
 """
