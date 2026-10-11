@@ -89,6 +89,31 @@ from prettycalc.core.matrix_inversion import (
     solve_system_via_inverse,
     solve_via_inverse,
 )
+from prettycalc.core.determinants import (
+    DeterminantMethod,
+    DeterminantResult,
+    delete_row_and_column,
+    determinant_2x2,
+    determinant_laplace_expansion,
+    determinant_sarrus_3x3,
+    determinant_triangulation,
+    matrix_determinant,
+    minor_determinant,
+    singularity_diagnosis,
+)
+from prettycalc.core.adjugate import (
+    AdjugateResult,
+    adjugate_matrix,
+    calculate_adjugate_and_inverse,
+    cofactor_matrix,
+    minors_matrix,
+)
+from prettycalc.core.cramer import (
+    CramerResult,
+    format_cramer_component,
+    replace_column,
+    solve_cramer,
+)
 from prettycalc.core.verifier import (
     EquationVerification,
     SolutionVerifier,
@@ -161,6 +186,25 @@ __all__ = [
     "matrix_inverse",
     "solve_via_inverse",
     "solve_system_via_inverse",
+    "DeterminantMethod",
+    "DeterminantResult",
+    "delete_row_and_column",
+    "determinant_2x2",
+    "determinant_sarrus_3x3",
+    "determinant_triangulation",
+    "determinant_laplace_expansion",
+    "matrix_determinant",
+    "minor_determinant",
+    "singularity_diagnosis",
+    "AdjugateResult",
+    "minors_matrix",
+    "cofactor_matrix",
+    "adjugate_matrix",
+    "calculate_adjugate_and_inverse",
+    "CramerResult",
+    "replace_column",
+    "solve_cramer",
+    "format_cramer_component",
     "EquationVerification",
     "SolutionVerifier",
 ]
