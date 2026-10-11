@@ -17,8 +17,9 @@ except ImportError:
     QFrame = object  # type: ignore
 
 from prettycalc.core.classifier import ParametricVectorSolution, SystemAnalysis, SystemType
+from prettycalc.core.cramer import CramerResult, format_cramer_component
 from prettycalc.core.verifier import EquationVerification
-from prettycalc.core.types import Vector, format_scalar
+from prettycalc.core.types import Matrix, Vector, format_scalar
 from prettycalc.ui.book_matrix import draw_square_brackets, paint_book_scalar
 from prettycalc.ui.mathtext import (
     variable_symbol,
@@ -82,6 +83,7 @@ class ResultsDashboardCard(QFrame):
         apply_widget_class(self, "elevated-card")
         self.setMinimumWidth(320)
         self.parametric_solution: Optional[ParametricVectorSolution] = None
+        self.cramer_result: Optional[CramerResult] = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -147,6 +149,7 @@ class ResultsDashboardCard(QFrame):
         self.status_badge.setStyleSheet(self._badge_style("#3A3642", COLOR_TEXT_PRIMARY))
         self.summary_label.setText("")
         self.parametric_solution = None
+        self.cramer_result = None
         self._clear_layout(self.structure_layout)
         self._clear_layout(self.var_container)
         self._clear_layout(self.checklist_container)
@@ -158,6 +161,7 @@ class ResultsDashboardCard(QFrame):
         analysis: SystemAnalysis,
         verifications: Optional[List[EquationVerification]] = None,
     ) -> None:
+        self.cramer_result = None
         if analysis.system_type == SystemType.CONSISTENT_DETERMINED:
             badge_color = COLOR_FEEDBACK_SUCCESS
             badge_text = "Consistente determinado"
@@ -281,6 +285,96 @@ class ResultsDashboardCard(QFrame):
             self.checklist_container.addWidget(lbl)
         self._fit_minimum_height()
         QTimer.singleShot(0, self._fit_minimum_height)
+
+    def display_notice(self, title: str, message: str, *, error: bool = True) -> None:
+        """Muestra un aviso de método no aplicable, sin dejar resultados viejos."""
+        self.clear()
+        if error:
+            badge_color = COLOR_FEEDBACK_ERROR
+            text_color = COLOR_TEXT_PRIMARY
+        else:
+            badge_color = COLOR_ACCENT_WARNING
+            text_color = COLOR_BG_BASE
+        self.status_badge.setText(title)
+        self.status_badge.setStyleSheet(self._badge_style(badge_color, text_color))
+        self.summary_label.setText(message)
+        self._fit_minimum_height()
+        QTimer.singleShot(0, self._fit_minimum_height)
+
+    def display_cramer(
+        self,
+        result: CramerResult,
+        verifications: Optional[List[EquationVerification]] = None,
+    ) -> None:
+        """Desglosa det(A), cada A_i(b) y x_i = det(A_i(b)) / det(A)."""
+        self.clear()
+        self.cramer_result = result
+        self.status_badge.setText("Regla de Cramer")
+        self.status_badge.setStyleSheet(self._badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+        self.summary_label.setObjectName("cramerSummary")
+        self.summary_label.setText(
+            f"det(A) = {format_scalar(result.det_A)}. "
+            "Cada incógnita es el cociente det(A_i(b)) / det(A)."
+        )
+        self._clear_layout(self.structure_layout)
+        self.structure_layout.addWidget(
+            self._info_line("Método", "Regla de Cramer", COLOR_TEXT_PRIMARY)
+        )
+        self.structure_layout.addWidget(
+            self._info_line(
+                "det(A)",
+                format_scalar(result.det_A),
+                COLOR_FEEDBACK_SUCCESS,
+            )
+        )
+
+        self._clear_layout(self.var_container)
+        panel = QWidget()
+        panel.setObjectName("cramerPanel")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(8)
+        for index, replaced, column_det in result.column_determinants:
+            equation = QLabel(
+                format_cramer_component(index, column_det, result.det_A, result.solution[index])
+            )
+            equation.setObjectName(f"cramerComponent{index}")
+            equation.setWordWrap(True)
+            equation.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            equation.setStyleSheet(
+                f"color: {COLOR_TEXT_PRIMARY}; font-size: 18px; font-family: {FONT_FAMILY_MONO}; "
+                f"font-weight: 600; padding: 4px 0;"
+            )
+            panel_layout.addWidget(equation)
+
+            det_line = QLabel(
+                f"det(A{index + 1}(b)) = {format_scalar(column_det)}"
+            )
+            det_line.setObjectName(f"cramerDeterminant{index}")
+            det_line.setStyleSheet(
+                f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 16px; font-family: {FONT_FAMILY_MONO};"
+            )
+            panel_layout.addWidget(det_line)
+            panel_layout.addWidget(self._matrix_readout(replaced, f"cramerMatrix{index}"))
+        self.var_container.addWidget(panel)
+
+        self._clear_layout(self.checklist_container)
+        if verifications:
+            for verification in verifications:
+                self.checklist_container.addWidget(self._verification_block(verification))
+        self._fit_minimum_height()
+        QTimer.singleShot(0, self._fit_minimum_height)
+
+    def _matrix_readout(self, matrix: Matrix, object_name: str) -> QLabel:
+        """Matriz en texto monoespaciado, seleccionable, para el panel de Cramer."""
+        label = QLabel(str(matrix))
+        label.setObjectName(object_name)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        label.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-family: {FONT_FAMILY_MONO}; "
+            f"background-color: {COLOR_SURFACE_INNER}; padding: 8px;"
+        )
+        return label
 
     def _fit_minimum_height(self) -> None:
         """Impide que el splitter aplaste el panel y superponga la solución con la comprobación."""
