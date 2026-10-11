@@ -35,7 +35,14 @@ from prettycalc.core.linear_independence import (
     evaluate_linear_independence,
 )
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar, parse_scalar
-from prettycalc.core.vector_ops import vector_add, vector_scale, vector_sub
+from prettycalc.core.vector_ops import (
+    trace_vector_distance,
+    trace_vector_norm,
+    trace_vector_outer_product,
+    vector_add,
+    vector_scale,
+    vector_sub,
+)
 from prettycalc.ui.mathtext import to_subscript, to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
@@ -161,6 +168,7 @@ class VectorsView(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         tabs = QTabWidget()
         tabs.addTab(self._build_basic_tab(), "Operaciones básicas")
+        tabs.addTab(self._build_metrics_tab(), "Norma y producto exterior")
         tabs.addTab(self._build_combination_tab(), "Combinación lineal")
         tabs.addTab(self._build_independence_tab(), "Independencia lineal")
         root.addWidget(tabs)
@@ -264,6 +272,214 @@ class VectorsView(QWidget):
         page.setAutoFillBackground(False)
         main_layout.addWidget(scroll)
         return container
+
+    def _build_metrics_tab(self) -> QWidget:
+        """Norma, distancia y producto exterior u vᵀ."""
+        container = QWidget()
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        scroll = QScrollArea(container)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.viewport().setAutoFillBackground(False)
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(4, 4, 10, 16)
+        layout.setSpacing(10)
+
+        controls = QHBoxLayout()
+        u_label = QLabel("dim u")
+        v_label = QLabel("dim v")
+        for label in (u_label, v_label):
+            label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px;")
+        self.metric_u_dim = QSpinBox()
+        self.metric_v_dim = QSpinBox()
+        for spin in (self.metric_u_dim, self.metric_v_dim):
+            spin.setRange(1, 10)
+            spin.setValue(3)
+        self.metric_u_dim.valueChanged.connect(self._on_metric_u_dimension)
+        self.metric_v_dim.valueChanged.connect(self._on_metric_v_dimension)
+        controls.addWidget(u_label)
+        controls.addWidget(self.metric_u_dim)
+        controls.addWidget(v_label)
+        controls.addWidget(self.metric_v_dim)
+        controls.addStretch(1)
+        sample_norm = QPushButton("Ejemplo ‖(3, 4)‖")
+        sample_norm.setObjectName("secondaryAction")
+        sample_norm.clicked.connect(self.load_norm_sample)
+        sample_distance = QPushButton("Ejemplo distancia")
+        sample_distance.setObjectName("secondaryAction")
+        sample_distance.clicked.connect(self.load_distance_sample)
+        sample_outer = QPushButton("Ejemplo x xᵀ")
+        sample_outer.setObjectName("secondaryAction")
+        sample_outer.clicked.connect(self.load_outer_product_sample)
+        controls.addWidget(sample_norm)
+        controls.addWidget(sample_distance)
+        controls.addWidget(sample_outer)
+        layout.addLayout(controls)
+
+        self.metric_badge = QLabel("Elige una operación.")
+        self.metric_badge.setObjectName("metricBadge")
+        self.metric_badge.setAlignment(Qt.AlignCenter)
+        self.metric_badge.setWordWrap(True)
+        self.metric_badge.setStyleSheet(_badge_style("#3A3642", COLOR_TEXT_PRIMARY))
+        layout.addWidget(self.metric_badge)
+
+        body = QHBoxLayout()
+        self.metric_u = VectorColumnEditor(3, "Vector u")
+        self.metric_v = VectorColumnEditor(3, "Vector v")
+        self.metric_u.changed.connect(self._refresh_metric_badge)
+        self.metric_v.changed.connect(self._refresh_metric_badge)
+        body.addWidget(self.metric_u)
+        body.addWidget(self.metric_v)
+        layout.addLayout(body)
+
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        self.norm_u_btn = QPushButton("Calcular norma ‖u‖")
+        self.norm_v_btn = QPushButton("Calcular norma ‖v‖")
+        self.distance_btn = QPushButton("Distancia d(u, v)")
+        self.outer_btn = QPushButton("Producto exterior u vᵀ")
+        for button in (self.norm_u_btn, self.norm_v_btn, self.distance_btn, self.outer_btn):
+            button.setObjectName("primaryAction")
+            actions.addWidget(button)
+        self.norm_u_btn.clicked.connect(lambda: self._compute_norm(self.metric_u.get_vector(), "u"))
+        self.norm_v_btn.clicked.connect(lambda: self._compute_norm(self.metric_v.get_vector(), "v"))
+        self.distance_btn.clicked.connect(self._compute_distance)
+        self.outer_btn.clicked.connect(self._compute_outer_product)
+        layout.addLayout(actions)
+
+        self.metric_summary = QLabel("")
+        self.metric_summary.setObjectName("metricSummary")
+        self.metric_summary.setWordWrap(True)
+        self.metric_summary.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.metric_summary.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-weight: 600; "
+            f"font-family: {FONT_FAMILY_MONO};"
+        )
+        layout.addWidget(self.metric_summary)
+
+        self.metric_result = BookMatrixWidget()
+        self.metric_result.setObjectName("metricResult")
+        self.metric_result.setMinimumHeight(180)
+        layout.addWidget(self.metric_result)
+
+        self.metric_stepper = AlgorithmStepperCarousel()
+        self.metric_stepper.setObjectName("metricStepper")
+        self.metric_stepper.setMinimumHeight(220)
+        layout.addWidget(self.metric_stepper)
+
+        self._refresh_metric_badge()
+        scroll.setWidget(page)
+        page.setAutoFillBackground(False)
+        main_layout.addWidget(scroll)
+        return container
+
+    def _on_metric_u_dimension(self, dimension: int) -> None:
+        self.metric_u.set_dimension(dimension)
+        self._refresh_metric_badge()
+
+    def _on_metric_v_dimension(self, dimension: int) -> None:
+        self.metric_v.set_dimension(dimension)
+        self._refresh_metric_badge()
+
+    def _refresh_metric_badge(self) -> None:
+        if not hasattr(self, "metric_badge"):
+            return
+        same_dimension = self.metric_u_dim.value() == self.metric_v_dim.value()
+        valid = self.metric_u.is_valid() and self.metric_v.is_valid()
+        self.distance_btn.setEnabled(valid and same_dimension)
+        self.norm_u_btn.setEnabled(self.metric_u.is_valid())
+        self.norm_v_btn.setEnabled(self.metric_v.is_valid())
+        self.outer_btn.setEnabled(valid)
+        if not valid:
+            self.metric_badge.setText("✕ Hay componentes no numéricas.")
+            self.metric_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            return
+        if same_dimension:
+            self.metric_badge.setText(
+                f"✓ u y v están en ℝ{to_superscript(self.metric_u_dim.value())}. "
+                "La norma, la distancia y el producto exterior están definidos."
+            )
+        else:
+            self.metric_badge.setText(
+                f"✓ El producto exterior u vᵀ es {self.metric_u_dim.value()}×{self.metric_v_dim.value()}. "
+                "La distancia pide la misma dimensión."
+            )
+        self.metric_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+
+    def _publish_metric(self, summary: str, matrix: Matrix, tracer) -> None:
+        self.metric_summary.setText(summary)
+        self.metric_result.set_matrix(matrix, split_col=None, show_headers=False)
+        self.metric_stepper.set_steps(tracer.get_steps())
+        self.metric_badge.setText("✓ Cálculo exacto en fracciones.")
+        self.metric_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+
+    def _compute_norm(self, vector: Vector, name: str) -> None:
+        if name == "u" and not self.metric_u.is_valid():
+            return
+        if name == "v" and not self.metric_v.is_valid():
+            return
+        result = trace_vector_norm(vector)
+        self._publish_metric(
+            f"‖{name}‖² = {format_scalar(result.squared)}    ‖{name}‖ = {result.display}",
+            vector.to_column_matrix(),
+            result.tracer,
+        )
+
+    def _compute_distance(self) -> None:
+        if not self.distance_btn.isEnabled():
+            return
+        try:
+            result = trace_vector_distance(self.metric_u.get_vector(), self.metric_v.get_vector())
+        except DimensionMismatchError as exc:
+            self.metric_badge.setText(f"✕ {exc}")
+            self.metric_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            return
+        difference = vector_sub(self.metric_u.get_vector(), self.metric_v.get_vector())
+        self._publish_metric(
+            f"d(u, v)² = {format_scalar(result.squared)}    d(u, v) = {result.display}",
+            difference.to_column_matrix(),
+            result.tracer,
+        )
+
+    def _compute_outer_product(self) -> None:
+        if not self.metric_u.is_valid() or not self.metric_v.is_valid():
+            return
+        result = trace_vector_outer_product(self.metric_u.get_vector(), self.metric_v.get_vector())
+        self._publish_metric(
+            f"u vᵀ es {result.matrix.rows}×{result.matrix.cols}. Cada entrada es uᵢ · vⱼ.",
+            result.matrix,
+            result.tracer,
+        )
+
+    def load_norm_sample(self) -> None:
+        """Sesión 5, diapositiva 7: ‖(3, 4)‖ = 5."""
+        self.tabs.setCurrentIndex(1)
+        self.metric_u_dim.setValue(2)
+        self.metric_u.set_vector(Vector([3, 4]))
+        self._compute_norm(self.metric_u.get_vector(), "u")
+
+    def load_distance_sample(self) -> None:
+        """Sesión 5, diapositiva 7: d((1, 2), (4, 6)) = 5."""
+        self.tabs.setCurrentIndex(1)
+        self.metric_u_dim.setValue(2)
+        self.metric_v_dim.setValue(2)
+        self.metric_u.set_vector(Vector([1, 2]))
+        self.metric_v.set_vector(Vector([4, 6]))
+        self._compute_distance()
+
+    def load_outer_product_sample(self) -> None:
+        """Sesión 9, diapositiva 15: x xᵀ con x = (1, −2, 3)."""
+        self.tabs.setCurrentIndex(1)
+        self.metric_u_dim.setValue(3)
+        self.metric_v_dim.setValue(3)
+        self.metric_u.set_vector(Vector([1, -2, 3]))
+        self.metric_v.set_vector(Vector([1, -2, 3]))
+        self._compute_outer_product()
 
     def _build_combination_tab(self) -> QWidget:
         container = QWidget()
@@ -560,7 +776,7 @@ class VectorsView(QWidget):
         self.combo_stepper.setVisible(self.show_steps_btn.isChecked())
 
     def load_combination_scd_sample(self) -> None:
-        self.tabs.setCurrentIndex(1)
+        self.tabs.setCurrentIndex(2)
         self.combo_dim.setValue(3)
         while len(self._combo_editors) > 3:
             self._remove_combo_vector(self._combo_editors[-1])
@@ -573,7 +789,7 @@ class VectorsView(QWidget):
         self._evaluate_combination()
 
     def load_combination_si_sample(self) -> None:
-        self.tabs.setCurrentIndex(1)
+        self.tabs.setCurrentIndex(2)
         self.combo_dim.setValue(3)
         while len(self._combo_editors) > 2:
             self._remove_combo_vector(self._combo_editors[-1])
@@ -835,7 +1051,7 @@ class VectorsView(QWidget):
         self.indep_show_steps_btn.setEnabled(True)
 
     def load_independence_li_sample(self) -> None:
-        self.tabs.setCurrentIndex(2)
+        self.tabs.setCurrentIndex(3)
         self.indep_dim.setValue(3)
         while len(self._indep_editors) > 3:
             self._remove_indep_vector(self._indep_editors[-1])
@@ -847,7 +1063,7 @@ class VectorsView(QWidget):
         self._evaluate_independence()
 
     def load_independence_ld_sample(self) -> None:
-        self.tabs.setCurrentIndex(2)
+        self.tabs.setCurrentIndex(3)
         self.indep_dim.setValue(3)
         while len(self._indep_editors) > 3:
             self._remove_indep_vector(self._indep_editors[-1])
@@ -859,7 +1075,7 @@ class VectorsView(QWidget):
         self._evaluate_independence()
 
     def load_independence_dim_sample(self) -> None:
-        self.tabs.setCurrentIndex(2)
+        self.tabs.setCurrentIndex(3)
         self.indep_dim.setValue(3)
         while len(self._indep_editors) > 4:
             self._remove_indep_vector(self._indep_editors[-1])
