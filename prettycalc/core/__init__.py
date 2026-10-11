@@ -114,6 +114,18 @@ from prettycalc.core.cramer import (
     replace_column,
     solve_cramer,
 )
+from prettycalc.core.lu_decomposition import (
+    LUFactorizationResult,
+    LUPivotZeroError,
+    LUSingularError,
+    LUSystemSolutionResult,
+    backward_substitution,
+    forward_substitution,
+    lu_decompose,
+    solve_from_factorization,
+    solve_many_via_lu,
+    solve_via_lu,
+)
 from prettycalc.core.verifier import (
     EquationVerification,
     SolutionVerifier,
@@ -205,6 +217,16 @@ __all__ = [
     "replace_column",
     "solve_cramer",
     "format_cramer_component",
+    "LUPivotZeroError",
+    "LUSingularError",
+    "LUFactorizationResult",
+    "LUSystemSolutionResult",
+    "lu_decompose",
+    "forward_substitution",
+    "backward_substitution",
+    "solve_via_lu",
+    "solve_from_factorization",
+    "solve_many_via_lu",
     "EquationVerification",
     "SolutionVerifier",
 ]
