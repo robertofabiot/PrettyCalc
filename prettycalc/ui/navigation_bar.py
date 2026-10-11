@@ -20,6 +20,7 @@ MODULE_TABS: Sequence[Tuple[str, str]] = (
     ("↗", "Vectores en ℝⁿ"),
     ("🔣", "Ecuaciones Matriciales"),
     ("det", "Determinantes"),
+    ("LU", "Factorización LU"),
 )
 
 
