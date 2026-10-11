@@ -1,4 +1,4 @@
-"""Vista de álgebra matricial: A ± B, k·A, A·B y la transpuesta Aᵀ.
+"""Vista de álgebra matricial: A ± B, k·A, A·B, la transpuesta Aᵀ y la inversa A⁻¹.
 
 Asignatura: Álgebra Lineal MTM0120, Universidad Americana (UAM).
 Autores / Grupo: Grupo 4.
@@ -29,9 +29,15 @@ try:
 except ImportError:
     QWidget = object  # type: ignore
 
+from prettycalc.core.matrix_inversion import (
+    NonSquareMatrixError,
+    SingularMatrixError,
+    matrix_inverse,
+)
 from prettycalc.core.matrix_ops import (
     MultiplicationStepDetail,
     matrix_add,
+    matrix_multiply,
     matrix_multiply_with_details,
     matrix_scale,
     matrix_sub,
@@ -49,6 +55,7 @@ from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.mathtext import format_comparison_row_html, format_steps_to_rich_html
 from prettycalc.ui.module_scroll import make_module_scroll
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
+from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
     COLOR_FEEDBACK_ERROR,
@@ -132,15 +139,20 @@ class MatrixOperationsView(QWidget):
         self.distrib_mode_btn = QPushButton("A · (B + C)")
         self.distrib_mode_btn.setObjectName("modeToggle")
         self.distrib_mode_btn.setCheckable(True)
+        self.inverse_mode_btn = QPushButton("A⁻¹ (Inversa)")
+        self.inverse_mode_btn.setObjectName("modeToggle")
+        self.inverse_mode_btn.setCheckable(True)
         mode_group.addButton(self.binary_mode_btn, 0)
         mode_group.addButton(self.scalar_mode_btn, 1)
         mode_group.addButton(self.transpose_mode_btn, 2)
         mode_group.addButton(self.distrib_mode_btn, 3)
+        mode_group.addButton(self.inverse_mode_btn, 4)
         mode_group.idClicked.connect(self._on_mode_changed)
         toolbar.addWidget(self.binary_mode_btn)
         toolbar.addWidget(self.scalar_mode_btn)
         toolbar.addWidget(self.transpose_mode_btn)
         toolbar.addWidget(self.distrib_mode_btn)
+        toolbar.addWidget(self.inverse_mode_btn)
         toolbar.addStretch(1)
 
         sample_ok = QPushButton("Ejemplo 2×3 · 3×2")
@@ -152,9 +164,13 @@ class MatrixOperationsView(QWidget):
         sample_dist = QPushButton("Ejemplo A(B+C)")
         sample_dist.setObjectName("secondaryAction")
         sample_dist.clicked.connect(self.load_distributive_matrix_sample)
+        sample_inverse = QPushButton("Ejemplo A⁻¹")
+        sample_inverse.setObjectName("secondaryAction")
+        sample_inverse.clicked.connect(self.load_inverse_sample)
         toolbar.addWidget(sample_ok)
         toolbar.addWidget(sample_bad)
         toolbar.addWidget(sample_dist)
+        toolbar.addWidget(sample_inverse)
 
         self.header_compute_btn = QPushButton("▶ Calcular")
         self.header_compute_btn.setObjectName("primaryAction")
@@ -172,6 +188,7 @@ class MatrixOperationsView(QWidget):
         self.pages.addWidget(self._build_scalar_page())
         self.pages.addWidget(self._build_transpose_page())
         self.pages.addWidget(self._build_distributive_page())
+        self.pages.addWidget(self._build_inverse_page())
         root.addWidget(self.pages, stretch=1)
 
         actions = QHBoxLayout()
@@ -454,6 +471,46 @@ class MatrixOperationsView(QWidget):
 
         return page
 
+    def _build_inverse_page(self) -> QWidget:
+        """Página unaria: A, su inversa y la reducción de [A | I_n]."""
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(10)
+
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        self.grid_inverse = DynamicMatrixGrid(initial_rows=2, initial_cols=2, augmented=False)
+        self.grid_inverse.matrixChanged.connect(self._on_operands_changed)
+        row.addWidget(self._wrap_matrix_card("Matriz A", self.grid_inverse), stretch=3)
+
+        arrow = QLabel("→")
+        arrow.setStyleSheet(
+            f"font-size: 28px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 8px;"
+        )
+        row.addWidget(arrow, 0, Qt.AlignCenter)
+        self.inverse_result_view = BookMatrixWidget()
+        row.addWidget(self._wrap_matrix_card("A⁻¹", self.inverse_result_view), stretch=3)
+        outer.addLayout(row)
+
+        self.inverse_check_label = QLabel(
+            "Calcula para comprobar A · A⁻¹ = Iₙ y ver la reducción de [A | Iₙ]."
+        )
+        self.inverse_check_label.setObjectName("inverseIdentityCheck")
+        self.inverse_check_label.setWordWrap(True)
+        self.inverse_check_label.setTextFormat(Qt.RichText)
+        self.inverse_check_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.inverse_check_label.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 18px; font-family: {FONT_FAMILY_SANS};"
+        )
+        outer.addWidget(self.inverse_check_label)
+
+        self.inverse_stepper = AlgorithmStepperCarousel()
+        self.inverse_stepper.setObjectName("inverseStepper")
+        self.inverse_stepper.setMinimumHeight(280)
+        outer.addWidget(self.inverse_stepper)
+        return page
+
     def _create_titled_matrix_card(self, title: str, body: QWidget) -> Tuple[QFrame, QLabel]:
         card = QFrame()
         apply_widget_class(card, "elevated-card")
@@ -496,6 +553,9 @@ class MatrixOperationsView(QWidget):
     def _is_distributive_mode(self) -> bool:
         return self.pages.currentIndex() == 3
 
+    def _is_inverse_mode(self) -> bool:
+        return self.pages.currentIndex() == 4
+
     def _on_dist_prop_changed(self, prop_id: int) -> None:
         self._clear_result()
         self._refresh_compatibility()
@@ -511,6 +571,8 @@ class MatrixOperationsView(QWidget):
             self.header_compute_btn.setToolTip("" if ok else message)
 
     def _compatibility_state(self) -> Tuple[bool, str]:
+        if self._is_inverse_mode():
+            return self._inverse_compatibility()
         if self._is_distributive_mode():
             return self._distributive_compatibility()
         if self._is_transpose_mode():
@@ -618,6 +680,23 @@ class MatrixOperationsView(QWidget):
             f"✓ Compatible para asociatividad: A ({ra}×{ca}) · B ({rb}×{cb}) · C ({rc}×{cc}) ⇒ Resultado ({ra}×{cc})",
         )
 
+    def _inverse_compatibility(self) -> Tuple[bool, str]:
+        """La inversa exige una matriz cuadrada con entradas válidas."""
+        if not self.grid_inverse.is_all_valid():
+            return False, "✕ Hay celdas no numéricas en A."
+        rows, cols = self.grid_inverse.data_shape()
+        if rows != cols:
+            return (
+                False,
+                "✕ La inversa solo está definida para matrices cuadradas (n×n). "
+                f"A es {rows}×{cols}.",
+            )
+        return (
+            True,
+            f"✓ Inversa definida para A de orden {rows}×{rows}. "
+            "Se reducirá [A | Iₙ] hasta [Iₙ | A⁻¹].",
+        )
+
     def _transpose_compatibility(self) -> Tuple[bool, str]:
         """La transpuesta siempre existe; solo exige entradas válidas en A y en k."""
         if not self.grid_transpose.is_all_valid():
@@ -641,7 +720,9 @@ class MatrixOperationsView(QWidget):
             return
 
         try:
-            if self._is_distributive_mode():
+            if self._is_inverse_mode():
+                self._compute_inverse()
+            elif self._is_distributive_mode():
                 self._compute_distributive()
             elif self._is_transpose_mode():
                 self._compute_transpose()
@@ -704,6 +785,70 @@ class MatrixOperationsView(QWidget):
             show_headers=False,
         )
         self._show_properties(primary, other, None)
+
+    def _inverse_check_html(self, order: int, left_ok: bool, right_ok: bool) -> str:
+        """Checklist visual de A · A⁻¹ = Iₙ y A⁻¹ · A = Iₙ."""
+
+        def line(ok: bool, text: str) -> str:
+            color = COLOR_FEEDBACK_SUCCESS if ok else COLOR_FEEDBACK_ERROR
+            mark = "✓" if ok else "✗"
+            return (
+                f'<div style="color:{color}; font-size:22px; font-weight:600; margin:4px 0;">'
+                f"{mark}&nbsp;&nbsp;{html.escape(text)}</div>"
+            )
+
+        return line(left_ok, f"A · A⁻¹ = I_{order}") + line(right_ok, f"A⁻¹ · A = I_{order}")
+
+    def _compute_inverse(self) -> None:
+        """Calcula A⁻¹ por Gauss-Jordan y comprueba la identidad, o explica la singularidad."""
+        primary = self.grid_inverse.get_matrix()
+        try:
+            result = matrix_inverse(primary)
+        except SingularMatrixError as exc:
+            self._result = None
+            self._details = []
+            self.inverse_result_view.clear()
+            self.badge.setText(f"✕ {exc}")
+            self.badge.setStyleSheet(_badge_style(False))
+            self.inverse_check_label.setText(
+                f'<div style="color:{COLOR_FEEDBACK_ERROR}; font-size:22px; font-weight:600;">'
+                f"✗ {html.escape(str(exc))}</div>"
+            )
+            steps = exc.tracer.get_steps() if exc.tracer is not None else []
+            self.inverse_stepper.set_steps(steps)
+            self.inspector_label.setText(
+                "La reducción de [A | Iₙ] no alcanzó [Iₙ | A⁻¹]. "
+                "Recorre el carrusel: una fila de ceros en el bloque izquierdo prueba que A es singular."
+            )
+            self._show_properties(primary, None, None)
+            return
+        except NonSquareMatrixError as exc:
+            self.badge.setText(f"✕ {exc}")
+            self.badge.setStyleSheet(_badge_style(False))
+            self.compute_btn.setEnabled(False)
+            if hasattr(self, "header_compute_btn"):
+                self.header_compute_btn.setEnabled(False)
+            return
+
+        order = primary.rows
+        identity = Matrix.identity(order)
+        left_ok = matrix_multiply(primary, result.inverse) == identity
+        right_ok = matrix_multiply(result.inverse, primary) == identity
+        self._result = result.inverse
+        self._details = []
+        self.inverse_result_view.set_matrix(
+            result.inverse, split_col=None, clickable=False, show_headers=False
+        )
+        self.inverse_check_label.setText(self._inverse_check_html(order, left_ok, right_ok))
+        self.inverse_stepper.set_steps(result.tracer.get_steps())
+        self.badge.setText(f"✓ Matriz invertible {order}×{order}. A · A⁻¹ = I_{order}.")
+        self.badge.setStyleSheet(_badge_style(left_ok and right_ok))
+        self.inspector_label.setText(
+            "Inversión por Gauss-Jordan sobre [A | Iₙ]. "
+            "El bloque derecho de la forma reducida es A⁻¹. "
+            "Recorre el carrusel para ver cada operación elemental."
+        )
+        self._show_properties(primary, None, None)
 
     def _compute_transpose(self) -> None:
         """Calcula Aᵀ, comprueba (Aᵀ)ᵀ = A y publica las propiedades estructurales."""
@@ -887,6 +1032,14 @@ class MatrixOperationsView(QWidget):
             self.dist_rhs_view.clear()
         if hasattr(self, "dist_comparison_label"):
             self.dist_comparison_label.clear()
+        if hasattr(self, "inverse_result_view"):
+            self.inverse_result_view.clear()
+        if hasattr(self, "inverse_stepper"):
+            self.inverse_stepper.set_steps([])
+        if hasattr(self, "inverse_check_label"):
+            self.inverse_check_label.setText(
+                "Calcula para comprobar A · A⁻¹ = Iₙ y ver la reducción de [A | Iₙ]."
+            )
         self._clear_highlights()
         self.inspector_label.setText(
             "Calcula un producto A · B y pulsa una celda de C para ver la fila de A, "
@@ -915,6 +1068,17 @@ class MatrixOperationsView(QWidget):
         self.grid_b.set_matrix(Matrix([[1, 2], [3, 4]]))
         self._clear_result()
         self._refresh_compatibility()
+
+    def load_inverse_sample(self) -> None:
+        """Sesión 10, diapositiva 11: inversa 3×3 por Gauss-Jordan."""
+        self.inverse_mode_btn.setChecked(True)
+        self.pages.setCurrentIndex(4)
+        self.grid_inverse.set_matrix(Matrix([
+            [0, 1, 2],
+            [1, 0, 3],
+            [4, -3, 8],
+        ]))
+        self.compute()
 
     def load_distributive_matrix_sample(self) -> None:
         self.distrib_mode_btn.setChecked(True)

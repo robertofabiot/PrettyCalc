@@ -75,7 +75,8 @@ QT_QPA_PLATFORM=offscreen pytest
 3. Se admiten enteros, fracciones (`3/4`) y decimales. Una celda inválida se marca en el momento.
 4. **Resolver sistema** ejecuta Gauss-Jordan, llena el carrusel de pasos y el panel de Resultados.
 5. En **Procedimiento**, avanza con Anterior / Siguiente. **Fracciones** es un interruptor entre vista racional y decimal.
-6. **Resultados** clasifica el sistema (solución única, infinitas soluciones o inconsistente) y, si hay solución única, muestra la comprobación por sustitución.
+6. **Resultados** clasifica el sistema (solución única, infinitas soluciones o inconsistente) y, si hay solución única, muestra la comprobación por sustitución. Si el sistema es indeterminado, el panel escribe la forma vectorial paramétrica $x = p + t_1 v_1 + \dots$ con el vector particular y una base del núcleo.
+7. En **Álgebra Matricial**, el modo **A⁻¹ (Inversa)** reduce $[A \mid I_n]$ por Gauss-Jordan, muestra $A^{-1}$ y comprueba $A \cdot A^{-1} = I_n$. Si $A$ no es cuadrada, el cálculo queda deshabilitado. Si $A$ es singular, el panel explica que no existe inversa.
 
 Hay tres casos de prueba en la columna izquierda: solución única, infinitas soluciones y sin solución.
 
@@ -115,6 +116,25 @@ assert all(eq.is_valid for eq in comprobacion)
 ```
 
 `gaussian_elimination` deja la forma escalonada (REF). `gauss_jordan_elimination` reduce hasta RREF. `split_col` es el índice donde empieza $b$ en $[A \mid b]$.
+
+La inversa y la resolución por inversa viven en `prettycalc.core.matrix_inversion` (también reexportadas desde `matrix_ops` y `prettycalc.core`):
+
+```python
+from prettycalc.core import Matrix, Vector, classify_system, matrix_inverse, solve_via_inverse
+
+A = Matrix([[2, 3], [-1, 1]])
+inversa = matrix_inverse(A)
+assert inversa.identity_check_passed
+x, _ = solve_via_inverse(A, Vector([8, 1]))
+
+analisis = classify_system(Matrix([
+    [3, 5, -4, 0],
+    [-3, -2, 4, 0],
+    [6, 1, -8, 0],
+]))
+print(analisis.parametric_vector_solution.to_plain_equation())
+# x = [0, 0, 0] + x3*[4/3, 0, 1]
+```
 
 ## Licencia
 

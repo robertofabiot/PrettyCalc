@@ -22,6 +22,9 @@ def gaussian_elimination(
     matrix: Matrix,
     split_col: Optional[int] = None,
     tracer: Optional[StepTracer] = None,
+    *,
+    initial_description: str = "Matriz aumentada inicial del sistema",
+    initial_latex: str = r"\text{Sistema Inicial } [A \mid b]",
 ) -> Tuple[Matrix, StepTracer]:
     """Ejecuta la eliminación gaussiana hacia adelante (forma escalonada por filas - REF).
 
@@ -29,6 +32,8 @@ def gaussian_elimination(
         matrix: Matriz (típicamente aumentada [A | b]).
         split_col: Índice de la columna divisoria de términos independientes.
         tracer: Instancia opcional de StepTracer; si es None, se creará una nueva.
+        initial_description: Texto heurístico del paso 0.
+        initial_latex: Fórmula LaTeX del paso 0.
 
     Returns:
         (Matriz en forma escalonada, Trazador con el historial completo de pasos).
@@ -37,7 +42,11 @@ def gaussian_elimination(
     if tracer is None:
         tracer = StepTracer(split_col=effective_split)
 
-    tracer.record_initial(matrix)
+    tracer.record_initial(
+        matrix,
+        description=initial_description,
+        latex_title=initial_latex,
+    )
     current_matrix = matrix.copy()
     num_rows, num_cols = current_matrix.shape
 
@@ -106,6 +115,9 @@ def gauss_jordan_elimination(
     matrix: Matrix,
     split_col: Optional[int] = None,
     tracer: Optional[StepTracer] = None,
+    *,
+    initial_description: str = "Matriz aumentada inicial del sistema",
+    initial_latex: str = r"\text{Sistema Inicial } [A \mid b]",
 ) -> Tuple[Matrix, StepTracer]:
     """Ejecuta la reducción completa de Gauss-Jordan (forma escalonada reducida por filas - RREF).
 
@@ -118,7 +130,13 @@ def gauss_jordan_elimination(
         tracer = StepTracer(split_col=effective_split)
 
     # Fase 1: Escalonamiento hacia adelante
-    current_matrix, _ = gaussian_elimination(matrix, split_col=effective_split, tracer=tracer)
+    current_matrix, _ = gaussian_elimination(
+        matrix,
+        split_col=effective_split,
+        tracer=tracer,
+        initial_description=initial_description,
+        initial_latex=initial_latex,
+    )
     num_rows, num_cols = current_matrix.shape
     max_pivot_col = effective_split if effective_split < num_cols else num_cols
 

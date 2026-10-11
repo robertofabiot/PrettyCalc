@@ -41,6 +41,12 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 * **Estructuras Fundamentales:**
   * `Scalar`: Aritmética exacta basada en `fractions.Fraction` estándar.
   * `Matrix`: Estructura bidimensional inmutable para cálculos o manipulada mediante operaciones elementales de fila registradas.
+* **Inversión matricial (`matrix_inversion.py`):**
+  * `matrix_inverse` reduce $[A \mid I_n]$ con Gauss-Jordan en aritmética exacta y devuelve $A^{-1}$ junto con el `StepTracer`.
+  * `solve_via_inverse` resuelve $Ax = b$ mediante $x = A^{-1} b$.
+  * `NonSquareMatrixError` y `SingularMatrixError` separan una matriz rectangular de una matriz cuadrada de rango deficiente. El trazador de una matriz singular queda adjunto a la excepción para que la interfaz pueda mostrar dónde apareció la fila de ceros.
+* **Forma vectorial paramétrica (`classifier.py`):**
+  * En un SCI, `ParametricVectorSolution` descompone la solución en el vector particular $p$ (variables libres en 0) y los vectores de una base del núcleo, uno por cada variable libre: $x = p + \sum t_k v_k$.
 * **Sistema de Trazabilidad (`StepTracer`):**
   * Cada algoritmo produce una lista ordenada de `CalculationStep`, conteniendo:
     * Matriz resultante en ese instante.
@@ -57,7 +63,8 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 * **`DynamicMatrixGrid`:** Cuadrícula interactiva con inicio inmediato en $2 \times 2 (+ b)$, soporte de celdas fantasma (Ghosting) con botón `+` en hover, y navegación completa por teclado (`Tab`, `Shift+Tab`, `Flechas`).
 * **`AugmentedMatrixDelegate`:** Delegado personalizado de Qt (`QStyledItemDelegate`) que intercepta `paint()` para renderizar una línea vertical continua en `color-interactive-idle` (`#98C1D9`), delimitando físicamente la columna de términos independientes $[A \mid b]$.
 * **`AlgorithmStepperCarousel`:** Visor de navegación paso a paso con botones `[ ◀ Anterior ]` (deshabilitable con `color-interactive-disabled`) y `[ Siguiente ▶ ]`, resaltando la celda del pivote activo.
-* **`ResultsDashboardCard`:** Panel montado sobre `color-surface-elevated` con badges semánticos, distinción de variables libres (🔑) y checklist de comprobación en `color-feedback-success` (✓).
+* **`ResultsDashboardCard`:** Panel montado sobre `color-surface-elevated` con badges semánticos, distinción de variables libres (🔑), checklist de comprobación en `color-feedback-success` (✓) y, en sistemas indeterminados, la forma vectorial paramétrica en vectores columna.
+* **Modo $A^{-1}$ en `MatrixOperationsView`:** Quinto modo del álgebra matricial. Muestra $A^{-1}$, el checklist $A \cdot A^{-1} = I_n$ y el carrusel de $[A \mid I_n]$. Deshabilita el cálculo si $A$ no es cuadrada y pinta un badge de error si $A$ es singular.
 
 ## 3. Principios de Diseño Arquitectónico
 1. **Desacoplamiento Absoluto:** El motor matemático es 100% independiente de Qt/PySide6, testeable vía CLI y pytest.

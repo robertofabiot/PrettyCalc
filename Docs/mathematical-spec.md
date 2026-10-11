@@ -56,3 +56,26 @@ Para sistemas consistentes (determinados o soluciones particulares en indetermin
    $$\sum_{j=1}^n A_{i, j} \cdot x_j \stackrel{?}{=} b_i$$
 2. Utiliza aritmética de fracciones exactas para garantizar que la igualdad sea absoluta ($LHS - RHS = 0$).
 3. Genera el resultado booleano que alimenta el checklist visual con el icono (**✓**) coloreado en `color-feedback-success` (`#81B29A`) al lado de cada ecuación original.
+
+### 4.3. Forma Vectorial Paramétrica de un SCI
+Si el sistema es consistente indeterminado, además de los despejes escalares se construye
+
+\[
+x = p + \sum_k t_k v_k
+\]
+
+donde \(p\) es la solución particular con cada variable libre igual a 0, y cada \(v_k\) es el vector de la base del núcleo asociado a esa variable libre (1 en su posición y el coeficiente de despeje en las variables básicas).
+
+---
+
+## 5. Inversa por Gauss-Jordan
+
+Para \(A\) de orden \(n \times n\):
+
+1. Se forma la matriz super-aumentada \([A \mid I_n]\).
+2. Se calcula su forma escalonada reducida con las mismas operaciones elementales de fila del resto del motor.
+3. Si el bloque izquierdo es \(I_n\), el bloque derecho es \(A^{-1}\). Se comprueba \(A \cdot A^{-1} = I_n\) y \(A^{-1} \cdot A = I_n\) en aritmética exacta.
+4. Si alguna fila del bloque izquierdo queda en ceros, \(A\) es singular: no existe \(A^{-1}\) (Teorema de la Matriz Invertible, \(\det(A) = 0\)).
+5. Si \(A\) no es cuadrada, la inversa no está definida.
+
+Con \(A\) invertible, el sistema \(Ax = b\) también puede resolverse como \(x = A^{-1} b\).
