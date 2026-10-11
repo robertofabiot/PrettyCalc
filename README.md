@@ -80,8 +80,13 @@ QT_QPA_PLATFORM=offscreen pytest
 8. En **Determinantes**, el orden n va de 1 a 8. Se puede calcular por triangulación, por Sarrus (solo 3×3), por cofactores de Laplace o pedir la matriz de cofactores, la adjunta y la inversa \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).
 9. En **Sistemas Lineales**, el selector de método incluye la **Regla de Cramer** para sistemas n×n con determinante distinto de cero. El panel muestra det(A), cada matriz columna reemplazada y \(x_i = \det(A_i(b)) / \det(A)\).
 10. En **Factorización LU**, **Descomponer A = LU** muestra \(L\) y \(U\) y comprueba \(L \cdot U = A\). Con \(A\) cuadrada, **Resolver** hace la sustitución hacia adelante \(Ly = b\) y hacia atrás \(Ux = y\). Si cambia \(b\), se reutilizan los mismos factores. Un pivote nulo que exigiría intercambiar filas se explica como caso PLU, fuera de esta sesión.
+11. En **Sistemas Lineales**, **V · Aplicaciones** abre el asistente de la sesión 8. No hace falta armar la matriz aumentada a mano:
+    - **Química** escribe reactivos y productos (`C3H8 + O2` y `CO2 + H2O`) y devuelve los enteros mínimos, con esos coeficientes resaltados.
+    - **Leontief** lee la matriz de consumo \(C\) y resuelve \((I - C)p = 0\). El ejemplo de carbón, electricidad y acero normaliza el precio del acero en 1.
+    - **Dieta** carga la tabla Cambridge y muestra las unidades exactas y los gramos.
+    - **Tráfico** carga la red de Baltimore y las cotas \(x_i \ge 0\).
 
-Hay tres casos de prueba en la columna izquierda: solución única, infinitas soluciones y sin solución.
+Hay casos de prueba en la columna izquierda: solución única, infinitas soluciones, sin solución, Cramer y el asistente de aplicaciones.
 
 ### Motor matemático (Python)
 
@@ -172,6 +177,33 @@ assert factores.is_valid
 primero, segundo = solve_many_via_lu(A, [Vector([-7, 5, 2]), Vector([0, 0, 0])])
 assert primero.factorization is segundo.factorization
 assert primero.x_solution == Vector([3, 4, -6])
+```
+
+Las aplicaciones de la sesión 8 están en `prettycalc.core.applied_models`:
+
+```python
+from prettycalc.core import (
+    balance_chemical_equation,
+    solve_leontief_exchange,
+    solve_nutrition_mix,
+    analyze_network_flow,
+    coal_electric_steel_consumption,
+    cambridge_diet,
+    baltimore_traffic_network,
+)
+
+propano = balance_chemical_equation("C3H8 + O2 → CO2 + H2O")
+assert propano.stoichiometric_coefficients == [1, 5, 3, 4]
+
+precios = solve_leontief_exchange(coal_electric_steel_consumption())
+assert precios.degrees_of_freedom == 1
+
+composicion, requerimiento = cambridge_diet()
+dieta = solve_nutrition_mix(composicion, requerimiento)
+assert dieta.is_feasible
+
+red = analyze_network_flow(baltimore_traffic_network())
+assert red.parameter_range == (0, 500)
 ```
 
 ## Licencia
