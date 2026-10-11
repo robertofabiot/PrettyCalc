@@ -223,6 +223,74 @@ def mostrar_diagnostico_singularidad(det: Fraction) -> None:
         print("      • Rango(A) < n.")
 
 
+def determinante_laplace_interactivo() -> None:
+    """Operación 4: Desarrollo por Cofactores de Laplace (Fila o Columna)."""
+    print("\n" + "-" * 60)
+    print("DETERMINANTE POR DESARROLLO DE COFACTORES DE LAPLACE")
+    print("-" * 60)
+    n = read_positive_int("Dimensión n de la matriz cuadrada: ")
+    A = read_square_matrix(n, "A")
+    print_matrix(A, f"Matriz A ({n}×{n})")
+
+    axis = input("\n¿Desarrollar por fila o columna? (f/c, por defecto 'f'): ").strip().lower()
+    along = "col" if axis.startswith("c") else "row"
+    axis_name = "columna" if along == "col" else "fila"
+
+    idx = read_positive_int(f"Número de {axis_name} (1 a {n}): ")
+    while idx < 1 or idx > n:
+        print(f"   ⚠️  Debe ser entre 1 y {n}.")
+        idx = read_positive_int(f"Número de {axis_name} (1 a {n}): ")
+
+    from prettycalc.core.determinants import determinant_laplace_expansion
+
+    result = determinant_laplace_expansion(_core_matrix(A), along=along, index=idx - 1)
+
+    print(f"\n--- Pasos del Desarrollo por {axis_name.capitalize()} {idx} ---")
+    for step in result.step_descriptions:
+        print(f"   • {step}")
+    print(f"\n   det(A) = {fmt(result.value)}  (Decimal: {float(result.value):.4f})")
+    mostrar_diagnostico_singularidad(result.value)
+
+
+def adjunta_e_inversa_interactivo() -> None:
+    """Operación 5: Matriz de Cofactores, Adjunta e Inversa Analítica."""
+    print("\n" + "-" * 60)
+    print("MATRIZ DE MENORES, COFACTORES, ADJUNTA E INVERSA POR ADJUNTA")
+    print("-" * 60)
+    n = read_positive_int("Dimensión n de la matriz cuadrada: ")
+    A = read_square_matrix(n, "A")
+    print_matrix(A, f"Matriz A ({n}×{n})")
+
+    from prettycalc.core.adjugate import calculate_adjugate_and_inverse
+
+    result = calculate_adjugate_and_inverse(_core_matrix(A))
+
+    print("\n1. Matriz de Menores M:")
+    print_matrix(result.minors_matrix.to_list())
+
+    print("\n2. Matriz de Cofactores C = (-1)^(i+j) · M_ij:")
+    print_matrix(result.cofactors_matrix.to_list())
+
+    print("\n3. Matriz Adjunta adj(A) = Cᵀ:")
+    print_matrix(result.adjugate_matrix.to_list())
+
+    print(f"\nDeterminante: det(A) = {fmt(result.det_A)}")
+    if result.inverse_via_adjugate is not None:
+        print("\n4. Matriz Inversa por Adjunta A⁻¹ = (1/det A) · adj(A):")
+        print_matrix(result.inverse_via_adjugate.to_list(), title="A⁻¹ (Inversa Analítica)")
+
+        from prettycalc.core.matrix_ops import matrix_multiply
+        from prettycalc.core.types import Matrix
+
+        core_A = _core_matrix(A)
+        inv = result.inverse_via_adjugate
+        identity = Matrix.identity(n)
+        if matrix_multiply(core_A, inv) == identity and matrix_multiply(inv, core_A) == identity:
+            print("\n   ✓ Comprobación de Identidad: A · A⁻¹ = A⁻¹ · A = I_n (Exacto).")
+    else:
+        print("\n   🔴 La matriz es singular (det(A) = 0). No existe A⁻¹.")
+
+
 def menu_determinantes() -> None:
     """Menú principal del Módulo 4 con Logotipo ASCII."""
     warnings.warn(
@@ -234,16 +302,18 @@ def menu_determinantes() -> None:
     while True:
         print("\n" + "=" * 54)
         print(" | A |   det(A)   MÓDULO: DETERMINANTES Y PROPIEDADES")
-        print(" | a  b | c  d |  Métodos: Triangulación y Cofactores")
+        print(" | a  b | c  d |  Métodos: Triangulación, Sarrus y Cofactores")
         print("=" * 54)
         print(" 0. Ver Teoremas Clave del Módulo")
         print(" 1. Determinante de Matriz 2×2 (Fórmula Directa)")
         print(" 2. Determinante de Matriz 3×3 (Regla de Sarrus)")
         print(" 3. Determinante de Matriz n×n (Triangulación Gaussiana)")
-        print(" 4. Volver al Menú Principal")
+        print(" 4. Determinante por Desarrollo de Cofactores de Laplace")
+        print(" 5. Matriz de Cofactores, Adjunta e Inversa por Adjunta")
+        print(" 6. Volver al Menú Principal")
         print("=" * 54)
 
-        opc = input("Seleccione una opción (0-4): ").strip()
+        opc = input("Seleccione una opción (0-6): ").strip()
 
         if opc == "0":
             mostrar_teoremas_determinantes()
@@ -258,9 +328,15 @@ def menu_determinantes() -> None:
             determinante_nxn_interactivo()
             input("\nPresione ENTER para continuar...")
         elif opc == "4":
+            determinante_laplace_interactivo()
+            input("\nPresione ENTER para continuar...")
+        elif opc == "5":
+            adjunta_e_inversa_interactivo()
+            input("\nPresione ENTER para continuar...")
+        elif opc == "6":
             break
         else:
-            print("   ⚠️  Opción no válida. Ingrese un número entre 0 y 4.")
+            print("   ⚠️  Opción no válida. Ingrese un número entre 0 y 6.")
 
 
 if __name__ == "__main__":
