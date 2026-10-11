@@ -14,7 +14,7 @@ from enum import Enum
 from fractions import Fraction
 from typing import List, Optional, Tuple, Dict, Union, Any
 
-from prettycalc.core.types import Matrix, format_scalar
+from prettycalc.core.types import Matrix, Vector, format_scalar
 from prettycalc.core.elimination import gauss_jordan_elimination
 
 
@@ -53,6 +53,65 @@ class ParametricExpression:
         return " ".join(terms) if terms else "0"
 
 
+def _inline_bmatrix(vector: Vector) -> str:
+    """Matriz columna LaTeX en una sola línea."""
+    body = r" \\ ".join(format_scalar(value, mode="latex") for value in vector.components)
+    return rf"\begin{{bmatrix}} {body} \end{{bmatrix}}"
+
+
+@dataclass(frozen=True)
+class ParametricVectorSolution:
+    """Desglose vectorial canónico: x = particular_vector + sum(t_i * null_basis_vectors[i])."""
+
+    particular_vector: Vector
+    null_basis_vectors: Dict[int, Vector]  # free_var_index -> basis vector
+    free_var_names: List[str]
+
+    def to_latex_equation(self) -> str:
+        r"""Genera: x = \begin{bmatrix} p_1 \\ ... \end{bmatrix} + t_1 \begin{bmatrix} v_{11} \\ ... \end{bmatrix} + ..."""
+        terms = [_inline_bmatrix(self.particular_vector)]
+        for free_idx in sorted(self.null_basis_vectors):
+            parameter = f"x_{{{free_idx + 1}}}"
+            terms.append(f"{parameter} {_inline_bmatrix(self.null_basis_vectors[free_idx])}")
+        return "x = " + " + ".join(terms)
+
+    def to_plain_equation(self) -> str:
+        """Ecuación en texto plano: x = [p] + xk*[v_k] + ..."""
+
+        def _components(vector: Vector) -> str:
+            return "[" + ", ".join(format_scalar(value, mode="fraction") for value in vector.components) + "]"
+
+        terms = [_components(self.particular_vector)]
+        for free_idx in sorted(self.null_basis_vectors):
+            terms.append(f"x{free_idx + 1}*{_components(self.null_basis_vectors[free_idx])}")
+        return "x = " + " + ".join(terms)
+
+
+def build_parametric_vector_solution(
+    particular: List[Fraction],
+    free_variables: List[int],
+    parametric_solutions: Dict[int, ParametricExpression],
+) -> ParametricVectorSolution:
+    """Arma x = p + Σ t_k v_k a partir del despeje escalar de un SCI.
+
+    El vector particular asigna 0 a cada variable libre. Cada vector de la base
+    del núcleo vale 1 en su variable libre y el coeficiente de despeje en las básicas.
+    """
+    dimension = len(particular)
+    basis: Dict[int, Vector] = {}
+    for free_idx in free_variables:
+        components = [Fraction(0, 1) for _ in range(dimension)]
+        components[free_idx] = Fraction(1, 1)
+        for basic_idx, expression in parametric_solutions.items():
+            components[basic_idx] = expression.free_var_coeffs.get(free_idx, Fraction(0, 1))
+        basis[free_idx] = Vector(components)
+    return ParametricVectorSolution(
+        particular_vector=Vector(particular),
+        null_basis_vectors=basis,
+        free_var_names=[f"x{index + 1}" for index in free_variables],
+    )
+
+
 @dataclass(frozen=True)
 class SystemAnalysis:
     """Resultado del análisis y clasificación formal de un sistema lineal Ax = b."""
@@ -69,6 +128,7 @@ class SystemAnalysis:
     summary_message: str
     pivot_columns: Optional[List[int]] = None
     has_augmented_pivot: bool = False
+    parametric_vector_solution: Optional[ParametricVectorSolution] = None
 
     def __post_init__(self):
         if self.pivot_columns is None:
@@ -221,6 +281,11 @@ def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAn
         particular_sol[basic_var] = expr.constant
 
     free_vars_str = ", ".join(f"x{v+1}" for v in free_vars)
+    vector_solution = build_parametric_vector_solution(
+        particular_sol,
+        free_vars,
+        parametric_solutions,
+    )
     return SystemAnalysis(
         system_type=SystemType.CONSISTENT_INDETERMINED,
         rank_a=rank_a,
@@ -239,4 +304,5 @@ def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAn
         ),
         pivot_columns=basic_vars,
         has_augmented_pivot=False,
+        parametric_vector_solution=vector_solution,
     )

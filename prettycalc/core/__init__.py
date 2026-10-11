@@ -77,7 +77,17 @@ from prettycalc.core.classifier import (
     SystemType,
     SystemAnalysis,
     ParametricExpression,
+    ParametricVectorSolution,
+    build_parametric_vector_solution,
     classify_system,
+)
+from prettycalc.core.matrix_inversion import (
+    MatrixInverseResult,
+    NonSquareMatrixError,
+    SingularMatrixError,
+    matrix_inverse,
+    solve_system_via_inverse,
+    solve_via_inverse,
 )
 from prettycalc.core.verifier import (
     EquationVerification,
@@ -142,7 +152,15 @@ __all__ = [
     "SystemType",
     "SystemAnalysis",
     "ParametricExpression",
+    "ParametricVectorSolution",
+    "build_parametric_vector_solution",
     "classify_system",
+    "MatrixInverseResult",
+    "NonSquareMatrixError",
+    "SingularMatrixError",
+    "matrix_inverse",
+    "solve_via_inverse",
+    "solve_system_via_inverse",
     "EquationVerification",
     "SolutionVerifier",
 ]
