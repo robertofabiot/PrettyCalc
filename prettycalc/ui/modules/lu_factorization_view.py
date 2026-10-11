@@ -37,6 +37,7 @@ from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.module_scroll import make_module_scroll
+from prettycalc.ui.mathtext import plain_formula_to_html
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
@@ -92,6 +93,11 @@ def _matrix_inline(matrix: Matrix) -> str:
 def _vector_inline(vector: Vector) -> str:
     shown = ", ".join(format_scalar(component, mode="fraction") for component in vector)
     return f"[{shown}]ᵀ"
+
+
+def _book_step_lines(lines: list[str]) -> str:
+    """Sustituciones y_1, b_1, x_1 en HTML de libro, una etapa por renglón."""
+    return "<br>".join(plain_formula_to_html(line) for line in lines)
 
 
 class LUFactorizationView(QWidget):
@@ -334,6 +340,7 @@ class LUFactorizationView(QWidget):
     def _steps_label(self, name: str) -> QLabel:
         label = QLabel("")
         label.setObjectName(name)
+        label.setTextFormat(Qt.RichText)
         label.setWordWrap(True)
         label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         label.setStyleSheet(
@@ -621,8 +628,8 @@ class LUFactorizationView(QWidget):
         self.x_view.set_matrix(solution.x_solution.to_column_matrix(), show_headers=False)
         self.y_label.setText(f"y = {_vector_inline(solution.y_intermediate)}")
         self.x_label.setText(f"x = {_vector_inline(solution.x_solution)}")
-        self.forward_steps_label.setText("\n".join(solution.forward_steps))
-        self.backward_steps_label.setText("\n".join(solution.backward_steps))
+        self.forward_steps_label.setText(_book_step_lines(solution.forward_steps))
+        self.backward_steps_label.setText(_book_step_lines(solution.backward_steps))
         self.forward_stepper.set_steps(solution.forward_tracer.get_steps())
         self.backward_stepper.set_steps(solution.backward_tracer.get_steps())
         swapped = solution.factorization.permutation_count > 0

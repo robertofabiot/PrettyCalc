@@ -43,7 +43,7 @@ from prettycalc.core.vector_ops import (
     vector_scale,
     vector_sub,
 )
-from prettycalc.ui.mathtext import to_subscript, to_superscript
+from prettycalc.ui.mathtext import latex_to_book_html, to_subscript, to_superscript
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
@@ -354,6 +354,7 @@ class VectorsView(QWidget):
 
         self.metric_summary = QLabel("")
         self.metric_summary.setObjectName("metricSummary")
+        self.metric_summary.setTextFormat(Qt.RichText)
         self.metric_summary.setWordWrap(True)
         self.metric_summary.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.metric_summary.setStyleSheet(
@@ -412,6 +413,8 @@ class VectorsView(QWidget):
         self.metric_badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
 
     def _publish_metric(self, summary: str, matrix: Matrix, tracer) -> None:
+        if "\\" in summary:
+            summary = latex_to_book_html(summary)
         self.metric_summary.setText(summary)
         self.metric_result.set_matrix(matrix, split_col=None, show_headers=False)
         self.metric_stepper.set_steps(tracer.get_steps())

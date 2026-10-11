@@ -28,6 +28,8 @@ from prettycalc.ui.mathtext import (
     format_equation_book,
     format_substitution_book,
     prettify_math_text,
+    latex_to_book_html,
+    plain_formula_to_html,
 )
 from prettycalc.ui.theme import (
     COLOR_FEEDBACK_SUCCESS,
@@ -312,9 +314,12 @@ class ResultsDashboardCard(QFrame):
         self.status_badge.setText("Regla de Cramer")
         self.status_badge.setStyleSheet(self._badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
         self.summary_label.setObjectName("cramerSummary")
+        self.summary_label.setTextFormat(Qt.RichText)
         self.summary_label.setText(
-            f"det(A) = {format_scalar(result.det_A)}. "
-            "Cada incógnita es el cociente det(A_i(b)) / det(A)."
+            plain_formula_to_html(
+                f"det(A) = {format_scalar(result.det_A)}. "
+                "Cada incógnita es el cociente det(A_i(b)) / det(A)."
+            )
         )
         self._clear_layout(self.structure_layout)
         self.structure_layout.addWidget(
@@ -336,9 +341,12 @@ class ResultsDashboardCard(QFrame):
         panel_layout.setSpacing(8)
         for index, replaced, column_det in result.column_determinants:
             equation = QLabel(
-                format_cramer_component(index, column_det, result.det_A, result.solution[index])
+                plain_formula_to_html(
+                    format_cramer_component(index, column_det, result.det_A, result.solution[index])
+                )
             )
             equation.setObjectName(f"cramerComponent{index}")
+            equation.setTextFormat(Qt.RichText)
             equation.setWordWrap(True)
             equation.setTextInteractionFlags(Qt.TextSelectableByMouse)
             equation.setStyleSheet(
@@ -348,9 +356,12 @@ class ResultsDashboardCard(QFrame):
             panel_layout.addWidget(equation)
 
             det_line = QLabel(
-                f"det(A{index + 1}(b)) = {format_scalar(column_det)}"
+                plain_formula_to_html(
+                    f"det(A{index + 1}(b)) = {format_scalar(column_det)}"
+                )
             )
             det_line.setObjectName(f"cramerDeterminant{index}")
+            det_line.setTextFormat(Qt.RichText)
             det_line.setStyleSheet(
                 f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 16px; font-family: {FONT_FAMILY_MONO};"
             )
@@ -434,11 +445,14 @@ class ResultsDashboardCard(QFrame):
         host.setMinimumWidth(host.sizeHint().width())
         self.var_container.addWidget(host)
 
-        equation = QLabel(solution.to_plain_equation())
+        equation = QLabel(
+            to_html_subscripts(prettify_math_text(solution.to_plain_equation()))
+        )
         equation.setObjectName("parametricVectorEquation")
+        equation.setTextFormat(Qt.RichText)
         equation.setWordWrap(True)
         equation.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        equation.setToolTip(solution.to_latex_equation())
+        equation.setToolTip(latex_to_book_html(solution.to_latex_equation()))
         equation.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px; font-family: {FONT_FAMILY_MONO}; "
             f"padding: 4px 0 8px 0;"

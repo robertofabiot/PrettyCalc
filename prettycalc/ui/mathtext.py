@@ -1,17 +1,20 @@
-"""Notación matemática tipo libro: subíndices, flechas y conversión desde LaTeX."""
+"""Notación matemática tipo libro: subíndices, flechas y conversión desde LaTeX.
+
+El contrato de presentación está en Docs/latex-rendering-spec.md: el motor entrega
+LaTeX puro y solo esta capa puede pintarlo en un QLabel.
+"""
 
 from __future__ import annotations
 
+import html
 import re
-from typing import Optional
+from typing import Optional, Sequence
 
 from prettycalc.ui.theme import COLOR_TEXT_PRIMARY, FONT_FAMILY_SANS
 
 _SUBSCRIPTS = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
 _SUPERSCRIPTS = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
-_LATEX_FRAC = re.compile(r"\\frac\{([^{}]+)\}\{([^{}]+)\}")
-_LATEX_TEXT = re.compile(r"\\text\{([^}]*)\}")
 _F_SUB_BRACES = re.compile(r"f_\{(\d+)\}")
 _F_SUB_PLAIN = re.compile(r"\bf(\d+)\b")
 _X_SUB = re.compile(r"\bx(\d+)\b")
@@ -106,38 +109,349 @@ def format_subscripts_html(text: str, sub_size_px: Optional[int] = None) -> str:
     return res
 
 
-def latex_to_book_html(latex: str) -> str:
-    """Convierte una fórmula LaTeX de operación elemental a HTML de libro."""
-    if not latex:
-        return ""
+_SUP_GLYPH = str.maketrans(
+    {
+        "0": "⁰",
+        "1": "¹",
+        "2": "²",
+        "3": "³",
+        "4": "⁴",
+        "5": "⁵",
+        "6": "⁶",
+        "7": "⁷",
+        "8": "⁸",
+        "9": "⁹",
+        "-": "⁻",
+        "−": "⁻",
+        "+": "⁺",
+        "n": "ⁿ",
+        "i": "ⁱ",
+        "T": "ᵀ",
+        "(": "⁽",
+        ")": "⁾",
+    }
+)
+_BLACKBOARD = {"R": "ℝ", "N": "ℕ", "Z": "ℤ", "Q": "ℚ", "C": "ℂ"}
+_NAMED_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("leftrightarrow", " ↔ "),
+    ("Leftrightarrow", " ⇔ "),
+    ("rightarrow", " → "),
+    ("Rightarrow", " ⇒ "),
+    ("leftarrow", " ← "),
+    ("longleftarrow", " ← "),
+    ("infty", "∞"),
+    ("forall", "∀"),
+    ("cdots", "⋯"),
+    ("ldots", "…"),
+    ("vdots", "⋮"),
+    ("dots", "…"),
+    ("times", "×"),
+    ("cdot", "·"),
+    ("qquad", " "),
+    ("quad", " "),
+    ("Vert", "‖"),
+    ("vert", "|"),
+    ("prod", "∏"),
+    ("sum", "∑"),
+    ("det", "<i>det</i>"),
+    ("neq", "≠"),
+    ("leq", "≤"),
+    ("geq", "≥"),
+    ("mid", "|"),
+    ("pm", "±"),
+    ("mp", "∓"),
+    ("ne", "≠"),
+    ("le", "≤"),
+    ("ge", "≥"),
+    ("in", "∈"),
+    ("to", " → "),
+)
+_COMMAND_PATTERN = re.compile(
+    r"\\(" + "|".join(name for name, _ in _NAMED_COMMANDS) + r")(?![A-Za-z])"
+)
+_COMMAND_REPLACEMENTS = dict(_NAMED_COMMANDS)
+_ROW_BRACED = re.compile(r"(?<![A-Za-z])[fF]_\{([^{}]*)\}")
+_SUB_BRACED = re.compile(r"_\{([^{}]*)\}")
+_ROW_PLAIN_DIGITS = re.compile(r"(?<![A-Za-z])[fF]_(\d+)")
+_ROW_PLAIN_LETTERS = re.compile(r"(?<![A-Za-z])[fF]_([A-Za-z]+)")
+_SUB_PLAIN_DIGITS = re.compile(r"_(\d+)")
+_SUB_PLAIN_LETTERS = re.compile(r"_([A-Za-z]+)")
+_SUP_BRACED = re.compile(r"\^\{([^{}]*)\}")
+_SUP_SIGNED = re.compile(r"\^(-?\d+)")
+_SUP_PLAIN = re.compile(r"\^([A-Za-z0-9]+)")
+_TAG_SPLIT = re.compile(r"(<[^>]+>)")
+_UNDERSET_BRACED = re.compile(
+    r"\\underset\s*\{\s*\\sim\s*\}\s*\{\s*\\rightarrow\s*\}"
+)
+_UNDERSET_PLAIN = re.compile(r"\\underset\s*\{\s*\\sim\s*\}\s*\\rightarrow")
 
-    if "\\text{" in latex:
-        text_clean = _LATEX_TEXT.sub(r"\1", latex)
-        text_clean = text_clean.replace("\\mid", "|").replace("\\[", "[").replace("\\]", "]")
-        text_clean = text_clean.replace("  ", " ").strip()
-        return (
-            f"<span style='font-size:20px; font-style:italic; color:{COLOR_TEXT_PRIMARY}; "
-            f"font-family:{FONT_FAMILY_SANS};'>{text_clean}</span>"
+
+def _read_brace_group(text: str, open_index: int) -> Optional[tuple[str, int]]:
+    """Si text[open_index] es '{', devuelve el interior y el índice siguiente al cierre."""
+    if open_index >= len(text) or text[open_index] != "{":
+        return None
+    depth = 0
+    index = open_index
+    while index < len(text):
+        if text[index] == "\\" and index + 1 < len(text):
+            index += 2
+            continue
+        if text[index] == "{":
+            depth += 1
+        elif text[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_index + 1 : index], index + 1
+        index += 1
+    return None
+
+
+def _slot_token(number: int) -> str:
+    return f"\uE000{number}\uE001"
+
+
+def _extract_text_blocks(text: str) -> tuple[str, list[str]]:
+    """Saca \\text{...} para que el resto de la fórmula siga procesándose."""
+    slots: list[str] = []
+    pieces: list[str] = []
+    index = 0
+    while index < len(text):
+        if text.startswith("\\text", index) and (
+            index + 5 >= len(text) or not text[index + 5].isalpha()
+        ):
+            cursor = index + 5
+            while cursor < len(text) and text[cursor].isspace():
+                cursor += 1
+            group = _read_brace_group(text, cursor)
+            if group is not None:
+                inner, end = group
+                slots.append(inner)
+                pieces.append(_slot_token(len(slots) - 1))
+                index = end
+                continue
+        pieces.append(text[index])
+        index += 1
+    return "".join(pieces), slots
+
+
+def _restore_text_blocks(text: str, slots: list[str]) -> str:
+    for number, content in enumerate(slots):
+        span = (
+            '<span style="font-family:sans-serif; font-style:normal;">'
+            f"{html.escape(content)}</span>"
         )
+        text = text.replace(_slot_token(number), span)
+    return text
 
-    result = latex
-    result = _LATEX_FRAC.sub(r"(\1/\2)", result)
-    result = result.replace("\\underset{\\sim}\\rightarrow", " → ")
-    result = result.replace("\\underset{\\sim}{\\rightarrow}", " → ")
-    result = result.replace("\\rightarrow", " → ")
-    result = result.replace("\\leftrightarrow", " ↔ ")
-    result = result.replace("\\cdot", "·")
-    result = result.replace("\\mid", "|")
-    result = result.replace("−", "-")
-    result = _F_SUB_BRACES.sub(lambda m: f"F{to_subscript(m.group(1))}", result)
-    result = _F_SUB_PLAIN.sub(lambda m: f"F{to_subscript(m.group(1))}", result)
-    result = result.replace(" + -", " − ")
-    result = re.sub(r"\s+", " ", result).strip()
-    result = result.replace("-", "−")
 
+def _render_nested(content: str, depth: int) -> str:
+    if any(token in content for token in ("\\", "_", "^", "{", "}")):
+        return _render_math(content, depth + 1)
+    return content
+
+
+def _format_sub(content: str, depth: int) -> str:
+    rendered = _render_nested(content, depth).strip()
+    if not rendered:
+        return ""
+    if "<" not in rendered:
+        rendered = html.escape(rendered)
+    return f"<sub>{rendered}</sub>"
+
+
+def _format_row(content: str, depth: int) -> str:
+    rendered = _render_nested(content, depth).strip()
+    if rendered.isdigit():
+        return f"F{to_subscript(rendered)}"
+    if "<" not in rendered:
+        rendered = html.escape(rendered)
+    return f"F<sub>{rendered}</sub>"
+
+
+def _format_sup(content: str, depth: int) -> str:
+    rendered = _render_nested(content, depth).strip()
+    if not rendered:
+        return ""
+    if "<" not in rendered and all(char in "0123456789-+−nTi()" for char in rendered):
+        return rendered.translate(_SUP_GLYPH)
+    if "<" not in rendered:
+        rendered = html.escape(rendered)
+    return f"<sup>{rendered}</sup>"
+
+
+def _replace_balanced_command(text: str, name: str, depth: int, replacer) -> str:
+    """Reemplaza \\name{...}{...} usando el lector de llaves balanceadas."""
+    token = "\\" + name
+    guard = 0
+    search_from = 0
+    while guard < 40:
+        guard += 1
+        index = text.find(token, search_from)
+        if index < 0:
+            break
+        after = index + len(token)
+        if after < len(text) and text[after].isalpha():
+            search_from = after
+            continue
+        cursor = after
+        while cursor < len(text) and text[cursor].isspace():
+            cursor += 1
+        groups: list[str] = []
+        parsed = cursor
+        for group_index in range(replacer.group_count):
+            group = _read_brace_group(text, parsed)
+            if group is None:
+                groups = []
+                break
+            inner, parsed = group
+            groups.append(inner)
+            if group_index + 1 < replacer.group_count:
+                while parsed < len(text) and text[parsed].isspace():
+                    parsed += 1
+        if len(groups) != replacer.group_count:
+            search_from = after
+            continue
+        rendered = replacer.build(groups, depth)
+        text = text[:index] + rendered + text[parsed:]
+        search_from = index + len(rendered)
+    return text
+
+
+class _FracBuilder:
+    group_count = 2
+
+    @staticmethod
+    def build(groups: list[str], depth: int) -> str:
+        numerator = _render_math(groups[0], depth + 1).strip()
+        denominator = _render_math(groups[1], depth + 1).strip()
+        return f"({numerator}/{denominator})"
+
+
+class _SqrtBuilder:
+    group_count = 1
+
+    @staticmethod
+    def build(groups: list[str], depth: int) -> str:
+        body = _render_math(groups[0], depth + 1).strip()
+        return f'√<span style="text-decoration:overline;">{body}</span>'
+
+
+class _MathbbBuilder:
+    group_count = 1
+
+    @staticmethod
+    def build(groups: list[str], depth: int) -> str:
+        del depth
+        letter = groups[0].strip()
+        return _BLACKBOARD.get(letter, letter)
+
+
+def _replace_bmatrix(text: str, depth: int) -> str:
+    begin = r"\begin{bmatrix}"
+    end = r"\end{bmatrix}"
+    guard = 0
+    while begin in text and guard < 20:
+        guard += 1
+        start = text.find(begin)
+        finish = text.find(end, start + len(begin))
+        if finish < 0:
+            break
+        inner = text[start + len(begin) : finish]
+        rows = [_render_math(row, depth + 1).strip() for row in re.split(r"\\\\", inner)]
+        rows = [row for row in rows if row]
+        rendered = "[" + " ; ".join(rows) + "]"
+        text = text[:start] + rendered + text[finish + len(end) :]
+    return text
+
+
+def _replace_named_commands(text: str) -> str:
+    text = _UNDERSET_BRACED.sub(" → ", text)
+    text = _UNDERSET_PLAIN.sub(" → ", text)
+    text = text.replace("\\|", "‖")
+    text = re.sub(r"\\not\s*\\geq?", "≱", text)
+    text = re.sub(r"\\not\s*\\leq?", "≰", text)
+    text = re.sub(r"\\left\s*\\\{", "{", text)
+    text = re.sub(r"\\right\s*\\\}", "}", text)
+    text = re.sub(r"\\left\s*\.", "", text)
+    text = re.sub(r"\\right\s*\.", "", text)
+    text = re.sub(r"\\left\s*‖", "‖", text)
+    text = re.sub(r"\\right\s*‖", "‖", text)
+    text = re.sub(r"\\left\s*([()\[\]|])", r"\1", text)
+    text = re.sub(r"\\right\s*([()\[\]|])", r"\1", text)
+    text = text.replace("\\{", "{").replace("\\}", "}")
+    text = re.sub(r"\\[,;:!\s]", " ", text)
+
+    def _command(match: re.Match[str]) -> str:
+        return _COMMAND_REPLACEMENTS[match.group(1)]
+
+    text = _COMMAND_PATTERN.sub(_command, text)
+    text = re.sub(r"\\([A-Za-z]+)", r"\1", text)
+    text = text.replace("\\", "")
+    return text
+
+
+def _apply_scripts(text: str, depth: int) -> str:
+    text = _ROW_BRACED.sub(lambda match: _format_row(match.group(1), depth), text)
+    text = _SUB_BRACED.sub(lambda match: _format_sub(match.group(1), depth), text)
+    text = _ROW_PLAIN_DIGITS.sub(lambda match: _format_row(match.group(1), depth), text)
+    text = _ROW_PLAIN_LETTERS.sub(lambda match: _format_row(match.group(1), depth), text)
+    text = _SUB_PLAIN_DIGITS.sub(lambda match: _format_sub(match.group(1), depth), text)
+    text = _SUB_PLAIN_LETTERS.sub(lambda match: _format_sub(match.group(1), depth), text)
+    text = _SUP_BRACED.sub(lambda match: _format_sup(match.group(1), depth), text)
+    text = _SUP_SIGNED.sub(lambda match: _format_sup(match.group(1), depth), text)
+    text = _SUP_PLAIN.sub(lambda match: _format_sup(match.group(1), depth), text)
+    return text
+
+
+def _finalize_plain(text: str) -> str:
+    def _one(part: str) -> str:
+        part = part.replace("+ -", " − ").replace("+-", " − ")
+        part = part.replace("-", "−")
+        return re.sub(r"\s+", " ", part)
+
+    pieces = _TAG_SPLIT.split(text)
+    finalized = "".join(piece if piece.startswith("<") else _one(piece) for piece in pieces)
+    return finalized.strip()
+
+
+def _render_math(src: str, depth: int = 0) -> str:
+    """Pipeline interno: texto literal, estructura, comandos, índices y signos."""
+    if not src or depth > 12:
+        return src or ""
+    text, slots = _extract_text_blocks(src)
+    text = _replace_bmatrix(text, depth)
+    text = _replace_balanced_command(text, "sqrt", depth, _SqrtBuilder)
+    for alias in ("dfrac", "tfrac", "frac"):
+        text = _replace_balanced_command(text, alias, depth, _FracBuilder)
+    text = _replace_balanced_command(text, "mathbb", depth, _MathbbBuilder)
+    text = _replace_named_commands(text)
+    text = _apply_scripts(text, depth)
+    text = _finalize_plain(text)
+    return _restore_text_blocks(text, slots)
+
+
+def plain_formula_to_html(text: str) -> str:
+    """Pasa subíndices ASCII (y_1, A_i, x1) a HTML sin reinterpretar el signo menos."""
+    if not text:
+        return ""
+    rendered = format_subscripts_html(text)
+    rendered = re.sub(
+        r"\bx(\d+)\b",
+        lambda match: variable_html(int(match.group(1)) - 1),
+        rendered,
+    )
+    rendered = re.sub(r"\bA(\d+)(?=\(b\))", r"A<sub>\1</sub>", rendered)
+    return rendered
+
+
+def latex_to_book_html(latex: str) -> str:
+    """Convierte LaTeX del StepTracer a HTML de libro para QLabel (Qt.RichText)."""
+    if not latex or not latex.strip():
+        return ""
+    body = _render_math(latex)
     return (
-        f"<span style='font-size:22px; font-weight:500; letter-spacing:0.04em; "
-        f"color:{COLOR_TEXT_PRIMARY}; font-family:{FONT_FAMILY_SANS};'>{result}</span>"
+        f"<span style='font-size:22px; font-weight:500; letter-spacing:0.03em; "
+        f"color:{COLOR_TEXT_PRIMARY}; font-family:{FONT_FAMILY_SANS};'>{body}</span>"
     )
 
 

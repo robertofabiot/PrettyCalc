@@ -2,6 +2,8 @@
 
 from fractions import Fraction
 
+from PySide6.QtCore import Qt
+
 from prettycalc.core.types import Matrix, Vector
 from prettycalc.ui.main_window import MainWindow
 from prettycalc.ui.theme import COLOR_FEEDBACK_ERROR, COLOR_FEEDBACK_SUCCESS
@@ -49,7 +51,9 @@ def test_session12_example1_shows_factors_and_both_stages(qtbot):
     assert view.factor_stepper._steps
     assert view.forward_stepper._steps
     assert view.backward_stepper._steps
-    assert "y_1 = b_1 = -7." in view.forward_steps_label.text()
+    rendered_steps = view.forward_steps_label.text()
+    assert "y<sub>1</sub> = b<sub>1</sub> = -7." in rendered_steps
+    assert view.forward_steps_label.textFormat() == Qt.TextFormat.RichText
     assert view.solve_btn.isEnabled()
 
 
