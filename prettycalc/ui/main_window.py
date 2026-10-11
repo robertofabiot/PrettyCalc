@@ -22,6 +22,7 @@ from prettycalc.ui.modules.linear_systems_view import LinearSystemsView
 from prettycalc.ui.modules.matrix_operations_view import MatrixOperationsView
 from prettycalc.ui.modules.vectors_view import VectorsView
 from prettycalc.ui.modules.matrix_equations_view import MatrixEquationsView
+from prettycalc.ui.modules.determinants_view import DeterminantsView
 from prettycalc.ui.navigation_bar import ModularNavigationBar
 from prettycalc.ui.theme import (
     get_global_stylesheet,
@@ -37,12 +38,13 @@ _MODULE_SUBTITLES = (
     "Álgebra matricial  ·  A ± B, k·A, A·B y Aᵀ",
     "Vectores en ℝⁿ  ·  operaciones y combinación lineal",
     "Ecuaciones matriciales  ·  A x = b y propiedades de A · x",
+    "Determinantes  ·  Sarrus, triangulación, cofactores y adjunta",
 )
 
 
 
 class MainWindow(QMainWindow):
-    """Shell multi-módulo: navegación segmentada y cuatro vistas persistentes."""
+    """Shell multi-módulo: navegación segmentada y cinco vistas persistentes."""
 
     def __init__(self):
         super().__init__()
@@ -93,14 +95,16 @@ class MainWindow(QMainWindow):
         self.matrix_operations_view = MatrixOperationsView()
         self.vectors_view = VectorsView()
         self.matrix_equations_view = MatrixEquationsView()
+        self.determinants_view = DeterminantsView()
         self.module_stack.addWidget(self.linear_systems_view)
         self.module_stack.addWidget(self.matrix_operations_view)
         self.module_stack.addWidget(self.vectors_view)
         self.module_stack.addWidget(self.matrix_equations_view)
+        self.module_stack.addWidget(self.determinants_view)
         main_layout.addWidget(self.module_stack, stretch=1)
 
     def _setup_shortcuts(self) -> None:
-        for index in range(4):
+        for index in range(5):
             action = QAction(self)
             action.setShortcut(QKeySequence(f"Ctrl+{index + 1}"))
             action.triggered.connect(lambda _checked=False, i=index: self.set_module(i))
