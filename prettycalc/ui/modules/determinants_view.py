@@ -20,6 +20,7 @@ try:
         QSplitter,
         QScrollArea,
         QSpinBox,
+        QLineEdit,
         QMessageBox,
     )
     from PySide6.QtCore import Qt
@@ -29,12 +30,14 @@ except ImportError:
 from prettycalc.core.adjugate import AdjugateResult, calculate_adjugate_and_inverse
 from prettycalc.core.determinants import (
     DeterminantMethod,
+    DeterminantPropertiesResult,
     DeterminantResult,
     matrix_determinant,
     singularity_diagnosis,
+    verify_determinant_properties,
 )
 from prettycalc.core.matrix_inversion import NonSquareMatrixError
-from prettycalc.core.types import Matrix, format_scalar
+from prettycalc.core.types import Matrix, format_scalar, parse_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.module_scroll import make_module_scroll
@@ -90,6 +93,7 @@ class DeterminantsView(QWidget):
         self._method = "triangulation"
         self.last_determinant: Optional[DeterminantResult] = None
         self.last_adjugate: Optional[AdjugateResult] = None
+        self.last_properties: Optional[DeterminantPropertiesResult] = None
         self._setup_ui()
         self._sync_controls()
 
@@ -107,12 +111,14 @@ class DeterminantsView(QWidget):
         self.sarrus_mode_btn = self._mode_button("Sarrus (3×3)", 1)
         self.laplace_mode_btn = self._mode_button("Cofactores de Laplace", 2)
         self.adjugate_mode_btn = self._mode_button("Matriz Adjunta", 3)
+        self.properties_mode_btn = self._mode_button("Propiedades", 4)
         self.method_group.idClicked.connect(self._on_method_changed)
         for button in (
             self.triangulation_mode_btn,
             self.sarrus_mode_btn,
             self.laplace_mode_btn,
             self.adjugate_mode_btn,
+            self.properties_mode_btn,
         ):
             method_row.addWidget(button)
         method_row.addStretch(1)
@@ -183,11 +189,15 @@ class DeterminantsView(QWidget):
         sample_sarrus = QPushButton("Ejemplo Sarrus")
         sample_sarrus.setObjectName("secondaryAction")
         sample_sarrus.clicked.connect(self.load_sarrus_example)
+        sample_properties = QPushButton("Ejemplo det(AB)")
+        sample_properties.setObjectName("secondaryAction")
+        sample_properties.clicked.connect(self.load_properties_example)
         self.compute_btn = QPushButton("Calcular")
         self.compute_btn.setObjectName("primaryAction")
         self.compute_btn.clicked.connect(self.compute)
         action_row.addWidget(sample_det)
         action_row.addWidget(sample_sarrus)
+        action_row.addWidget(sample_properties)
         action_row.addWidget(self.compute_btn)
         root.addLayout(action_row)
 
@@ -219,6 +229,36 @@ class DeterminantsView(QWidget):
         )
         self.grid.matrixChanged.connect(self._on_matrix_changed)
         left_layout.addWidget(self.grid, stretch=1)
+
+        self.properties_box = QWidget()
+        self.properties_box.setObjectName("detPropertiesBox")
+        properties_layout = QVBoxLayout(self.properties_box)
+        properties_layout.setContentsMargins(0, 8, 0, 0)
+        properties_layout.setSpacing(8)
+        b_title = QLabel("Matriz B")
+        b_title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        properties_layout.addWidget(b_title)
+        self.grid_b = DynamicMatrixGrid(
+            initial_rows=2,
+            initial_cols=2,
+            augmented=False,
+            row_expandable=False,
+            col_expandable=False,
+        )
+        self.grid_b.matrixChanged.connect(self._on_matrix_changed)
+        properties_layout.addWidget(self.grid_b)
+        k_row = QHBoxLayout()
+        k_label = QLabel("Escalar k")
+        k_label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-weight: 600;")
+        self.scalar_k = QLineEdit("2")
+        self.scalar_k.setObjectName("detScalarField")
+        self.scalar_k.setAlignment(Qt.AlignCenter)
+        self.scalar_k.textChanged.connect(self._on_matrix_changed)
+        k_row.addWidget(k_label)
+        k_row.addWidget(self.scalar_k)
+        properties_layout.addLayout(k_row)
+        self.properties_box.setVisible(False)
+        left_layout.addWidget(self.properties_box)
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.NoFrame)
@@ -264,6 +304,13 @@ class DeterminantsView(QWidget):
         )
         right_layout.addWidget(self.det_value_label)
         right_layout.addWidget(self.diagnosis_label)
+        self.properties_checklist = QLabel("")
+        self.properties_checklist.setObjectName("detPropertiesChecklist")
+        self.properties_checklist.setWordWrap(True)
+        self.properties_checklist.setTextFormat(Qt.RichText)
+        self.properties_checklist.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.properties_checklist.setVisible(False)
+        right_layout.addWidget(self.properties_checklist)
 
         self.adjugate_section = QWidget()
         self.adjugate_section.setObjectName("adjugateSection")
@@ -327,8 +374,12 @@ class DeterminantsView(QWidget):
         return view, readout
 
     def _on_method_changed(self, method_id: int) -> None:
-        self._method = ("triangulation", "sarrus", "laplace", "adjugate")[method_id]
+        self._method = ("triangulation", "sarrus", "laplace", "adjugate", "properties")[method_id]
         self.laplace_box.setVisible(self._method == "laplace")
+        self.properties_box.setVisible(self._method == "properties")
+        self.properties_checklist.setVisible(self._method == "properties")
+        if self._method == "properties":
+            self._match_partner_order()
         self._clear_results()
         self._sync_controls()
 
@@ -339,8 +390,11 @@ class DeterminantsView(QWidget):
     def _clear_results(self) -> None:
         self.last_determinant = None
         self.last_adjugate = None
+        self.last_properties = None
         self.det_value_label.setText("det(A) = —")
         self.diagnosis_label.setText("")
+        if hasattr(self, "properties_checklist"):
+            self.properties_checklist.setText("")
         self.adjugate_section.setVisible(False)
         self.stepper.set_steps([])
         for view in (self.minors_view, self.cofactors_view, self.adjugate_view, self.inverse_view):
@@ -366,6 +420,19 @@ class DeterminantsView(QWidget):
             return f"El orden n debe estar entre 1 y {MAX_DETERMINANT_ORDER}."
         if self._method == "sarrus" and matrix.rows != 3:
             return "La regla de Sarrus solo está definida para matrices 3×3."
+        if self._method == "properties":
+            try:
+                parse_scalar(self.scalar_k.text())
+            except Exception:
+                return "El escalar k no es un número válido (entero, a/b o decimal)."
+            if not self.grid_b.is_all_valid():
+                return "Corrige las celdas de B."
+            partner = self.grid_b.get_matrix()
+            if partner.shape != matrix.shape:
+                return (
+                    "A y B deben ser cuadradas del mismo orden para det(AB). "
+                    f"A es {matrix.rows}×{matrix.cols} y B es {partner.rows}×{partner.cols}."
+                )
         return None
 
     def _sync_controls(self) -> None:
@@ -411,6 +478,8 @@ class DeterminantsView(QWidget):
             for col_index in range(min(new_order, current.cols)):
                 data[row_index][col_index] = current.get(row_index, col_index)
         self.grid.set_matrix(Matrix(data))
+        if self._method == "properties":
+            self._match_partner_order()
 
     def _set_method(self, method: str) -> None:
         buttons = {
@@ -418,10 +487,13 @@ class DeterminantsView(QWidget):
             "sarrus": self.sarrus_mode_btn,
             "laplace": self.laplace_mode_btn,
             "adjugate": self.adjugate_mode_btn,
+            "properties": self.properties_mode_btn,
         }
         buttons[method].setChecked(True)
         self._method = method
         self.laplace_box.setVisible(method == "laplace")
+        self.properties_box.setVisible(method == "properties")
+        self.properties_checklist.setVisible(method == "properties")
 
     def load_session11_example(self) -> None:
         """Diapositiva 40: det(A) = −19, cofactores y adjunta."""
@@ -435,6 +507,31 @@ class DeterminantsView(QWidget):
         self.grid.set_matrix(_SARRUS_SLIDE26)
         self.compute()
 
+    def _match_partner_order(self) -> None:
+        if not self.grid.is_all_valid():
+            return
+        current = self.grid.get_matrix()
+        if current.rows != current.cols:
+            return
+        order = current.rows
+        if self.grid_b.is_all_valid() and self.grid_b.get_matrix().shape == (order, order):
+            return
+        data = [[0 for _ in range(order)] for _ in range(order)]
+        if self.grid_b.is_all_valid():
+            partner = self.grid_b.get_matrix()
+            for row_index in range(min(order, partner.rows)):
+                for col_index in range(min(order, partner.cols)):
+                    data[row_index][col_index] = partner.get(row_index, col_index)
+        self.grid_b.set_matrix(Matrix(data))
+
+    def load_properties_example(self) -> None:
+        """Sesión 11, diapositiva 24: det(A) = 9, det(B) = 5 y det(AB) = 45."""
+        self._set_method("properties")
+        self.grid.set_matrix(Matrix([[6, 1], [3, 2]]))
+        self.grid_b.set_matrix(Matrix([[4, 3], [1, 2]]))
+        self.scalar_k.setText("2")
+        self.compute()
+
     def compute(self) -> None:
         """Evalúa el método activo y publica el determinante o la adjunta."""
         reason = self._blocking_reason()
@@ -445,6 +542,14 @@ class DeterminantsView(QWidget):
             return
         matrix = self.grid.get_matrix()
         try:
+            if self._method == "properties":
+                properties = verify_determinant_properties(
+                    matrix,
+                    self.grid_b.get_matrix(),
+                    parse_scalar(self.scalar_k.text()),
+                )
+                self._publish_properties(properties)
+                return
             if self._method == "adjugate":
                 determinant = matrix_determinant(matrix, DeterminantMethod.TRIANGULATION)
                 adjugate = calculate_adjugate_and_inverse(matrix)
@@ -476,6 +581,67 @@ class DeterminantsView(QWidget):
         self.last_determinant = determinant
         self.last_adjugate = adjugate
         self._publish(determinant, adjugate)
+
+    def _publish_properties(self, result: DeterminantPropertiesResult) -> None:
+        self.last_properties = result
+        self.last_determinant = None
+        self.last_adjugate = None
+        self.adjugate_section.setVisible(False)
+        self.properties_checklist.setVisible(True)
+        self.det_value_label.setText(f"det(A) = {format_scalar(result.det_A)}")
+        self.diagnosis_label.setText(
+            "Se contrastan det(AB), det(Aᵀ), det(A⁻¹) y det(kA) con el lado derecho de cada ley."
+        )
+        self.stepper.set_steps(result.tracer.get_steps())
+
+        def row(ok: bool, text: str) -> str:
+            color = COLOR_FEEDBACK_SUCCESS if ok else COLOR_FEEDBACK_ERROR
+            mark = "✓" if ok else "✗"
+            return (
+                f'<div style="color:{color}; font-size:18px; font-weight:600; margin:4px 0;">'
+                f"{mark}&nbsp;&nbsp;{text}</div>"
+            )
+
+        lines = []
+        if result.det_B is not None and result.det_AB is not None and result.is_multiplicative_valid is not None:
+            product = result.det_A * result.det_B
+            lines.append(row(
+                result.is_multiplicative_valid,
+                f"det(AB) = {format_scalar(result.det_AB)} y det(A)·det(B) = {format_scalar(product)}",
+            ))
+        lines.append(row(
+            result.is_transpose_valid,
+            f"det(Aᵀ) = {format_scalar(result.det_transpose)} y det(A) = {format_scalar(result.det_A)}",
+        ))
+        if result.is_inverse_valid is None:
+            lines.append(
+                f'<div style="color:{COLOR_TEXT_MUTED}; font-size:18px; font-weight:600; margin:4px 0;">'
+                "—&nbsp;&nbsp;det(A⁻¹) no aplica porque det(A) = 0.</div>"
+            )
+        else:
+            lines.append(row(
+                result.is_inverse_valid,
+                f"det(A⁻¹) = {format_scalar(result.det_inverse)} y 1/det(A) = {format_scalar(result.inverse_reciprocal)}",
+            ))
+        if result.k is not None and result.det_scaled is not None and result.is_scaling_valid is not None:
+            lines.append(row(
+                result.is_scaling_valid,
+                f"det(kA) = {format_scalar(result.det_scaled)} = kⁿ det(A), con k = {format_scalar(result.k)}",
+            ))
+        self.properties_checklist.setText("".join(lines))
+        checks = [
+            result.is_multiplicative_valid,
+            result.is_transpose_valid,
+            result.is_inverse_valid,
+            result.is_scaling_valid,
+        ]
+        if all(item is not False for item in checks) and any(item is True for item in checks):
+            self.badge.setText("✓ Las propiedades del determinante se cumplen.")
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+        else:
+            self.badge.setText("✕ Alguna propiedad del determinante no se cumple.")
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+        self.compute_btn.setEnabled(True)
 
     def _publish(self, determinant: DeterminantResult, adjugate: Optional[AdjugateResult]) -> None:
         shown = format_scalar(determinant.value, mode="fraction")
