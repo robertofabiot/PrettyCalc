@@ -74,7 +74,7 @@ QT_QPA_PLATFORM=offscreen pytest
 2. Pulsa `+` para añadir filas o variables. Clic derecho en una celda para eliminar fila o columna (el mínimo es $1 \times 1$).
 3. Se admiten enteros, fracciones (`3/4`) y decimales. Una celda inválida se marca en el momento.
 4. **Resolver sistema** ejecuta Gauss-Jordan, llena el carrusel de pasos y el panel de Resultados.
-5. En **Procedimiento**, avanza con Anterior / Siguiente. **Fracciones** es un interruptor entre vista racional y decimal.
+5. En **Procedimiento**, avanza con Anterior / Siguiente. La fórmula del paso se ve en notación de libro (F₁, A⁻¹, ‖v‖²), no como código LaTeX. **Fracciones** es un interruptor entre vista racional y decimal.
 6. **Resultados** clasifica el sistema (solución única, infinitas soluciones o inconsistente) y, si hay solución única, muestra la comprobación por sustitución. Si el sistema es indeterminado, el panel escribe la forma vectorial paramétrica $x = p + t_1 v_1 + \dots$ con el vector particular y una base del núcleo.
 7. En **Álgebra Matricial**, el modo **A⁻¹ (Inversa)** reduce $[A \mid I_n]$ por Gauss-Jordan, muestra $A^{-1}$ y comprueba $A \cdot A^{-1} = I_n$. Si $A$ no es cuadrada, el cálculo queda deshabilitado. Si $A$ es singular, el panel explica que no existe inversa.
 8. En **Determinantes**, el orden n va de 1 a 8. Se puede calcular por triangulación, por Sarrus (solo 3×3), por cofactores de Laplace o pedir la matriz de cofactores, la adjunta y la inversa \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).

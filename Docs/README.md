@@ -14,6 +14,7 @@ Este directorio contiene la documentación base y general para el diseño, desar
 | [mathematical-spec.md](file:///home/ro/Projects/PrettyCalc/Docs/mathematical-spec.md) | Especificaciones matemáticas, manejo de precisión numérico/simbólico y validaciones algebraicas. |
 | [coding-standards.md](file:///home/ro/Projects/PrettyCalc/Docs/coding-standards.md) | Convenciones de código, estándares de calidad, convenciones de nombrado y buenas prácticas. |
 | [testing-strategy.md](file:///home/ro/Projects/PrettyCalc/Docs/testing-strategy.md) | Estrategia de pruebas unitarias, de integración y casos límite de cálculo numérico. |
+| [latex-rendering-spec.md](latex-rendering-spec.md) | Contrato de presentación: LaTeX del `StepTracer` a HTML de libro y tests centinela. |
 | [roadmap.md](file:///home/ro/Projects/PrettyCalc/Docs/roadmap.md) | Hoja de ruta global e hitos evolutivos del proyecto. |
 | [pull-request-template.md](pull-request-template.md) | Plantilla de descripción para pull requests, con la estructura usada desde el Sprint 1. |
 
@@ -25,5 +26,6 @@ Los requisitos específicos, tareas desglosadas y entregables detallados por spr
 
 * [Sprints/README.md](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/README.md)
 * [`Sprints/Sprint1/`](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint1/)
-* `Sprints/Sprint2/`
-* `...`
+* [`Sprints/Sprint2/`](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint2/)
+* [`Sprints/Sprint8/`](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint8/)
+* [`Sprints/Sprint9/`](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint9/)

@@ -16,6 +16,14 @@ Docs/Sprints/
 │   └── ...
 ```
 
+## Sprints registrados
+
+* [Sprint1](Sprint1/README.md)
+* [Sprint2](Sprint2/README.md)
+* [Sprint3](Sprint3/README.md)
+* [Sprint8](Sprint8/README.md)
+* [Sprint9](Sprint9/README.md) — presentación matemática y RichText
+
 ## Flujo por Sprint
 
 1. **Planificación:** Duplicar [sprint-template.md](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/sprint-template.md) dentro de una carpeta específica `Sprint-N/`.

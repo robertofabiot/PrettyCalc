@@ -78,6 +78,14 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 * **Propiedades del determinante:** `verify_determinant_properties` contrasta \(\det(AB) = \det(A)\det(B)\), \(\det(A^T) = \det(A)\), \(\det(A^{-1}) = 1/\det(A)\) y \(\det(kA) = k^n \det(A)\). En Determinantes, el modo **Propiedades** muestra el checklist.
 * **Aplicaciones de la sesión 8 (`applied_models.py`):** `balance_chemical_reaction` arma la conservación de átomos y los enteros mínimos. `solve_leontief_exchange` resuelve \((I - C)p = 0\). `solve_nutrition_mix` resuelve la mezcla y rechaza cantidades negativas. `analyze_network_flow` escribe la solución general y, con una variable libre, las cotas \(x_i \ge 0\). En Sistemas Lineales, **V · Aplicaciones** muestra esos formularios y carga la matriz aumentada en la cuadrícula. El compendio de teoremas está en `theorems.py`; la consola de `Calculadora_Algebra_Lineal` solo lo imprime.
 
+### 2.4. Capa de Presentación Matemática y RichText
+
+El motor escribe LaTeX estándar en `CalculationStep.latex_formula` y en `latex_title`. La interfaz no pinta esa cadena en un `QLabel`. `prettycalc.ui.mathtext.latex_to_book_html` la convierte a HTML de libro (`Qt.RichText`): subíndices, superíndices, normas, flechas y el resto de la tabla canónica.
+
+Un bloque `\text{...}` es prosa y no detiene el resto de la fórmula. El carrusel (`AlgorithmStepperCarousel.formula_label`), el tooltip de la forma paramétrica, las líneas de Cramer y las sustituciones `y_1`, `b_1` de la factorización LU pasan por ese conversor o por `plain_formula_to_html`.
+
+La especificación, la tabla de comandos y las pruebas que hay que añadir con cada fórmula nueva están en [latex-rendering-spec.md](latex-rendering-spec.md).
+
 ## 3. Principios de Diseño Arquitectónico
 1. **Desacoplamiento Absoluto:** El motor matemático es 100% independiente de Qt/PySide6, testeable vía CLI y pytest.
 2. **Determinismo y Precisión:** Aritmética de fracciones exactas en todo el pipeline de cómputo y comprobación.
@@ -98,4 +106,4 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 3. El validador en tiempo real bloquea caracteres no numéricos coloreando el borde de la celda en `color-feedback-error`.
 4. Al solicitar el cálculo, el motor matemático ejecuta la resolución registrando los pasos en el `StepTracer`.
 5. El `SolutionVerifier` calcula la comprobación por sustitución exacta.
-6. La interfaz actualiza el `AlgorithmStepperCarousel` con los pasos y despliega el `ResultsDashboardCard` con la clasificación y el checklist de validación (✓).
+6. La interfaz actualiza el `AlgorithmStepperCarousel` con los pasos y despliega el `ResultsDashboardCard` con la clasificación y el checklist de validación (✓). Cada `latex_formula` pasa por `latex_to_book_html` antes de llegar al `QLabel`.

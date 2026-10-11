@@ -16,4 +16,6 @@ La planificación, especificaciones de operaciones y entregables de cada iteraci
 
 * [**`Docs/Sprints/Sprint1/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint1/): Solución de Sistemas Lineales por Eliminación por Filas (Completado · Programa 1).
 * [**`Docs/Sprints/Sprint2/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint2/): Operaciones Algebraicas en $\mathbb{R}^n$, Combinación Lineal y Ecuaciones Matriciales (Planificado · Programa 3).
+* [**`Docs/Sprints/Sprint8/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint8/): Norma, TMI, propiedades del determinante y factorización PLU (Completado).
+* [**`Docs/Sprints/Sprint9/`**](file:///home/ro/Projects/PrettyCalc/Docs/Sprints/Sprint9/): Capa de presentación matemática y RichText (Completado).
 * *(Sprints posteriores se irán añadiendo conforme se definan sus requerimientos)*
