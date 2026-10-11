@@ -15,6 +15,7 @@ Este directorio contiene la documentación base y general para el diseño, desar
 | [coding-standards.md](file:///home/ro/Projects/PrettyCalc/Docs/coding-standards.md) | Convenciones de código, estándares de calidad, convenciones de nombrado y buenas prácticas. |
 | [testing-strategy.md](file:///home/ro/Projects/PrettyCalc/Docs/testing-strategy.md) | Estrategia de pruebas unitarias, de integración y casos límite de cálculo numérico. |
 | [roadmap.md](file:///home/ro/Projects/PrettyCalc/Docs/roadmap.md) | Hoja de ruta global e hitos evolutivos del proyecto. |
+| [pull-request-template.md](pull-request-template.md) | Plantilla de descripción para pull requests, con la estructura usada desde el Sprint 1. |
 
 ---
 
