@@ -2,11 +2,15 @@
 UNIVERSIDAD AMERICANA (UAM) - FIA | ÁLGEBRA LINEAL (MTM0120) - GRUPO 4
 MÓDULO 4: Determinantes y Propiedades
 ================================================================================
+
+DEPRECADO: el cálculo vive en ``prettycalc.core.determinants``.
+Este menú de consola solo lee datos, imprime el desglose y delega en el core.
 """
 
 from __future__ import annotations
 
 import sys
+import warnings
 from fractions import Fraction
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -105,65 +109,42 @@ def read_square_matrix(n: int, name: str = "A") -> List[List[Fraction]]:
     return mat
 
 
+def _core_matrix(matrix: List[List[Fraction]]):
+    """Importa el core en el momento de uso para no acoplar el arranque del menú."""
+    from prettycalc.core.types import Matrix
+
+    return Matrix(matrix)
+
+
 def calcular_determinante_triangulacion(
     matrix: List[List[Fraction]],
     verbose: bool = True
 ) -> Tuple[Fraction, List[List[Fraction]]]:
-    """Calcula el determinante de una matriz n×n mediante triangulación gaussiana.
-    
-    Aplica operaciones elementales:
-    - Intercambio de filas: multiplica el determinante acumulado por (-1).
-    - Suma de un múltiplo de una fila a otra: no altera el determinante.
-    Al quedar triangular superior, det(A) = sign_factor * producto(diagonal).
+    """Delegado deprecado de ``prettycalc.core.determinants.determinant_triangulation``.
+
+    Se conserva la firma (determinante, matriz triangular como listas) para el
+    menú de consola y las pruebas históricas. El algoritmo ya no vive aquí.
     """
-    n = len(matrix)
-    mat = [[c for c in row] for row in matrix]
-    sign_factor = 1
-    step = 1
+    warnings.warn(
+        "calcular_determinante_triangulacion está deprecado; "
+        "use prettycalc.core.determinants.determinant_triangulation.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from prettycalc.core.determinants import determinant_triangulation
 
-    for col in range(n):
-        pivot_r = None
-        for r in range(col, n):
-            if mat[r][col] != Fraction(0, 1):
-                pivot_r = r
-                break
-
-        if pivot_r is None:
-            # Columna completa de ceros en o bajo la diagonal: det = 0
-            if verbose:
-                print(f"\n💡 Se encontró una columna de ceros en la posición diagonal {col+1}.")
-                print("   Por propiedad de matrices triangulares, det(A) = 0.")
-            return Fraction(0, 1), mat
-
-        if pivot_r != col:
-            mat[col], mat[pivot_r] = mat[pivot_r], mat[col]
-            sign_factor *= -1
-            if verbose:
-                print_matrix(
-                    mat,
-                    title=f"Paso {step}: Fila {col+1} ↔ Fila {pivot_r+1} (Intercambio → invierte signo del det)"
-                )
-                step += 1
-
-        pivot_val = mat[col][col]
-        for r in range(col + 1, n):
-            if mat[r][col] != Fraction(0, 1):
-                factor = - (mat[r][col] / pivot_val)
-                for c in range(n):
-                    mat[r][c] = mat[r][c] + (factor * mat[col][c])
-
-                if verbose:
-                    desc = f"f_{r+1} → f_{r+1} + ({fmt(factor)})·f_{col+1} (El det no cambia)"
-                    print_matrix(mat, title=f"Paso {step}: {desc}")
-                    step += 1
-
-    # Multiplicar diagonal
-    diag_prod = Fraction(1, 1)
-    for i in range(n):
-        diag_prod *= mat[i][i]
-
-    det = Fraction(sign_factor, 1) * diag_prod
-    return det, mat
+    result = determinant_triangulation(_core_matrix(matrix))
+    triangular = result.triangular_matrix
+    triangular_rows = triangular.to_list() if triangular is not None else [
+        [cell for cell in row] for row in matrix
+    ]
+    if verbose:
+        for step in result.tracer:
+            print_matrix(
+                step.matrix.to_list(),
+                title=f"Paso {step.step_number}: {step.heuristic_text}",
+            )
+    return result.value, triangular_rows
 
 
 def determinante_2x2_interactivo() -> None:
@@ -174,14 +155,14 @@ def determinante_2x2_interactivo() -> None:
     A = read_square_matrix(2, "A")
     print_matrix(A, "Matriz A (2×2)")
 
-    a, b = A[0][0], A[0][1]
-    c, d = A[1][0], A[1][1]
-    det = (a * d) - (b * c)
+    from prettycalc.core.determinants import determinant_2x2
 
+    result = determinant_2x2(_core_matrix(A))
     print("\nCálculo Detallado:")
-    print(f"   det(A) = ({fmt(a)})·({fmt(d)}) - ({fmt(b)})·({fmt(c)})")
-    print(f"   det(A) = {fmt(a*d)} - {fmt(b*c)} = {fmt(det)} (Decimal: {float(det):.4f})")
-    mostrar_diagnostico_singularidad(det)
+    for line in result.step_descriptions:
+        print(f"   {line}")
+    print(f"   (Decimal: {float(result.value):.4f})")
+    mostrar_diagnostico_singularidad(result.value)
 
 
 def determinante_3x3_interactivo() -> None:
@@ -192,25 +173,14 @@ def determinante_3x3_interactivo() -> None:
     A = read_square_matrix(3, "A")
     print_matrix(A, "Matriz A (3×3)")
 
-    # Diagonales principales
-    p1 = A[0][0] * A[1][1] * A[2][2]
-    p2 = A[0][1] * A[1][2] * A[2][0]
-    p3 = A[0][2] * A[1][0] * A[2][1]
-    suma_diag = p1 + p2 + p3
+    from prettycalc.core.determinants import determinant_sarrus_3x3
 
-    # Diagonales secundarias
-    s1 = A[0][2] * A[1][1] * A[2][0]
-    s2 = A[0][0] * A[1][2] * A[2][1]
-    s3 = A[0][1] * A[1][0] * A[2][2]
-    suma_sec = s1 + s2 + s3
-
-    det = suma_diag - suma_sec
-
+    result = determinant_sarrus_3x3(_core_matrix(A))
     print("\nCálculo por Regla de Sarrus:")
-    print(f"   • Diagonales principales (+): {fmt(p1)} + {fmt(p2)} + {fmt(p3)} = {fmt(suma_diag)}")
-    print(f"   • Diagonales secundarias (-): {fmt(s1)} + {fmt(s2)} + {fmt(s3)} = {fmt(suma_sec)}")
-    print(f"   • det(A) = ({fmt(suma_diag)}) - ({fmt(suma_sec)}) = {fmt(det)} (Decimal: {float(det):.4f})")
-    mostrar_diagnostico_singularidad(det)
+    for line in result.step_descriptions:
+        print(f"   {line}")
+    print(f"   (Decimal: {float(result.value):.4f})")
+    mostrar_diagnostico_singularidad(result.value)
 
 
 def determinante_nxn_interactivo() -> None:
@@ -255,6 +225,12 @@ def mostrar_diagnostico_singularidad(det: Fraction) -> None:
 
 def menu_determinantes() -> None:
     """Menú principal del Módulo 4 con Logotipo ASCII."""
+    warnings.warn(
+        "El menú de consola de determinantes está deprecado. "
+        "Use la pestaña Determinantes de PrettyCalc o prettycalc.core.determinants.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     while True:
         print("\n" + "=" * 54)
         print(" | A |   det(A)   MÓDULO: DETERMINANTES Y PROPIEDADES")
