@@ -69,7 +69,10 @@ class ModuleScroll(QScrollArea):
 
     def _sync_natural_height(self) -> None:
         """Fija el mínimo al alto que el contenido pide, para que no se aplaste."""
-        content = self.widget()
+        try:
+            content = self.widget()
+        except RuntimeError:
+            return
         if content is None or self._syncing:
             return
         layout = content.layout()

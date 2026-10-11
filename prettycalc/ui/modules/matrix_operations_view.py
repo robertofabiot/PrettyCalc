@@ -29,6 +29,10 @@ try:
 except ImportError:
     QWidget = object  # type: ignore
 
+from prettycalc.core.theorems import (
+    evaluate_invertible_matrix_theorem,
+    verify_inverse_algebraic_identities,
+)
 from prettycalc.core.matrix_inversion import (
     NonSquareMatrixError,
     SingularMatrixError,
@@ -142,17 +146,27 @@ class MatrixOperationsView(QWidget):
         self.inverse_mode_btn = QPushButton("A⁻¹ (Inversa)")
         self.inverse_mode_btn.setObjectName("modeToggle")
         self.inverse_mode_btn.setCheckable(True)
+        self.tmi_mode_btn = QPushButton("TMI")
+        self.tmi_mode_btn.setObjectName("modeToggle")
+        self.tmi_mode_btn.setCheckable(True)
+        self.identities_mode_btn = QPushButton("Identidades A⁻¹")
+        self.identities_mode_btn.setObjectName("modeToggle")
+        self.identities_mode_btn.setCheckable(True)
         mode_group.addButton(self.binary_mode_btn, 0)
         mode_group.addButton(self.scalar_mode_btn, 1)
         mode_group.addButton(self.transpose_mode_btn, 2)
         mode_group.addButton(self.distrib_mode_btn, 3)
         mode_group.addButton(self.inverse_mode_btn, 4)
+        mode_group.addButton(self.tmi_mode_btn, 5)
+        mode_group.addButton(self.identities_mode_btn, 6)
         mode_group.idClicked.connect(self._on_mode_changed)
         toolbar.addWidget(self.binary_mode_btn)
         toolbar.addWidget(self.scalar_mode_btn)
         toolbar.addWidget(self.transpose_mode_btn)
         toolbar.addWidget(self.distrib_mode_btn)
         toolbar.addWidget(self.inverse_mode_btn)
+        toolbar.addWidget(self.tmi_mode_btn)
+        toolbar.addWidget(self.identities_mode_btn)
         toolbar.addStretch(1)
 
         sample_ok = QPushButton("Ejemplo 2×3 · 3×2")
@@ -189,6 +203,8 @@ class MatrixOperationsView(QWidget):
         self.pages.addWidget(self._build_transpose_page())
         self.pages.addWidget(self._build_distributive_page())
         self.pages.addWidget(self._build_inverse_page())
+        self.pages.addWidget(self._build_tmi_page())
+        self.pages.addWidget(self._build_inverse_identities_page())
         root.addWidget(self.pages, stretch=1)
 
         actions = QHBoxLayout()
@@ -511,6 +527,79 @@ class MatrixOperationsView(QWidget):
         outer.addWidget(self.inverse_stepper)
         return page
 
+    def _build_tmi_page(self) -> QWidget:
+        """Checklist del Teorema de la Matriz Invertible."""
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(10)
+
+        samples = QHBoxLayout()
+        invertible_sample = QPushButton("Ejemplo invertible (S10)")
+        invertible_sample.setObjectName("secondaryAction")
+        invertible_sample.clicked.connect(self.load_tmi_invertible_sample)
+        singular_sample = QPushButton("Ejemplo singular (S10)")
+        singular_sample.setObjectName("secondaryAction")
+        singular_sample.clicked.connect(self.load_tmi_singular_sample)
+        samples.addWidget(invertible_sample)
+        samples.addWidget(singular_sample)
+        samples.addStretch(1)
+        outer.addLayout(samples)
+
+        self.grid_tmi = DynamicMatrixGrid(initial_rows=3, initial_cols=3, augmented=False)
+        self.grid_tmi.matrixChanged.connect(self._on_operands_changed)
+        outer.addWidget(self._wrap_matrix_card("Matriz A", self.grid_tmi))
+
+        self.tmi_checklist = QLabel("Calcula para ver *c, *e, *h y det(A) ≠ 0.")
+        self.tmi_checklist.setObjectName("tmiChecklist")
+        self.tmi_checklist.setWordWrap(True)
+        self.tmi_checklist.setTextFormat(Qt.RichText)
+        self.tmi_checklist.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        outer.addWidget(self.tmi_checklist)
+
+        self.tmi_stepper = AlgorithmStepperCarousel()
+        self.tmi_stepper.setObjectName("tmiStepper")
+        self.tmi_stepper.setMinimumHeight(240)
+        outer.addWidget(self.tmi_stepper)
+        return page
+
+    def _build_inverse_identities_page(self) -> QWidget:
+        """Checklist de (A⁻¹)⁻¹ = A, (AB)⁻¹ = B⁻¹A⁻¹ y (Aᵀ)⁻¹ = (A⁻¹)ᵀ."""
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(10)
+
+        samples = QHBoxLayout()
+        sample = QPushButton("Ejemplo (AB)⁻¹")
+        sample.setObjectName("secondaryAction")
+        sample.clicked.connect(self.load_inverse_identities_sample)
+        samples.addWidget(sample)
+        samples.addStretch(1)
+        outer.addLayout(samples)
+
+        row = QHBoxLayout()
+        self.grid_id_a = DynamicMatrixGrid(initial_rows=3, initial_cols=3, augmented=False)
+        self.grid_id_b = DynamicMatrixGrid(initial_rows=3, initial_cols=3, augmented=False)
+        self.grid_id_a.matrixChanged.connect(self._on_operands_changed)
+        self.grid_id_b.matrixChanged.connect(self._on_operands_changed)
+        row.addWidget(self._wrap_matrix_card("Matriz A", self.grid_id_a), stretch=1)
+        row.addWidget(self._wrap_matrix_card("Matriz B", self.grid_id_b), stretch=1)
+        outer.addLayout(row)
+
+        self.identity_checklist = QLabel("Calcula para contrastar las tres identidades celda a celda.")
+        self.identity_checklist.setObjectName("inverseAlgebraChecklist")
+        self.identity_checklist.setWordWrap(True)
+        self.identity_checklist.setTextFormat(Qt.RichText)
+        self.identity_checklist.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        outer.addWidget(self.identity_checklist)
+
+        self.identity_stepper = AlgorithmStepperCarousel()
+        self.identity_stepper.setObjectName("inverseAlgebraStepper")
+        self.identity_stepper.setMinimumHeight(220)
+        outer.addWidget(self.identity_stepper)
+        return page
+
     def _create_titled_matrix_card(self, title: str, body: QWidget) -> Tuple[QFrame, QLabel]:
         card = QFrame()
         apply_widget_class(card, "elevated-card")
@@ -556,6 +645,12 @@ class MatrixOperationsView(QWidget):
     def _is_inverse_mode(self) -> bool:
         return self.pages.currentIndex() == 4
 
+    def _is_tmi_mode(self) -> bool:
+        return self.pages.currentIndex() == 5
+
+    def _is_identities_mode(self) -> bool:
+        return self.pages.currentIndex() == 6
+
     def _on_dist_prop_changed(self, prop_id: int) -> None:
         self._clear_result()
         self._refresh_compatibility()
@@ -571,6 +666,10 @@ class MatrixOperationsView(QWidget):
             self.header_compute_btn.setToolTip("" if ok else message)
 
     def _compatibility_state(self) -> Tuple[bool, str]:
+        if self._is_tmi_mode():
+            return self._square_grid_compatibility(self.grid_tmi, "el Teorema de la Matriz Invertible")
+        if self._is_identities_mode():
+            return self._identities_compatibility()
         if self._is_inverse_mode():
             return self._inverse_compatibility()
         if self._is_distributive_mode():
@@ -720,7 +819,11 @@ class MatrixOperationsView(QWidget):
             return
 
         try:
-            if self._is_inverse_mode():
+            if self._is_tmi_mode():
+                self._compute_tmi()
+            elif self._is_identities_mode():
+                self._compute_identities()
+            elif self._is_inverse_mode():
                 self._compute_inverse()
             elif self._is_distributive_mode():
                 self._compute_distributive()
@@ -1040,6 +1143,14 @@ class MatrixOperationsView(QWidget):
             self.inverse_check_label.setText(
                 "Calcula para comprobar A · A⁻¹ = Iₙ y ver la reducción de [A | Iₙ]."
             )
+        if hasattr(self, "tmi_checklist"):
+            self.tmi_checklist.setText("Calcula para ver *c, *e, *h y det(A) ≠ 0.")
+        if hasattr(self, "tmi_stepper"):
+            self.tmi_stepper.set_steps([])
+        if hasattr(self, "identity_checklist"):
+            self.identity_checklist.setText("Calcula para contrastar las tres identidades celda a celda.")
+        if hasattr(self, "identity_stepper"):
+            self.identity_stepper.set_steps([])
         self._clear_highlights()
         self.inspector_label.setText(
             "Calcula un producto A · B y pulsa una celda de C para ver la fila de A, "
@@ -1049,6 +1160,129 @@ class MatrixOperationsView(QWidget):
             "Calcula para ver qué tipo de matriz es, qué propiedades cumple "
             "y si se verifican las identidades de la transpuesta."
         )
+
+    def _square_grid_compatibility(self, grid: DynamicMatrixGrid, operation: str) -> Tuple[bool, str]:
+        if not grid.is_all_valid():
+            return False, "✕ Hay celdas no numéricas en A."
+        rows, cols = grid.data_shape()
+        if rows != cols:
+            return (
+                False,
+                f"✕ {operation[0].upper()}{operation[1:]} exige una matriz cuadrada (n×n). "
+                f"A es {rows}×{cols}.",
+            )
+        return True, f"✓ A es {rows}×{rows}. Se puede evaluar {operation}."
+
+    def _identities_compatibility(self) -> Tuple[bool, str]:
+        if not self.grid_id_a.is_all_valid() or not self.grid_id_b.is_all_valid():
+            return False, "✕ Hay celdas no numéricas en A o en B."
+        rows_a, cols_a = self.grid_id_a.data_shape()
+        rows_b, cols_b = self.grid_id_b.data_shape()
+        if rows_a != cols_a or rows_b != cols_b or rows_a != rows_b:
+            return (
+                False,
+                "✕ Las identidades piden dos matrices cuadradas del mismo orden. "
+                f"A es {rows_a}×{cols_a} y B es {rows_b}×{cols_b}.",
+            )
+        return True, f"✓ A y B son {rows_a}×{rows_a}. Se contrastarán las tres identidades."
+
+    def _tmi_to_html(self, checks) -> str:
+        rows = []
+        for item in checks:
+            holds = item.holds
+            color = COLOR_FEEDBACK_SUCCESS if holds else COLOR_FEEDBACK_ERROR
+            mark = "Cumple" if holds else "No cumple"
+            text = html.escape(f"{mark}   {item.code}   {item.statement} {item.evidence}")
+            rows.append(
+                f'<div style="color:{color}; font-size:18px; font-weight:600; margin:4px 0;">'
+                f"{text}</div>"
+            )
+        return "".join(rows)
+
+    def _compute_tmi(self) -> None:
+        matrix = self.grid_tmi.get_matrix()
+        result = evaluate_invertible_matrix_theorem(matrix)
+        self._result = None
+        self._details = []
+        self.tmi_checklist.setText(self._tmi_to_html(result.checks))
+        self.tmi_stepper.set_steps(result.tracer.get_steps())
+        if result.is_invertible:
+            self.badge.setText(
+                f"✓ A es invertible. det(A) = {format_scalar(result.determinant)}. "
+                f"Cumple *c, *e y *h ({result.pivot_count} pivotes)."
+            )
+            self.badge.setStyleSheet(_badge_style(True))
+        else:
+            self.badge.setText(
+                f"✕ A es singular. det(A) = {format_scalar(result.determinant)}. "
+                "Alguna caracterización del TMI no se cumple."
+            )
+            self.badge.setStyleSheet(_badge_style(False))
+        self.inspector_label.setText(
+            "Teorema de la Matriz Invertible. Cada renglón es una caracterización equivalente. "
+            "Las marcadas por la cátedra son *c (pivotes), *e (columnas independientes) y *h (generan ℝⁿ)."
+        )
+
+    def _compute_identities(self) -> None:
+        primary = self.grid_id_a.get_matrix()
+        other = self.grid_id_b.get_matrix()
+        result = verify_inverse_algebraic_identities(primary, other)
+        self._result = None
+        self._details = []
+        self.identity_checklist.setText(_checks_to_html(result.checks))
+        self.identity_stepper.set_steps(result.tracer.get_steps())
+        all_hold = all(check.status == "cumple" for check in result.checks)
+        if all_hold:
+            self.badge.setText("✓ Las tres identidades de la inversa se cumplen celda a celda.")
+            self.badge.setStyleSheet(_badge_style(True))
+        else:
+            self.badge.setText("✕ Alguna identidad de la inversa no se cumple o no aplica.")
+            self.badge.setStyleSheet(_badge_style(False))
+        self.inspector_label.setText(
+            "(A⁻¹)⁻¹ = A, (AB)⁻¹ = B⁻¹ A⁻¹ y (Aᵀ)⁻¹ = (A⁻¹)ᵀ. "
+            "El checklist compara ambos lados celda a celda."
+        )
+
+    def load_tmi_invertible_sample(self) -> None:
+        """Sesión 10, diapositiva 19."""
+        self.tmi_mode_btn.setChecked(True)
+        self.pages.setCurrentIndex(5)
+        self.grid_tmi.set_matrix(Matrix([
+            [1, 0, -2],
+            [3, 1, -2],
+            [-5, -1, 9],
+        ]))
+        self._refresh_compatibility()
+        self.compute()
+
+    def load_tmi_singular_sample(self) -> None:
+        """Sesión 10, diapositiva 20."""
+        self.tmi_mode_btn.setChecked(True)
+        self.pages.setCurrentIndex(5)
+        self.grid_tmi.set_matrix(Matrix([
+            [2, 3, 4],
+            [2, 3, 4],
+            [2, 3, 4],
+        ]))
+        self._refresh_compatibility()
+        self.compute()
+
+    def load_inverse_identities_sample(self) -> None:
+        """Identidades con la matriz invertible de la sesión 10 y una triangular superior."""
+        self.identities_mode_btn.setChecked(True)
+        self.pages.setCurrentIndex(6)
+        self.grid_id_a.set_matrix(Matrix([
+            [1, 0, -2],
+            [3, 1, -2],
+            [-5, -1, 9],
+        ]))
+        self.grid_id_b.set_matrix(Matrix([
+            [1, 1, 0],
+            [0, 1, 1],
+            [0, 0, 1],
+        ]))
+        self._refresh_compatibility()
+        self.compute()
 
     def load_compatible_product_sample(self) -> None:
         self.binary_mode_btn.setChecked(True)
