@@ -171,3 +171,15 @@ def matrix_multiply_with_details(
             result.set(row_index, col_index, detail.total)
             details.append(detail)
     return result, details
+
+
+# Interfaz unificada del álgebra matricial: la inversa vive en matrix_inversion
+# y se reexporta aquí para que suma, producto, transpuesta e inversa compartan módulo.
+from prettycalc.core.matrix_inversion import (  # noqa: E402
+    MatrixInverseResult,
+    NonSquareMatrixError,
+    SingularMatrixError,
+    matrix_inverse,
+    solve_system_via_inverse,
+    solve_via_inverse,
+)
