@@ -19,6 +19,7 @@ MODULE_TABS: Sequence[Tuple[str, str]] = (
     ("⊞", "Álgebra Matricial"),
     ("↗", "Vectores en ℝⁿ"),
     ("🔣", "Ecuaciones Matriciales"),
+    ("det", "Determinantes"),
 )
 
 

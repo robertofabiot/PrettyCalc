@@ -15,14 +15,18 @@ try:
         QSpacerItem,
         QSizePolicy,
         QScrollArea,
+        QButtonGroup,
     )
     from PySide6.QtCore import Qt
 except ImportError:
     QWidget = object  # type: ignore
 
-from prettycalc.core.types import Matrix
-from prettycalc.core.elimination import gauss_jordan_elimination
 from prettycalc.core.classifier import classify_system
+from prettycalc.core.cramer import format_cramer_component, solve_cramer
+from prettycalc.core.elimination import gauss_jordan_elimination
+from prettycalc.core.matrix_inversion import NonSquareMatrixError, SingularMatrixError
+from prettycalc.core.tracer import StepTracer
+from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
@@ -41,6 +45,8 @@ class LinearSystemsView(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("linearSystemsView")
+        self._solver = "gauss"
+        self.last_cramer = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -72,6 +78,30 @@ class LinearSystemsView(QWidget):
 
         self.matrix_grid = DynamicMatrixGrid(initial_rows=2, initial_cols=2)
         card_layout.addWidget(self.matrix_grid, stretch=1)
+
+        method_row = QHBoxLayout()
+        method_row.setSpacing(8)
+        method_label = QLabel("Método")
+        method_label.setStyleSheet(
+            f"font-size: 15px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};"
+        )
+        method_row.addWidget(method_label)
+        self.solver_group = QButtonGroup(self)
+        self.solver_group.setExclusive(True)
+        self.gauss_method_btn = QPushButton("Gauss-Jordan")
+        self.gauss_method_btn.setObjectName("modeToggle")
+        self.gauss_method_btn.setCheckable(True)
+        self.gauss_method_btn.setChecked(True)
+        self.cramer_method_btn = QPushButton("Regla de Cramer")
+        self.cramer_method_btn.setObjectName("modeToggle")
+        self.cramer_method_btn.setCheckable(True)
+        self.solver_group.addButton(self.gauss_method_btn, 0)
+        self.solver_group.addButton(self.cramer_method_btn, 1)
+        self.solver_group.idClicked.connect(self._on_solver_changed)
+        method_row.addWidget(self.gauss_method_btn)
+        method_row.addWidget(self.cramer_method_btn)
+        method_row.addStretch(1)
+        card_layout.addLayout(method_row)
 
         actions = QHBoxLayout()
         actions.setSpacing(10)
@@ -116,6 +146,11 @@ class LinearSystemsView(QWidget):
         btn_case3.setObjectName("secondaryAction")
         btn_case3.clicked.connect(self.load_sample_case3)
         samples_layout.addWidget(btn_case3)
+
+        btn_cramer = QPushButton("IV  ·  Cramer 3×3")
+        btn_cramer.setObjectName("secondaryAction")
+        btn_cramer.clicked.connect(self.load_cramer_sample)
+        samples_layout.addWidget(btn_cramer)
 
         left_layout.addWidget(samples_box)
         left_layout.addStretch(1)
@@ -173,8 +208,11 @@ class LinearSystemsView(QWidget):
         apply_message_box_theme(box)
         box.exec()
 
+    def _on_solver_changed(self, solver_id: int) -> None:
+        self._solver = "cramer" if solver_id == 1 else "gauss"
+
     def solve_system(self) -> None:
-        """Ejecuta escalonamiento, clasificación y verificación."""
+        """Ejecuta el método seleccionado: Gauss-Jordan o la Regla de Cramer."""
         if not self.matrix_grid.is_all_valid():
             self._show_alert(
                 QMessageBox.Warning,
@@ -185,6 +223,9 @@ class LinearSystemsView(QWidget):
 
         try:
             augmented_mat = self.matrix_grid.get_matrix()
+            if self._solver == "cramer":
+                self._solve_with_cramer(augmented_mat)
+                return
             split_col = augmented_mat.cols - 1
 
             _, tracer = gauss_jordan_elimination(augmented_mat, split_col=split_col)
@@ -198,6 +239,7 @@ class LinearSystemsView(QWidget):
                     augmented_mat, analysis.unique_solution, split_col=split_col
                 )
 
+            self.last_cramer = None
             self.dashboard_card.display_results(analysis, verifications)
 
         except Exception as e:
@@ -207,8 +249,61 @@ class LinearSystemsView(QWidget):
                 f"No se pudo resolver el sistema:\n{e}",
             )
 
+    def _solve_with_cramer(self, augmented: Matrix) -> None:
+        """Resuelve un sistema n×n por cocientes de determinantes."""
+        split_col = augmented.cols - 1
+        if augmented.rows != split_col:
+            self.last_cramer = None
+            self.stepper_carousel.set_steps([])
+            self.dashboard_card.display_notice(
+                "Regla de Cramer",
+                "La Regla de Cramer exige un sistema n×n: la matriz de coeficientes "
+                f"A es {augmented.rows}×{split_col}. Hace falta el mismo número de "
+                "ecuaciones y de incógnitas.",
+            )
+            return
+        coefficients, constants_matrix = augmented.split_augmented(split_col)
+        constants = Vector.from_column_matrix(constants_matrix)
+        try:
+            result = solve_cramer(coefficients, constants)
+        except SingularMatrixError as exc:
+            self.last_cramer = None
+            self.stepper_carousel.set_steps([])
+            self.dashboard_card.display_notice("Regla de Cramer", str(exc))
+            return
+        except (NonSquareMatrixError, DimensionMismatchError) as exc:
+            self.last_cramer = None
+            self.stepper_carousel.set_steps([])
+            self.dashboard_card.display_notice("Regla de Cramer", str(exc))
+            return
+
+        tracer = StepTracer()
+        tracer.record_initial(
+            coefficients,
+            description=(
+                f"Matriz de coeficientes A. det(A) = {format_scalar(result.det_A)}. "
+                "Como el determinante no es cero, existe una única solución."
+            ),
+            latex_title=r"\det(A)",
+        )
+        for index, replaced, column_det in result.column_determinants:
+            tracer.record_step(
+                matrix=replaced,
+                latex_formula=rf"\det(A_{{{index + 1}}}(b))",
+                heuristic_text=format_cramer_component(
+                    index, column_det, result.det_A, result.solution[index]
+                ),
+            )
+        self.stepper_carousel.set_steps(tracer.get_steps())
+        verifications = SolutionVerifier.verify(
+            augmented, result.solution, split_col=split_col
+        )
+        self.last_cramer = result
+        self.dashboard_card.display_cramer(result, verifications)
+
     def reset_matrix(self) -> None:
         """Restablece la cuadrícula a un estado 2×2 inicial."""
+        self.last_cramer = None
         self.matrix_grid.set_matrix(Matrix.zeros(2, 3))
         self.stepper_carousel.set_steps([])
         self.dashboard_card.clear()
@@ -240,4 +335,15 @@ class LinearSystemsView(QWidget):
             [2, 4, 9],
         ])
         self.matrix_grid.set_matrix(mat)
+        self.solve_system()
+
+    def load_cramer_sample(self) -> None:
+        """Sesión 11, diapositivas 32 a 36: solución única por Cramer, x = (4, −2, 3)."""
+        self.cramer_method_btn.setChecked(True)
+        self._solver = "cramer"
+        self.matrix_grid.set_matrix(Matrix([
+            [2, 4, 6, 18],
+            [4, 5, 6, 24],
+            [3, 1, -2, 4],
+        ]))
         self.solve_system()

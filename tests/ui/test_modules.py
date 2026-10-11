@@ -6,15 +6,16 @@ from prettycalc.ui.theme import COLOR_FEEDBACK_ERROR, COLOR_FEEDBACK_SUCCESS
 from prettycalc.core.types import Matrix
 
 
-def test_navigation_bar_has_four_modules(qtbot):
+def test_navigation_bar_has_five_modules(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
-    assert len(window.nav_bar.buttons) == 4
-    assert window.module_stack.count() == 4
+    assert len(window.nav_bar.buttons) == 5
+    assert window.module_stack.count() == 5
     assert "Sistemas Lineales" in window.nav_bar.buttons[0].text()
     assert "Álgebra Matricial" in window.nav_bar.buttons[1].text()
     assert "Vectores" in window.nav_bar.buttons[2].text()
     assert "Ecuaciones" in window.nav_bar.buttons[3].text()
+    assert "Determinantes" in window.nav_bar.buttons[4].text()
 
 
 def test_set_module_switches_stacked_widget_and_subtitle(qtbot):
@@ -34,6 +35,11 @@ def test_set_module_switches_stacked_widget_and_subtitle(qtbot):
     window.set_module(3)
     assert window.module_stack.currentIndex() == 3
     assert "Ecuaciones" in window.subtitle_lbl.text()
+
+    window.set_module(4)
+    assert window.module_stack.currentIndex() == 4
+    assert window.module_stack.currentWidget() is window.determinants_view
+    assert "Determinantes" in window.subtitle_lbl.text()
 
     window.set_module(0)
     assert window.module_stack.currentWidget() is window.linear_systems_view
@@ -55,6 +61,9 @@ def test_keyboard_shortcuts_ctrl_1_to_4(qtbot):
     shortcuts = {action.shortcut().toString(): action for action in window.actions()}
     assert "Ctrl+1" in shortcuts
     assert "Ctrl+4" in shortcuts
+    assert "Ctrl+5" in shortcuts
+    shortcuts["Ctrl+5"].trigger()
+    assert window.module_stack.currentIndex() == 4
     shortcuts["Ctrl+3"].trigger()
     assert window.module_stack.currentIndex() == 2
     shortcuts["Ctrl+1"].trigger()

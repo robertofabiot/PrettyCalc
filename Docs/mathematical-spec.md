@@ -79,3 +79,30 @@ Para \(A\) de orden \(n \times n\):
 5. Si \(A\) no es cuadrada, la inversa no está definida.
 
 Con \(A\) invertible, el sistema \(Ax = b\) también puede resolverse como \(x = A^{-1} b\).
+
+---
+
+## 6. Determinantes, adjunta y Regla de Cramer
+
+El determinante de una matriz cuadrada se calcula en aritmética exacta, sin escalar los pivotes cuando el método es la triangulación:
+
+1. **2×2:** \(\det(A) = ad - bc\).
+2. **Sarrus (3×3):** suma de las diagonales principales menos las secundarias.
+3. **Triangulación:** intercambiar filas multiplica por \(-1\); sumar un múltiplo de una fila a otra no cambia el determinante. Al quedar triangular, \(\det(A) = (-1)^k \prod u_{ii}\). Si falta un pivote, \(\det(A) = 0\).
+4. **Laplace:** \(\det(A) = \sum a_{ij} C_{ij}\) por cualquier fila o columna, con \(C_{ij} = (-1)^{i+j} M_{ij}\). Cada menor se evalúa por triangulación. El menor de una matriz \(1\times 1\) vale 1 por convención.
+
+La matriz de cofactores \(C\) y la adjunta \(\operatorname{adj}(A) = C^T\) están definidas aunque \(A\) sea singular. La inversa analítica
+
+\[
+A^{-1} = \frac{1}{\det(A)}\operatorname{adj}(A)
+\]
+
+solo se construye cuando \(\det(A) \neq 0\).
+
+La Regla de Cramer resuelve \(Ax = b\) cuando \(A\) es \(n\times n\) y \(\det(A) \neq 0\):
+
+\[
+x_i = \frac{\det(A_i(b))}{\det(A)}
+\]
+
+\(A_i(b)\) es \(A\) con la columna \(i\) sustituida por \(b\). Si \(\det(A) = 0\), Cramer no aplica y el sistema se clasifica con Gauss-Jordan.

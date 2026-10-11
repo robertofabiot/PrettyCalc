@@ -77,6 +77,8 @@ QT_QPA_PLATFORM=offscreen pytest
 5. En **Procedimiento**, avanza con Anterior / Siguiente. **Fracciones** es un interruptor entre vista racional y decimal.
 6. **Resultados** clasifica el sistema (solución única, infinitas soluciones o inconsistente) y, si hay solución única, muestra la comprobación por sustitución. Si el sistema es indeterminado, el panel escribe la forma vectorial paramétrica $x = p + t_1 v_1 + \dots$ con el vector particular y una base del núcleo.
 7. En **Álgebra Matricial**, el modo **A⁻¹ (Inversa)** reduce $[A \mid I_n]$ por Gauss-Jordan, muestra $A^{-1}$ y comprueba $A \cdot A^{-1} = I_n$. Si $A$ no es cuadrada, el cálculo queda deshabilitado. Si $A$ es singular, el panel explica que no existe inversa.
+8. En **Determinantes**, el orden n va de 1 a 8. Se puede calcular por triangulación, por Sarrus (solo 3×3), por cofactores de Laplace o pedir la matriz de cofactores, la adjunta y la inversa \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).
+9. En **Sistemas Lineales**, el selector de método incluye la **Regla de Cramer** para sistemas n×n con determinante distinto de cero. El panel muestra det(A), cada matriz columna reemplazada y \(x_i = \det(A_i(b)) / \det(A)\).
 
 Hay tres casos de prueba en la columna izquierda: solución única, infinitas soluciones y sin solución.
 
@@ -134,6 +136,27 @@ analisis = classify_system(Matrix([
 ]))
 print(analisis.parametric_vector_solution.to_plain_equation())
 # x = [0, 0, 0] + x3*[4/3, 0, 1]
+```
+
+El determinante, la adjunta y Cramer están en `prettycalc.core.determinants`, `adjugate` y `cramer`:
+
+```python
+from prettycalc.core import (
+    Matrix,
+    Vector,
+    DeterminantMethod,
+    matrix_determinant,
+    calculate_adjugate_and_inverse,
+    solve_cramer,
+)
+
+A = Matrix([[1, 3, -3], [2, 0, 1], [-1, 4, -2]])
+assert matrix_determinant(A, DeterminantMethod.SARRUS_3X3).value == -19
+adjunta = calculate_adjugate_and_inverse(A)
+assert adjunta.det_A == -19
+
+solucion = solve_cramer(Matrix([[3, -2], [2, 5]]), Vector([7, 11]))
+assert solucion.solution == [3, 1]
 ```
 
 ## Licencia
