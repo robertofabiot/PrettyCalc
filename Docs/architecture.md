@@ -29,7 +29,7 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 │                Motor Matemático Puro (Core Engine)                     │
 │        (100% Python Estándar - Cero dependencias externas)             │
 │  - Tipos: Matrix, Vector, Scalar (Fraction / Float)                    │
-│  - Algoritmos: Gauss, Gauss-Jordan, Inversa, RREF                      │
+│  - Algoritmos: Gauss, Gauss-Jordan, Inversa, Determinantes, Cramer    │
 │  - StepTracer: Registro de pasos (matriz, pivote, operación elemental) │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -65,6 +65,11 @@ PrettyCalc sigue una arquitectura por capas desacopladas (**Layered Architecture
 * **`AlgorithmStepperCarousel`:** Visor de navegación paso a paso con botones `[ ◀ Anterior ]` (deshabilitable con `color-interactive-disabled`) y `[ Siguiente ▶ ]`, resaltando la celda del pivote activo.
 * **`ResultsDashboardCard`:** Panel montado sobre `color-surface-elevated` con badges semánticos, distinción de variables libres (🔑), checklist de comprobación en `color-feedback-success` (✓) y, en sistemas indeterminados, la forma vectorial paramétrica en vectores columna.
 * **Modo $A^{-1}$ en `MatrixOperationsView`:** Quinto modo del álgebra matricial. Muestra $A^{-1}$, el checklist $A \cdot A^{-1} = I_n$ y el carrusel de $[A \mid I_n]$. Deshabilita el cálculo si $A$ no es cuadrada y pinta un badge de error si $A$ es singular.
+* **Determinantes (`determinants.py`, `adjugate.py`, `cramer.py`):**
+  * `matrix_determinant` evalúa det(A) por fórmula 2×2, Sarrus, triangulación o Laplace, con `StepTracer`.
+  * `calculate_adjugate_and_inverse` construye menores, cofactores, adjunta y, si det(A) ≠ 0, \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).
+  * `solve_cramer` resuelve sistemas n×n por cociente de determinantes. Si det(A) = 0 lanza `SingularMatrixError`.
+* **Pestaña Determinantes y Cramer en la UI:** `DeterminantsView` es el quinto módulo de la barra (atajo Ctrl+5). El orden n va de 1 a 8. En sistemas lineales, el selector Gauss-Jordan / Regla de Cramer muestra det(A), cada \(A_i(b)\) y las fracciones \(x_i\).
 
 ## 3. Principios de Diseño Arquitectónico
 1. **Desacoplamiento Absoluto:** El motor matemático es 100% independiente de Qt/PySide6, testeable vía CLI y pytest.
