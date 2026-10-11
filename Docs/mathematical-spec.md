@@ -106,3 +106,22 @@ x_i = \frac{\det(A_i(b))}{\det(A)}
 \]
 
 \(A_i(b)\) es \(A\) con la columna \(i\) sustituida por \(b\). Si \(\det(A) = 0\), Cramer no aplica y el sistema se clasifica con Gauss-Jordan.
+
+---
+
+## 7. Factorización LU y resolución en dos etapas
+
+Para \(A\) de tamaño \(m \times n\):
+
+1. \(L\) es \(m \times m\), triangular inferior unitaria: unos en la diagonal y, debajo, los multiplicadores de la eliminación.
+2. \(U\) es \(m \times n\) y es la forma escalonada de \(A\). Solo se usan reemplazos \(f_i \to f_i + k f_j\) con \(i > j\). No hay intercambios de fila.
+3. El multiplicador de la fila \(i\) bajo el pivote \(p\) es \(\ell = a_{ij}/p\). Se guarda en \(L\) y se anula en \(U\).
+4. Si una columna es cero desde la fila actual hacia abajo, no tiene pivote y se pasa a la siguiente. Así se factoriza el ejemplo \(4 \times 5\) de la sesión, cuya tercera columna queda sin pivote.
+5. Si el candidato a pivote es 0 y debajo hay una entrada distinta de cero, no existe \(A = LU\). Hace falta una permutación \(PLU\), que esta sesión no construye.
+
+Cuando \(A\) es cuadrada y la diagonal de \(U\) no tiene ceros, \(Ax = b\) se resuelve en dos etapas, reutilizando los mismos factores para cada vector de carga:
+
+1. Sustitución hacia adelante: \(Ly = b\).
+2. Sustitución hacia atrás: \(Ux = y\).
+
+La comprobación exige \(LU = A\), \(Ly = b\), \(Ux = y\) y \(Ax = b\) en aritmética exacta. Si \(U\) tiene un cero en la diagonal, la factorización puede existir igual y el sistema no tiene solución única.

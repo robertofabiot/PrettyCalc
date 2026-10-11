@@ -79,6 +79,7 @@ QT_QPA_PLATFORM=offscreen pytest
 7. En **Álgebra Matricial**, el modo **A⁻¹ (Inversa)** reduce $[A \mid I_n]$ por Gauss-Jordan, muestra $A^{-1}$ y comprueba $A \cdot A^{-1} = I_n$. Si $A$ no es cuadrada, el cálculo queda deshabilitado. Si $A$ es singular, el panel explica que no existe inversa.
 8. En **Determinantes**, el orden n va de 1 a 8. Se puede calcular por triangulación, por Sarrus (solo 3×3), por cofactores de Laplace o pedir la matriz de cofactores, la adjunta y la inversa \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).
 9. En **Sistemas Lineales**, el selector de método incluye la **Regla de Cramer** para sistemas n×n con determinante distinto de cero. El panel muestra det(A), cada matriz columna reemplazada y \(x_i = \det(A_i(b)) / \det(A)\).
+10. En **Factorización LU**, **Descomponer A = LU** muestra \(L\) y \(U\) y comprueba \(L \cdot U = A\). Con \(A\) cuadrada, **Resolver** hace la sustitución hacia adelante \(Ly = b\) y hacia atrás \(Ux = y\). Si cambia \(b\), se reutilizan los mismos factores. Un pivote nulo que exigiría intercambiar filas se explica como caso PLU, fuera de esta sesión.
 
 Hay tres casos de prueba en la columna izquierda: solución única, infinitas soluciones y sin solución.
 
@@ -157,6 +158,20 @@ assert adjunta.det_A == -19
 
 solucion = solve_cramer(Matrix([[3, -2], [2, 5]]), Vector([7, 11]))
 assert solucion.solution == [3, 1]
+```
+
+La factorización LU y las dos sustituciones están en `prettycalc.core.lu_decomposition`:
+
+```python
+from prettycalc.core import Matrix, Vector, lu_decompose, solve_many_via_lu
+
+A = Matrix([[3, -7, -2], [-3, 5, 1], [6, -4, 0]])
+factores = lu_decompose(A)
+assert factores.is_valid
+
+primero, segundo = solve_many_via_lu(A, [Vector([-7, 5, 2]), Vector([0, 0, 0])])
+assert primero.factorization is segundo.factorization
+assert primero.x_solution == Vector([3, 4, -6])
 ```
 
 ## Licencia

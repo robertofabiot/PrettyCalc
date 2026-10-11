@@ -6,6 +6,7 @@ from prettycalc.ui.modules.vectors_view import VectorsView
 from prettycalc.ui.modules.matrix_equations_view import MatrixEquationsView
 from prettycalc.ui.modules.matrix_vector_properties_view import MatrixVectorPropertiesView
 from prettycalc.ui.modules.determinants_view import DeterminantsView
+from prettycalc.ui.modules.lu_factorization_view import LUFactorizationView
 
 __all__ = [
     "LinearSystemsView",
@@ -14,5 +15,6 @@ __all__ = [
     "MatrixEquationsView",
     "MatrixVectorPropertiesView",
     "DeterminantsView",
+    "LUFactorizationView",
 ]
 
