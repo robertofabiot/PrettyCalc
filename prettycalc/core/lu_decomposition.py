@@ -10,6 +10,9 @@ no nula, no existe A = LU y hace falta PLU: se lanza LUPivotZeroError.
 
 L tiene tantas filas como A. Si A es m×n, L es m×m y U es m×n. Así entra el
 ejemplo 4×5 de la sesión, donde una columna queda sin pivote.
+
+`plu_decompose` sí permuta filas cuando el pivote es cero y construye P tal
+que P A = L U. `lu_decompose` se mantiene sin intercambios.
 """
 
 from __future__ import annotations
@@ -25,7 +28,9 @@ from prettycalc.core.operations import (
     add_row_multiple,
     get_add_multiple_metadata,
     get_scale_metadata,
+    get_swap_metadata,
     scale_row,
+    swap_rows,
 )
 from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
@@ -211,6 +216,9 @@ def lu_decompose(A: Matrix) -> LUFactorizationResult:
 def _forward_substitution(
     L: Matrix,
     b: Vector,
+    *,
+    description: str = "Etapa 1. Sustitución hacia adelante: se resuelve el sistema triangular L y = b.",
+    latex_title: str = r"\text{Etapa 1: } Ly = b",
 ) -> Tuple[Vector, List[str], StepTracer]:
     """Resuelve Ly = b y registra la reducción de [L | b] hasta [I | y]."""
     order = _require_lower_triangular(L)
@@ -219,8 +227,8 @@ def _forward_substitution(
     tracer = StepTracer(split_col=order)
     tracer.record_initial(
         work,
-        description="Etapa 1. Sustitución hacia adelante: se resuelve el sistema triangular L y = b.",
-        latex_title=r"\text{Etapa 1: } Ly = b",
+        description=description,
+        latex_title=latex_title,
     )
     steps: List[str] = []
     solved: List[Fraction] = []
@@ -423,6 +431,205 @@ def solve_from_factorization(
         forward_tracer=forward_tracer,
         backward_tracer=backward_tracer,
     )
+
+
+@dataclass(frozen=True)
+class PLUFactorizationResult:
+    """Factores de P A = L U, con el conteo de intercambios de fila."""
+
+    P: Matrix
+    L: Matrix
+    U: Matrix
+    original: Matrix
+    is_valid: bool
+    permutation_count: int
+    tracer: StepTracer
+    multipliers_table: List[Tuple[int, int, Fraction]]
+
+
+@dataclass(frozen=True)
+class PLUSystemSolutionResult:
+    """Solución de A x = b por L y = P b y U x = y."""
+
+    factorization: PLUFactorizationResult
+    b: Vector
+    permuted_b: Vector
+    y_intermediate: Vector
+    x_solution: Vector
+    forward_steps: List[str]
+    backward_steps: List[str]
+    verification_passed: bool
+    forward_tracer: StepTracer
+    backward_tracer: StepTracer
+
+
+def _swap_recorded_multipliers(lower: Matrix, first: int, second: int, pivot_row: int) -> None:
+    """Intercambia en L solo los multiplicadores de columnas anteriores al pivote actual."""
+    for column in range(pivot_row):
+        first_value = lower.get(first, column)
+        second_value = lower.get(second, column)
+        lower.set(first, column, second_value)
+        lower.set(second, column, first_value)
+
+
+def plu_decompose(A: Matrix) -> PLUFactorizationResult:
+    """Factoriza A en P, L y U con pivoteo de filas: P A = L U.
+
+    P empieza como I. Si el candidato a pivote es 0 y hay una entrada no nula
+    debajo, se intercambia con la primera de esas filas. Si no hace falta
+    permutar, P = I y los factores coinciden con A = L U.
+
+    Una columna de ceros desde la fila actual no tiene pivote: se sigue con la
+    siguiente, igual que en la factorización sin permutación.
+    """
+    row_count = A.rows
+    col_count = A.cols
+    upper = A.copy()
+    lower = Matrix.identity(row_count)
+    permutation = Matrix.identity(row_count)
+    multipliers: List[Tuple[int, int, Fraction]] = []
+    permutation_count = 0
+    tracer = StepTracer(split_col=row_count)
+    tracer.record_initial(
+        lower.augment(upper),
+        description=(
+            "P comienza como la identidad, L como la identidad y U como una copia de A. "
+            "Solo se intercambian filas cuando el pivote es cero y debajo hay una entrada no nula."
+        ),
+        latex_title=r"\text{Inicio: } P = I,\ L = I,\ U = A",
+    )
+
+    pivot_row = 0
+    for col in range(col_count):
+        if pivot_row >= row_count:
+            break
+        pivot = upper.get(pivot_row, col)
+        if pivot == 0:
+            swap_with = None
+            for row in range(pivot_row + 1, row_count):
+                if upper.get(row, col) != 0:
+                    swap_with = row
+                    break
+            if swap_with is None:
+                tracer.record_step(
+                    lower.augment(upper),
+                    latex_formula=rf"\text{{La columna {col + 1} no tiene pivote}}",
+                    heuristic_text=(
+                        f"La columna {col + 1} no tiene pivote: es cero desde la fila {pivot_row + 1} "
+                        "hacia abajo. No hace falta intercambiar filas; se sigue con la columna siguiente."
+                    ),
+                )
+                continue
+            upper = swap_rows(upper, pivot_row, swap_with)
+            permutation = swap_rows(permutation, pivot_row, swap_with)
+            _swap_recorded_multipliers(lower, pivot_row, swap_with, pivot_row)
+            permutation_count += 1
+            latex, row_text = get_swap_metadata(pivot_row, swap_with)
+            tracer.record_step(
+                lower.augment(upper),
+                latex_formula=latex,
+                heuristic_text=(
+                    f"{row_text} El pivote de la columna {col + 1} era 0. "
+                    "Se aplica el mismo intercambio a P y a los multiplicadores ya guardados en L."
+                ),
+                pivot_pos=(pivot_row, col),
+                affected_rows=(pivot_row, swap_with),
+            )
+            pivot = upper.get(pivot_row, col)
+
+        for row in range(pivot_row + 1, row_count):
+            entry = upper.get(row, col)
+            if entry == 0:
+                continue
+            multiplier = entry / pivot
+            lower.set(row, pivot_row, multiplier)
+            multipliers.append((row, pivot_row, multiplier))
+            coefficient = -multiplier
+            upper = add_row_multiple(upper, row, pivot_row, coefficient)
+            latex, row_text = get_add_multiple_metadata(row, pivot_row, coefficient)
+            tracer.record_step(
+                lower.augment(upper),
+                latex_formula=latex,
+                heuristic_text=(
+                    f"Multiplicador ℓ_{row + 1},{pivot_row + 1} = "
+                    f"{_show(entry)}/{_show(pivot)} = {_show(multiplier)}. "
+                    f"Se guarda en la columna {pivot_row + 1} de L. {row_text}"
+                ),
+                pivot_pos=(row, pivot_row),
+                actor_row=pivot_row,
+                affected_rows=(row,),
+            )
+        pivot_row += 1
+
+    product = matrix_multiply(lower, upper)
+    permuted = matrix_multiply(permutation, A)
+    return PLUFactorizationResult(
+        P=permutation.copy(),
+        L=lower.copy(),
+        U=upper.copy(),
+        original=A.copy(),
+        is_valid=product == permuted,
+        permutation_count=permutation_count,
+        tracer=tracer,
+        multipliers_table=multipliers,
+    )
+
+
+def solve_from_plu_factorization(
+    plu: PLUFactorizationResult,
+    b: Vector,
+) -> PLUSystemSolutionResult:
+    """Resuelve A x = b con P A = L U: primero L y = P b y después U x = y.
+
+    Raises:
+        NonSquareMatrixError: Si A no es cuadrada.
+        DimensionMismatchError: Si dim(b) no es el orden de A.
+        LUSingularError: Si algún pivote diagonal de U es cero.
+    """
+    original = plu.original
+    if original.rows != original.cols:
+        raise NonSquareMatrixError(
+            "La resolución en dos etapas L y = P b, U x = y está definida para A cuadrada. "
+            f"A es {original.rows}×{original.cols}."
+        )
+    _require_vector_length(original.rows, b, "resolver A x = b con los factores P, L y U")
+    permuted_b = matrix_vector_multiply(plu.P, b)
+    y_vector, forward_steps, forward_tracer = _forward_substitution(
+        plu.L,
+        permuted_b,
+        description=(
+            "Etapa 1. Sustitución hacia adelante: se resuelve L y = P b, "
+            "con el vector de carga ya permutado."
+        ),
+        latex_title=r"\text{Etapa 1: } Ly = Pb",
+    )
+    x_vector, backward_steps, backward_tracer = _backward_substitution(plu.U, y_vector)
+    factors_match = matrix_multiply(plu.P, original) == matrix_multiply(plu.L, plu.U)
+    ax_matches = matrix_vector_multiply(original, x_vector) == b
+    ly_matches = matrix_vector_multiply(plu.L, y_vector) == permuted_b
+    ux_matches = matrix_vector_multiply(plu.U, x_vector) == y_vector
+    return PLUSystemSolutionResult(
+        factorization=plu,
+        b=b.copy(),
+        permuted_b=permuted_b,
+        y_intermediate=y_vector,
+        x_solution=x_vector,
+        forward_steps=forward_steps,
+        backward_steps=backward_steps,
+        verification_passed=factors_match and ax_matches and ly_matches and ux_matches,
+        forward_tracer=forward_tracer,
+        backward_tracer=backward_tracer,
+    )
+
+
+def solve_via_plu(A: Matrix, b: Vector) -> PLUSystemSolutionResult:
+    """Factoriza P A = L U y resuelve A x = b en las dos etapas L y = P b, U x = y."""
+    if A.rows != A.cols:
+        raise NonSquareMatrixError(
+            "La resolución en dos etapas L y = P b, U x = y está definida para A cuadrada. "
+            f"A es {A.rows}×{A.cols}."
+        )
+    return solve_from_plu_factorization(plu_decompose(A), b)
 
 
 def solve_via_lu(A: Matrix, b: Vector) -> LUSystemSolutionResult:
