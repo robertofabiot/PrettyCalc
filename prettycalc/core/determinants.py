@@ -9,9 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from prettycalc.core.matrix_inversion import NonSquareMatrixError
+from prettycalc.core.matrix_inversion import NonSquareMatrixError, SingularMatrixError
+from prettycalc.core.matrix_ops import matrix_multiply, matrix_scale, matrix_transpose
 from prettycalc.core.operations import (
     add_row_multiple,
     get_add_multiple_metadata,
@@ -19,7 +20,7 @@ from prettycalc.core.operations import (
     swap_rows,
 )
 from prettycalc.core.tracer import StepTracer
-from prettycalc.core.types import Matrix, format_scalar
+from prettycalc.core.types import Matrix, format_scalar, parse_scalar
 
 
 class DeterminantMethod(Enum):
@@ -494,3 +495,257 @@ def matrix_determinant(
     if method is DeterminantMethod.LAPLACE_COL:
         return determinant_laplace_expansion(A, along="col", index=expansion_index)
     raise ValueError(f"Método de determinante no reconocido: {method!r}.")
+
+
+@dataclass(frozen=True)
+class DeterminantPropertiesResult:
+    """Contraste de det(AB), det(Aᵀ), det(A⁻¹) y det(kA)."""
+
+    A: Matrix
+    B: Optional[Matrix]
+    k: Optional[Fraction]
+    det_A: Fraction
+    det_B: Optional[Fraction]
+    det_AB: Optional[Fraction]
+    det_transpose: Fraction
+    det_scaled: Optional[Fraction]
+    is_multiplicative_valid: Optional[bool]
+    is_transpose_valid: bool
+    is_scaling_valid: Optional[bool]
+    tracer: StepTracer
+    det_inverse: Optional[Fraction] = None
+    inverse_reciprocal: Optional[Fraction] = None
+    is_inverse_valid: Optional[bool] = None
+
+
+def _same_square_order(A: Matrix, B: Matrix, operation: str) -> int:
+    order = require_square_matrix(A, operation)
+    require_square_matrix(B, operation)
+    if A.shape != B.shape:
+        from prettycalc.core.types import DimensionMismatchError
+
+        raise DimensionMismatchError(
+            f"No se puede {operation}: A es {A.rows}×{A.cols} y B es {B.rows}×{B.cols}. "
+            "Las dos matrices deben ser cuadradas del mismo orden.",
+            left_shape=A.shape,
+            right_shape=B.shape,
+            operation=operation,
+        )
+    return order
+
+
+def verify_determinant_multiplicative(
+    A: Matrix,
+    B: Matrix,
+) -> Tuple[Fraction, Fraction, Fraction, bool, StepTracer]:
+    """Verifica det(AB) = det(A) · det(B) con StepTracer."""
+    _same_square_order(A, B, "comprobar det(AB) = det(A) det(B)")
+    det_a = matrix_determinant(A).value
+    det_b = matrix_determinant(B).value
+    product = matrix_multiply(A, B)
+    det_ab = matrix_determinant(product).value
+    expected = det_a * det_b
+    holds = det_ab == expected
+    tracer = StepTracer()
+    tracer.record_initial(
+        A,
+        description=f"det(A) = {format_scalar(det_a)}.",
+        latex_title=r"\det(A)",
+    )
+    tracer.record_step(
+        B,
+        latex_formula=r"\det(B)",
+        heuristic_text=f"det(B) = {format_scalar(det_b)}.",
+    )
+    tracer.record_step(
+        product,
+        latex_formula=r"\det(AB) = \det(A)\det(B)",
+        heuristic_text=(
+            f"det(AB) = {format_scalar(det_ab)} y det(A)·det(B) = {format_scalar(expected)}. "
+            + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
+        ),
+    )
+    return det_a, det_b, det_ab, holds, tracer
+
+
+def verify_determinant_transpose(A: Matrix) -> Tuple[Fraction, Fraction, bool, StepTracer]:
+    """Verifica det(Aᵀ) = det(A)."""
+    require_square_matrix(A, "comprobar det(Aᵀ) = det(A)")
+    det_a = matrix_determinant(A).value
+    transposed = matrix_transpose(A)
+    det_transpose = matrix_determinant(transposed).value
+    holds = det_transpose == det_a
+    tracer = StepTracer()
+    tracer.record_initial(
+        A,
+        description=f"det(A) = {format_scalar(det_a)}.",
+        latex_title=r"\det(A)",
+    )
+    tracer.record_step(
+        transposed,
+        latex_formula=r"\det(A^{T}) = \det(A)",
+        heuristic_text=(
+            f"det(Aᵀ) = {format_scalar(det_transpose)}. "
+            + ("Coincide con det(A)." if holds else "No coincide con det(A).")
+        ),
+    )
+    return det_a, det_transpose, holds, tracer
+
+
+def verify_determinant_inverse(A: Matrix) -> Tuple[Fraction, Fraction, bool, StepTracer]:
+    """Verifica det(A⁻¹) = 1/det(A) cuando A es no singular.
+
+    Raises:
+        SingularMatrixError: Si det(A) = 0.
+        NonSquareMatrixError: Si A no es cuadrada.
+    """
+    require_square_matrix(A, "comprobar det(A⁻¹) = 1/det(A)")
+    det_a = matrix_determinant(A).value
+    if det_a == 0:
+        raise SingularMatrixError(
+            "No se puede comprobar det(A⁻¹) = 1/det(A): det(A) = 0 y A no es invertible."
+        )
+    from prettycalc.core.matrix_inversion import matrix_inverse
+
+    inverse = matrix_inverse(A).inverse
+    det_inverse = matrix_determinant(inverse).value
+    reciprocal = Fraction(1, 1) / det_a
+    holds = det_inverse == reciprocal
+    tracer = StepTracer()
+    tracer.record_initial(
+        A,
+        description=f"det(A) = {format_scalar(det_a)} ≠ 0, así que existe A⁻¹.",
+        latex_title=r"\det(A^{-1}) = 1/\det(A)",
+    )
+    tracer.record_step(
+        inverse,
+        latex_formula=r"\det(A^{-1}) = \frac{1}{\det(A)}",
+        heuristic_text=(
+            f"det(A⁻¹) = {format_scalar(det_inverse)} y 1/det(A) = {format_scalar(reciprocal)}. "
+            + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
+        ),
+    )
+    return det_a, det_inverse, holds, tracer
+
+
+def verify_determinant_scalar_scaling(
+    A: Matrix,
+    k: Fraction,
+) -> Tuple[Fraction, Fraction, bool, StepTracer]:
+    """Verifica det(kA) = kⁿ det(A). Devuelve (det(kA), kⁿ det(A), ¿iguales?, traza)."""
+    order = require_square_matrix(A, "comprobar det(kA) = kⁿ det(A)")
+    scalar = parse_scalar(k)
+    det_a = matrix_determinant(A).value
+    scaled = matrix_scale(A, scalar)
+    det_scaled = matrix_determinant(scaled).value
+    expected = (scalar ** order) * det_a
+    holds = det_scaled == expected
+    tracer = StepTracer()
+    tracer.record_initial(
+        A,
+        description=f"det(A) = {format_scalar(det_a)} y el orden es n = {order}.",
+        latex_title=r"\det(kA) = k^{n}\det(A)",
+    )
+    tracer.record_step(
+        scaled,
+        latex_formula=rf"\det\left({format_scalar(scalar, mode='latex')} A\right) = {format_scalar(scalar, mode='latex')}^{{{order}}}\det(A)",
+        heuristic_text=(
+            f"det(kA) = {format_scalar(det_scaled)} y kⁿ det(A) = {format_scalar(expected)}. "
+            + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
+        ),
+    )
+    return det_scaled, expected, holds, tracer
+
+
+def verify_determinant_properties(
+    A: Matrix,
+    B: Optional[Matrix] = None,
+    k: Optional[Fraction] = None,
+) -> DeterminantPropertiesResult:
+    """Contrasta las propiedades multiplicativas, de transpuesta, inversa y escala."""
+    det_a, det_transpose, transpose_ok, transpose_tracer = verify_determinant_transpose(A)
+    tracer = StepTracer()
+    tracer.record_initial(
+        A,
+        description="Comprobación de las propiedades del determinante.",
+        latex_title=r"\det",
+    )
+    for step in transpose_tracer.get_steps():
+        if step.step_number == 0:
+            continue
+        tracer.record_step(
+            step.matrix,
+            latex_formula=step.latex_formula,
+            heuristic_text=step.heuristic_text,
+            pivot_pos=step.pivot_pos,
+        )
+
+    det_b: Optional[Fraction] = None
+    det_ab: Optional[Fraction] = None
+    multiplicative_ok: Optional[bool] = None
+    if B is not None:
+        det_a, det_b, det_ab, multiplicative_ok, product_tracer = verify_determinant_multiplicative(A, B)
+        for step in product_tracer.get_steps():
+            tracer.record_step(
+                step.matrix,
+                latex_formula=step.latex_formula,
+                heuristic_text=step.heuristic_text,
+                pivot_pos=step.pivot_pos,
+            )
+
+    det_inverse: Optional[Fraction] = None
+    reciprocal: Optional[Fraction] = None
+    inverse_ok: Optional[bool] = None
+    try:
+        _, det_inverse, inverse_ok, inverse_tracer = verify_determinant_inverse(A)
+    except SingularMatrixError as exc:
+        tracer.record_step(
+            A,
+            latex_formula=r"\det(A) = 0",
+            heuristic_text=str(exc),
+        )
+    else:
+        reciprocal = Fraction(1, 1) / det_a
+        for step in inverse_tracer.get_steps():
+            if step.step_number == 0:
+                continue
+            tracer.record_step(
+                step.matrix,
+                latex_formula=step.latex_formula,
+                heuristic_text=step.heuristic_text,
+                pivot_pos=step.pivot_pos,
+            )
+
+    det_scaled: Optional[Fraction] = None
+    scaling_ok: Optional[bool] = None
+    scalar: Optional[Fraction] = None
+    if k is not None:
+        scalar = parse_scalar(k)
+        det_scaled, _expected, scaling_ok, scale_tracer = verify_determinant_scalar_scaling(A, scalar)
+        for step in scale_tracer.get_steps():
+            if step.step_number == 0:
+                continue
+            tracer.record_step(
+                step.matrix,
+                latex_formula=step.latex_formula,
+                heuristic_text=step.heuristic_text,
+                pivot_pos=step.pivot_pos,
+            )
+
+    return DeterminantPropertiesResult(
+        A=A.copy(),
+        B=None if B is None else B.copy(),
+        k=scalar,
+        det_A=det_a,
+        det_B=det_b,
+        det_AB=det_ab,
+        det_transpose=det_transpose,
+        det_scaled=det_scaled,
+        is_multiplicative_valid=multiplicative_ok,
+        is_transpose_valid=transpose_ok,
+        is_scaling_valid=scaling_ok,
+        tracer=tracer,
+        det_inverse=det_inverse,
+        inverse_reciprocal=reciprocal,
+        is_inverse_valid=inverse_ok,
+    )

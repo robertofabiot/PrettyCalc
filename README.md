@@ -79,8 +79,11 @@ QT_QPA_PLATFORM=offscreen pytest
 7. En **Álgebra Matricial**, el modo **A⁻¹ (Inversa)** reduce $[A \mid I_n]$ por Gauss-Jordan, muestra $A^{-1}$ y comprueba $A \cdot A^{-1} = I_n$. Si $A$ no es cuadrada, el cálculo queda deshabilitado. Si $A$ es singular, el panel explica que no existe inversa.
 8. En **Determinantes**, el orden n va de 1 a 8. Se puede calcular por triangulación, por Sarrus (solo 3×3), por cofactores de Laplace o pedir la matriz de cofactores, la adjunta y la inversa \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).
 9. En **Sistemas Lineales**, el selector de método incluye la **Regla de Cramer** para sistemas n×n con determinante distinto de cero. El panel muestra det(A), cada matriz columna reemplazada y \(x_i = \det(A_i(b)) / \det(A)\).
-10. En **Factorización LU**, **Descomponer A = LU** muestra \(L\) y \(U\) y comprueba \(L \cdot U = A\). Con \(A\) cuadrada, **Resolver** hace la sustitución hacia adelante \(Ly = b\) y hacia atrás \(Ux = y\). Si cambia \(b\), se reutilizan los mismos factores. Un pivote nulo que exigiría intercambiar filas se explica como caso PLU, fuera de esta sesión.
-11. En **Sistemas Lineales**, **V · Aplicaciones** abre el asistente de la sesión 8. No hace falta armar la matriz aumentada a mano:
+10. En **Vectores**, **Norma y producto exterior** calcula \(\|u\|\), \(\|v\|\), la distancia \(d(u, v)\) y la matriz \(u v^T\). La norma se muestra como cuadrado racional y como radical simplificado.
+11. En **Álgebra Matricial**, **TMI** revisa las caracterizaciones de invertibilidad (\*c, \*e, \*h y \(\det(A) \neq 0\)). **Identidades A⁻¹** contrasta \((A^{-1})^{-1} = A\), \((AB)^{-1} = B^{-1}A^{-1}\) y \((A^T)^{-1} = (A^{-1})^T\).
+12. En **Determinantes**, **Propiedades** contrasta \(\det(AB) = \det(A)\det(B)\), \(\det(A^T) = \det(A)\), \(\det(A^{-1}) = 1/\det(A)\) y \(\det(kA) = k^n \det(A)\).
+13. En **Factorización LU**, **Descomponer A = LU** calcula \(PA = LU\). Si no hubo intercambio, \(P = I\) y se comprueba \(L \cdot U = A\). Si un pivote es cero, se muestra la matriz de permutación \(P\) y **Resolver** hace \(Ly = Pb\) y después \(Ux = y\). Si cambia \(b\), se reutilizan los mismos factores.
+14. En **Sistemas Lineales**, **V · Aplicaciones** abre el asistente de la sesión 8. No hace falta armar la matriz aumentada a mano:
     - **Química** escribe reactivos y productos (`C3H8 + O2` y `CO2 + H2O`) y devuelve los enteros mínimos, con esos coeficientes resaltados.
     - **Leontief** lee la matriz de consumo \(C\) y resuelve \((I - C)p = 0\). El ejemplo de carbón, electricidad y acero normaliza el precio del acero en 1.
     - **Dieta** carga la tabla Cambridge y muestra las unidades exactas y los gramos.
@@ -165,7 +168,40 @@ solucion = solve_cramer(Matrix([[3, -2], [2, 5]]), Vector([7, 11]))
 assert solucion.solution == [3, 1]
 ```
 
-La factorización LU y las dos sustituciones están en `prettycalc.core.lu_decomposition`:
+La norma, la distancia y el producto exterior están en `prettycalc.core.vector_ops`. El Teorema de la Matriz Invertible está en `prettycalc.core.theorems`. Las propiedades del determinante están en `prettycalc.core.determinants`:
+
+```python
+from prettycalc.core import (
+    Matrix,
+    Vector,
+    evaluate_invertible_matrix_theorem,
+    plu_decompose,
+    solve_via_plu,
+    vector_norm_exact,
+    vector_outer_product,
+    verify_determinant_properties,
+)
+
+assert vector_norm_exact(Vector([3, 4])) == (5, 1, 1)
+assert vector_outer_product(Vector([1, -2, 3]), Vector([1, -2, 3])).shape == (3, 3)
+
+invertible = Matrix([[1, 0, -2], [3, 1, -2], [-5, -1, 9]])
+assert evaluate_invertible_matrix_theorem(invertible).is_invertible
+
+props = verify_determinant_properties(
+    Matrix([[6, 1], [3, 2]]),
+    Matrix([[4, 3], [1, 2]]),
+    2,
+)
+assert props.det_AB == 45
+
+permutada = Matrix([[0, 1, 2], [1, 0, 3], [4, -3, 8]])
+factores = plu_decompose(permutada)
+assert factores.is_valid and factores.permutation_count == 1
+assert solve_via_plu(permutada, Vector([3, 4, 9])).x_solution == Vector([1, 1, 1])
+```
+
+La factorización LU sin permutar filas y las dos sustituciones están en `prettycalc.core.lu_decomposition`:
 
 ```python
 from prettycalc.core import Matrix, Vector, lu_decompose, solve_many_via_lu

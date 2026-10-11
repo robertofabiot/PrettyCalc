@@ -12,6 +12,8 @@
   * Matrices cuadradas y rectangulares.
 * **Vectores ($n$-dimensionales):**
   * Tratados algebraicamente como matrices columna ($n \times 1$) o fila ($1 \times n$).
+  * La norma euclidiana se guarda como \(\|v\|^2 = \sum v_i^2 \in \mathbb{Q}\) y se muestra como radical simplificado \(a\sqrt{b}/c\), obtenido por factorización de enteros. La distancia es \(d(u, v) = \|u - v\|\).
+  * El producto exterior \(u v^T\) es la matriz \(m \times n\) con entradas \(u_i v_j\).
 
 ## 3. Operaciones Elementales y Registro de Heurísticas
 
@@ -117,14 +119,18 @@ Para \(A\) de tamaño \(m \times n\):
 2. \(U\) es \(m \times n\) y es la forma escalonada de \(A\). Solo se usan reemplazos \(f_i \to f_i + k f_j\) con \(i > j\). No hay intercambios de fila.
 3. El multiplicador de la fila \(i\) bajo el pivote \(p\) es \(\ell = a_{ij}/p\). Se guarda en \(L\) y se anula en \(U\).
 4. Si una columna es cero desde la fila actual hacia abajo, no tiene pivote y se pasa a la siguiente. Así se factoriza el ejemplo \(4 \times 5\) de la sesión, cuya tercera columna queda sin pivote.
-5. Si el candidato a pivote es 0 y debajo hay una entrada distinta de cero, no existe \(A = LU\). Hace falta una permutación \(PLU\), que esta sesión no construye.
+5. Si el candidato a pivote es 0 y debajo hay una entrada distinta de cero, no existe \(A = LU\). `lu_decompose` lanza `LUPivotZeroError`. `plu_decompose` sí construye la permutación.
+
+### 7.1. Factorización \(PA = LU\)
+
+\(P\) empieza como \(I_m\). Cuando el pivote de la fila actual es 0 y una fila inferior tiene una entrada distinta de cero, se intercambia con la primera de esas filas. El mismo intercambio se aplica a \(P\) y a los multiplicadores ya guardados en las columnas anteriores de \(L\). La comprobación es \(P A = L U\). Si no hubo intercambios, \(P = I\) y los factores coinciden con \(A = LU\).
 
 Cuando \(A\) es cuadrada y la diagonal de \(U\) no tiene ceros, \(Ax = b\) se resuelve en dos etapas, reutilizando los mismos factores para cada vector de carga:
 
-1. Sustitución hacia adelante: \(Ly = b\).
+1. Sustitución hacia adelante: \(Ly = b\) si \(P = I\), o \(Ly = Pb\) si hubo permutación.
 2. Sustitución hacia atrás: \(Ux = y\).
 
-La comprobación exige \(LU = A\), \(Ly = b\), \(Ux = y\) y \(Ax = b\) en aritmética exacta. Si \(U\) tiene un cero en la diagonal, la factorización puede existir igual y el sistema no tiene solución única.
+La comprobación exige \(LU = A\) (o \(PA = LU\)), \(Ly = Pb\), \(Ux = y\) y \(Ax = b\) en aritmética exacta. Si \(U\) tiene un cero en la diagonal, la factorización puede existir igual y el sistema no tiene solución única.
 
 ---
 
