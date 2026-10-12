@@ -208,7 +208,7 @@ class DeterminantsView(QWidget):
             action_row.addWidget(button)
         self.compute_btn = QPushButton("▶ Calcular")
         self.compute_btn.setObjectName("primaryAction")
-        self.compute_btn.setToolTip("Calcular con el método elegido (Ctrl+Enter desde cualquier celda)")
+        self.compute_btn.setToolTip("Calcular con el método elegido (Ctrl+Intro desde cualquier celda)")
         self.compute_btn.setCursor(Qt.PointingHandCursor)
         self.compute_btn.clicked.connect(self.compute)
         action_row.addWidget(self.compute_btn)

@@ -4,7 +4,7 @@ Asignatura: Álgebra Lineal MTM0120, Universidad Americana (UAM).
 
 Sprint 10 (auditoría UI/UX, Módulo 4, flujo 1):
 
-- Un único botón «Resolver» (Ctrl+Enter desde cualquier celda) y control
+- Un único botón «Resolver» (Ctrl+Intro desde cualquier celda) y control
   directo m × n de A con atajo «Hacer cuadrada».
 - Errores explicados en línea con fila y columna (sin diálogos modales).
 - En un SCI el visor de x lleva la insignia «Solución particular (variables
@@ -130,7 +130,7 @@ class MatrixEquationsView(QWidget):
 
         self.solve_btn = QPushButton("▶  Resolver A · x = b")
         self.solve_btn.setObjectName("primaryAction")
-        self.solve_btn.setToolTip("Resolver la ecuación (Ctrl+Enter desde cualquier celda)")
+        self.solve_btn.setToolTip("Resolver la ecuación (Ctrl+Intro desde cualquier celda)")
         self.solve_btn.setCursor(Qt.PointingHandCursor)
         self.solve_btn.clicked.connect(self.solve)
         samples_row.addWidget(self.solve_btn)

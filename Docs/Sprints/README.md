@@ -23,6 +23,7 @@ Docs/Sprints/
 * [Sprint3](Sprint3/README.md)
 * [Sprint8](Sprint8/README.md)
 * [Sprint9](Sprint9/README.md) — presentación matemática y RichText
+* [Sprint10](Sprint10/README.md) — auditoría UI/UX 10/10 y paridad Windows/Linux
 
 ## Flujo por Sprint
 

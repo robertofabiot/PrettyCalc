@@ -158,7 +158,7 @@ class MatrixVectorPropertiesView(QWidget):
         header_layout.addLayout(title_box, stretch=1)
         self.verify_btn = QPushButton("▶  Verificar")
         self.verify_btn.setObjectName("primaryAction")
-        self.verify_btn.setToolTip("Comprobar la propiedad elegida (Ctrl+Enter desde cualquier celda)")
+        self.verify_btn.setToolTip("Comprobar la propiedad elegida (Ctrl+Intro desde cualquier celda)")
         self.verify_btn.setCursor(Qt.PointingHandCursor)
         self.verify_btn.clicked.connect(self.verify_current_property)
         self.header_verify_btn = self.verify_btn
@@ -511,11 +511,11 @@ class MatrixVectorPropertiesView(QWidget):
         if self._mode == "distributive":
             self.formula_lbl.setText("A(u + v) = A·u + A·v")
             self.inputs_title.setText("Datos:  A de tamaño m×n,  u, v ∈ ℝⁿ")
-            self.verify_btn.setToolTip("Comprobar A(u + v) = A·u + A·v (Ctrl+Enter)")
+            self.verify_btn.setToolTip("Comprobar A(u + v) = A·u + A·v (Ctrl+Intro)")
         else:
             self.formula_lbl.setText("A(c·u) = c·(A·u)")
             self.inputs_title.setText("Datos:  A de tamaño m×n,  u ∈ ℝⁿ,  c ∈ ℝ")
-            self.verify_btn.setToolTip("Comprobar A(c·u) = c·(A·u) (Ctrl+Enter)")
+            self.verify_btn.setToolTip("Comprobar A(c·u) = c·(A·u) (Ctrl+Intro)")
         distributive = self._mode == "distributive"
         self.lbl_dim_v.setVisible(distributive)
         self.spin_dim_v.setVisible(distributive)
