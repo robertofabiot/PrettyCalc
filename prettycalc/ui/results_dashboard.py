@@ -181,7 +181,7 @@ class ResultsDashboardCard(QFrame):
         self._clear_layout(self.var_container)
         self._clear_layout(self.checklist_container)
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def display_results(
         self,
@@ -329,7 +329,7 @@ class ResultsDashboardCard(QFrame):
             )
             self.checklist_container.addWidget(lbl)
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def display_notice(
         self,
@@ -360,7 +360,7 @@ class ResultsDashboardCard(QFrame):
         self.status_badge.setStyleSheet(self._badge_style(badge_color, text_color))
         self.summary_label.setText(message)
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def display_cramer(
         self,
@@ -434,7 +434,7 @@ class ResultsDashboardCard(QFrame):
             for verification in verifications:
                 self.checklist_container.addWidget(self._verification_block(verification))
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def _matrix_readout(self, matrix: Matrix, object_name: str) -> QLabel:
         """Matriz en texto monoespaciado, seleccionable, para el panel de Cramer."""

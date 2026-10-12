@@ -11,10 +11,11 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 try:
-    from PySide6.QtWidgets import QBoxLayout, QLabel, QVBoxLayout, QWidget
-    from PySide6.QtCore import Qt, Signal
+    from PySide6.QtWidgets import QBoxLayout, QLabel, QLayout, QVBoxLayout, QWidget
+    from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
 except ImportError:  # pragma: no cover
     QWidget = object  # type: ignore
+    QLayout = object  # type: ignore
     Signal = lambda *args: None  # type: ignore
 
 
@@ -110,3 +111,84 @@ class CurrentPageStack(QWidget):
         self._current = index
         self.updateGeometry()
         self.currentChanged.emit(index)
+
+
+class FlowLayout(QLayout):
+    """Distribuye los widgets en filas y salta de línea cuando no caben.
+
+    Sprint 10 (Nielsen #8): los conjuntos {v₁, …, vₖ} ya no se apilan en una
+    fila con barra de desplazamiento horizontal; con k ≥ 5 los vectores pasan a
+    una segunda fila y todos quedan a la vista a la vez.
+    """
+
+    def __init__(self, parent: Optional[QWidget] = None, spacing: int = 10) -> None:
+        super().__init__(parent)
+        self._items = []
+        self._spacing = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item) -> None:  # noqa: N802
+        self._items.append(item)
+
+    def insertWidget(self, index: int, widget: QWidget) -> None:  # noqa: N802
+        self.addChildWidget(widget)
+        from PySide6.QtWidgets import QWidgetItem
+
+        self._items.insert(max(0, min(index, len(self._items))), QWidgetItem(widget))
+        self.invalidate()
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, index: int):  # noqa: N802
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index: int):  # noqa: N802
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):  # noqa: N802
+        return Qt.Orientations(0)
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        return self._do_layout(QRect(0, 0, width, 0), apply=False)
+
+    def setGeometry(self, rect: QRect) -> None:  # noqa: N802
+        super().setGeometry(rect)
+        self._do_layout(rect, apply=True)
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:  # noqa: N802
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+
+    def _do_layout(self, rect: QRect, *, apply: bool) -> int:
+        margins = self.contentsMargins()
+        area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
+        x, y = area.x(), area.y()
+        line_height = 0
+        for item in self._items:
+            widget = item.widget()
+            if widget is not None and widget.isHidden():
+                continue
+            hint = item.sizeHint()
+            next_x = x + hint.width() + self._spacing
+            if next_x - self._spacing > area.right() + 1 and line_height > 0:
+                x = area.x()
+                y += line_height + self._spacing
+                next_x = x + hint.width() + self._spacing
+                line_height = 0
+            if apply:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+            x = next_x
+            line_height = max(line_height, hint.height())
+        return y + line_height - rect.y() + margins.bottom()

@@ -269,6 +269,14 @@ def _arrow_svg(direction: str, color: str) -> str:
     )
 
 
+def _check_svg(color: str) -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">'
+        f'<polyline points="2,6.5 5,9.5 10,3" fill="none" stroke="{color}" '
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    )
+
+
 def _ensure_assets() -> Tuple[str, str]:
     """Flechas del tema activo.
 
@@ -283,8 +291,11 @@ def _ensure_assets() -> Tuple[str, str]:
         folder = Path(tempfile.gettempdir()) / "prettycalc-assets" / ACTIVE_THEME
     up = folder / "arrow_up.svg"
     down = folder / "arrow_down.svg"
+    check = folder / "check.svg"
     try:
         folder.mkdir(parents=True, exist_ok=True)
+        if not check.exists():
+            check.write_text(_check_svg(COLOR_BG_BASE), encoding="utf-8")
         if not up.exists():
             up.write_text(_arrow_svg("up", COLOR_TEXT_PRIMARY), encoding="utf-8")
         if not down.exists():
@@ -295,6 +306,7 @@ def _ensure_assets() -> Tuple[str, str]:
 
 
 _UP_ARROW_SVG, _DOWN_ARROW_SVG = _ensure_assets()
+_CHECK_SVG = str(Path(_UP_ARROW_SVG).with_name("check.svg").as_posix())
 
 
 def apply_widget_class(widget: Any, class_name: str) -> None:
@@ -895,6 +907,13 @@ def get_global_stylesheet() -> str:
     QCheckBox::indicator:checked {{
         background: {COLOR_INTERACTIVE_IDLE};
         border: 1px solid {COLOR_INTERACTIVE_IDLE};
+        image: url("{_CHECK_SVG}");
+    }}
+    QCheckBox:focus {{
+        outline: none;
+    }}
+    QCheckBox::indicator:focus {{
+        border: 2px solid {COLOR_TEXT_PRIMARY};
     }}
 
     QSlider::groove:horizontal {{

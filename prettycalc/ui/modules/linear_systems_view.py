@@ -384,7 +384,7 @@ class LinearSystemsView(QWidget):
         self.applications_panel.setVisible(visible)
         self.applications_toggle.setChecked(visible)
         if visible:
-            QTimer.singleShot(0, lambda: self.left_scroll.ensureWidgetVisible(self.applications_panel, 0, 0))
+            QTimer.singleShot(0, self, lambda: self.left_scroll.ensureWidgetVisible(self.applications_panel, 0, 0))
 
     def _present_applied_model(self, result) -> None:
         """Carga la matriz que armó el asistente y conserva su explicación en el carrusel."""

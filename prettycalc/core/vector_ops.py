@@ -20,6 +20,14 @@ from prettycalc.core.types import (
 )
 
 
+_SUPERSCRIPTS = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def _space(n: int) -> str:
+    """ℝⁿ con el exponente volado: ℝ³, ℝ¹⁰."""
+    return "ℝ" + str(n).translate(_SUPERSCRIPTS)
+
+
 def _require_same_dimension(u: Vector, v: Vector, operation: str) -> None:
     """Valida que u y v vivan en el mismo ℝⁿ."""
     if u.dimension != v.dimension:
@@ -295,7 +303,7 @@ def trace_vector_outer_product(u: Vector, v: Vector) -> OuterProductResult:
     tracer.record_initial(
         u.to_column_matrix(),
         description=(
-            f"u está en ℝ{u.dimension} y v en ℝ{v.dimension}. "
+            f"u está en {_space(u.dimension)} y v en {_space(v.dimension)}. "
             f"El producto exterior u vᵀ es una matriz {u.dimension}×{v.dimension}."
         ),
         latex_title=r"M = u v^{T}",
@@ -309,3 +317,94 @@ def trace_vector_outer_product(u: Vector, v: Vector) -> OuterProductResult:
         ),
     )
     return OuterProductResult(matrix=product, tracer=tracer)
+
+
+@dataclass(frozen=True)
+class VectorOperationResult:
+    """Resultado de u ± v o k · v con el desglose componente a componente."""
+
+    vector: Vector
+    tracer: StepTracer
+
+
+def _signed(value: Fraction) -> str:
+    """Escribe un sumando con paréntesis si es negativo: 3, (−1/2)."""
+    text = format_scalar(value)
+    return f"({text})" if value < 0 else text
+
+
+def _signed_latex(value: Fraction) -> str:
+    text = format_scalar(value, mode="latex")
+    return f"\\left({text}\\right)" if value < 0 else text
+
+
+def trace_vector_sum(u: Vector, v: Vector, *, subtract: bool = False) -> VectorOperationResult:
+    """u + v (o u − v) con un paso por componente: w_i = u_i ± v_i.
+
+    Cada paso muestra la matriz [u  v | w] con la fila i resaltada, de modo que
+    el estudiante ve qué componentes se combinan y qué valor resulta.
+    """
+    result = vector_sub(u, v) if subtract else vector_add(u, v)
+    symbol = "-" if subtract else "+"
+    shown = "−" if subtract else "+"
+    tracer = StepTracer(split_col=2)
+    rows = [[u[i], v[i], result[i]] for i in range(u.dimension)]
+    board = Matrix(rows)
+    tracer.record_initial(
+        Matrix([[u[i], v[i]] for i in range(u.dimension)]),
+        description=(
+            f"u y v están en {_space(u.dimension)}. La {'resta' if subtract else 'suma'} se hace "
+            f"componente a componente: (u {shown} v)ᵢ = uᵢ {shown} vᵢ."
+        ),
+        latex_title=rf"(u {symbol} v)_i = u_i {symbol} v_i",
+    )
+    for i in range(u.dimension):
+        tracer.record_step(
+            board,
+            latex_formula=(
+                rf"(u {symbol} v)_{{{i + 1}}} = {_signed_latex(u[i])} {symbol} "
+                rf"{_signed_latex(v[i])} = {format_scalar(result[i], mode='latex')}"
+            ),
+            heuristic_text=(
+                f"Componente {i + 1}: {_signed(u[i])} {shown} {_signed(v[i])} = "
+                f"{format_scalar(result[i])}."
+            ),
+            affected_rows=(i,),
+            highlight_cells=((i, 0), (i, 1), (i, 2)),
+        )
+    return VectorOperationResult(vector=result, tracer=tracer)
+
+
+def trace_vector_scale(v: Vector, scalar: Any) -> VectorOperationResult:
+    """k · v con un paso por componente: (k v)_i = k · v_i."""
+    k = parse_scalar(scalar)
+    result = vector_scale(v, k)
+    tracer = StepTracer(split_col=1)
+    board = Matrix([[v[i], result[i]] for i in range(v.dimension)])
+    tracer.record_initial(
+        v.to_column_matrix(),
+        description=(
+            f"Se multiplica cada componente de v por k = {format_scalar(k)}: (k v)ᵢ = k · vᵢ."
+        ),
+        latex_title=rf"(k v)_i = k \cdot v_i,\quad k = {format_scalar(k, mode='latex')}",
+    )
+    for i in range(v.dimension):
+        tracer.record_step(
+            board,
+            latex_formula=(
+                rf"(k v)_{{{i + 1}}} = {_signed_latex(k)} \cdot {_signed_latex(v[i])} = "
+                rf"{format_scalar(result[i], mode='latex')}"
+            ),
+            heuristic_text=(
+                f"Componente {i + 1}: {_signed(k)} · {_signed(v[i])} = {format_scalar(result[i])}."
+            ),
+            affected_rows=(i,),
+            highlight_cells=((i, 0), (i, 1)),
+        )
+    if k == 0:
+        tracer.record_step(
+            board,
+            latex_formula=r"0 \cdot v = \mathbf{0}",
+            heuristic_text="Con k = 0 todo vector se anula: 0 · v es el vector cero de ℝⁿ.",
+        )
+    return VectorOperationResult(vector=result, tracer=tracer)
