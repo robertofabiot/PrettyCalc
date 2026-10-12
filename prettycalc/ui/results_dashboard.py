@@ -23,6 +23,7 @@ from prettycalc.core.cramer import CramerResult, format_cramer_component
 from prettycalc.core.verifier import EquationVerification
 from prettycalc.core.types import Matrix, Vector, format_scalar
 from prettycalc.ui.book_matrix import draw_square_brackets, paint_book_scalar
+from prettycalc.ui.responsive import FlowLayout
 from prettycalc.ui.mathtext import (
     variable_symbol,
     variable_html,
@@ -471,38 +472,38 @@ class ResultsDashboardCard(QFrame):
 
         host = QWidget()
         host.setObjectName("parametricVectorForm")
-        row = QHBoxLayout(host)
+        # Sprint 10: los términos t·v saltan de línea en columnas angostas
+        # (1366 px) en lugar de forzar desplazamiento horizontal.
+        row = FlowLayout(host, spacing=6, center=True)
         row.setContentsMargins(0, 4, 0, 4)
-        row.setSpacing(6)
+
+        def group(*widgets: QWidget) -> QWidget:
+            box = QWidget()
+            layout = QHBoxLayout(box)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            for widget in widgets:
+                layout.addWidget(widget, 0, Qt.AlignVCenter)
+            return box
 
         equals = QLabel("x  =")
         equals.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO}; font-weight: 700;"
         )
-        row.addWidget(equals, 0, Qt.AlignVCenter)
-        row.addWidget(self._vector_term(solution.particular_vector, "particular p"), 0, Qt.AlignVCenter)
+        row.addWidget(group(equals, self._vector_term(solution.particular_vector, "particular p")))
 
         for free_idx in sorted(solution.null_basis_vectors):
             plus = QLabel("+")
             plus.setStyleSheet(
                 f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 22px; font-weight: 700;"
             )
-            row.addWidget(plus, 0, Qt.AlignVCenter)
             name = QLabel(variable_html(free_idx, sub_size_px=14))
             name.setTextFormat(Qt.RichText)
             name.setStyleSheet(
                 f"color: {COLOR_ACCENT_WARNING}; font-size: 20px; font-family: {FONT_FAMILY_MONO}; font-weight: 700;"
             )
-            row.addWidget(name, 0, Qt.AlignVCenter)
             caption = f"base de {variable_symbol(free_idx)}"
-            row.addWidget(
-                self._vector_term(solution.null_basis_vectors[free_idx], caption),
-                0,
-                Qt.AlignVCenter,
-            )
-        row.addStretch(1)
-        host.layout().activate()
-        host.setMinimumWidth(host.sizeHint().width())
+            row.addWidget(group(plus, name, self._vector_term(solution.null_basis_vectors[free_idx], caption)))
         self.var_container.addWidget(host)
 
         equation = QLabel(

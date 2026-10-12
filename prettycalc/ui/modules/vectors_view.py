@@ -66,7 +66,6 @@ from prettycalc.ui.theme import (
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
     COLOR_SURFACE_INNER,
-    COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
     apply_message_box_theme,
@@ -287,7 +286,7 @@ class VectorsView(QWidget):
         actions.addWidget(self.basic_compute_btn)
         layout.addLayout(actions)
 
-        self.basic_stepper = AlgorithmStepperCarousel()
+        self.basic_stepper = AlgorithmStepperCarousel(variable_headers=False)
         self.basic_stepper.setObjectName("basicStepper")
         self.basic_stepper.set_export_title("Operación vectorial componente a componente")
         self.basic_stepper.set_empty_hint("Calcula para ver el desglose entrada por entrada.")
@@ -522,7 +521,7 @@ class VectorsView(QWidget):
         self.metric_result.cellClicked.connect(self._on_outer_cell_clicked)
         layout.addWidget(self.metric_result)
 
-        self.metric_stepper = AlgorithmStepperCarousel()
+        self.metric_stepper = AlgorithmStepperCarousel(variable_headers=False)
         self.metric_stepper.setObjectName("metricStepper")
         self.metric_stepper.setMinimumHeight(220)
         self.metric_stepper.set_export_title("Métricas vectoriales")

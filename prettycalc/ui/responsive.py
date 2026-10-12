@@ -121,10 +121,11 @@ class FlowLayout(QLayout):
     una segunda fila y todos quedan a la vista a la vez.
     """
 
-    def __init__(self, parent: Optional[QWidget] = None, spacing: int = 10) -> None:
+    def __init__(self, parent: Optional[QWidget] = None, spacing: int = 10, *, center: bool = False) -> None:
         super().__init__(parent)
         self._items = []
         self._spacing = spacing
+        self._center = center
         self.setContentsMargins(0, 0, 0, 0)
 
     def addItem(self, item) -> None:  # noqa: N802
@@ -172,23 +173,34 @@ class FlowLayout(QLayout):
         return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
 
     def _do_layout(self, rect: QRect, *, apply: bool) -> int:
+        """Reparte en líneas; dentro de cada línea los widgets quedan centrados en vertical."""
         margins = self.contentsMargins()
         area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
-        x, y = area.x(), area.y()
-        line_height = 0
+        lines = []
+        current = []
+        width = 0
         for item in self._items:
             widget = item.widget()
             if widget is not None and widget.isHidden():
                 continue
             hint = item.sizeHint()
-            next_x = x + hint.width() + self._spacing
-            if next_x - self._spacing > area.right() + 1 and line_height > 0:
-                x = area.x()
-                y += line_height + self._spacing
-                next_x = x + hint.width() + self._spacing
-                line_height = 0
+            needed = hint.width() if not current else width + self._spacing + hint.width()
+            if current and needed > area.width():
+                lines.append(current)
+                current, width = [], 0
+                needed = hint.width()
+            current.append((item, hint))
+            width = needed
+        if current:
+            lines.append(current)
+        y = area.y()
+        for index, line in enumerate(lines):
+            line_height = max(hint.height() for _item, hint in line)
             if apply:
-                item.setGeometry(QRect(QPoint(x, y), hint))
-            x = next_x
-            line_height = max(line_height, hint.height())
-        return y + line_height - rect.y() + margins.bottom()
+                x = area.x()
+                for item, hint in line:
+                    offset = (line_height - hint.height()) // 2 if self._center else 0
+                    item.setGeometry(QRect(QPoint(x, y + offset), hint))
+                    x += hint.width() + self._spacing
+            y += line_height + (self._spacing if index < len(lines) - 1 else 0)
+        return y - rect.y() + margins.bottom()

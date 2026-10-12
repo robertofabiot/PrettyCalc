@@ -136,6 +136,12 @@ class MainWindow(QMainWindow):
         self.module_stack.addWidget(self.determinants_view)
         self.module_stack.addWidget(self.lu_view)
         main_layout.addWidget(self.module_stack, stretch=1)
+        self.determinants_view.inverseExported.connect(self._send_inverse_to_matrices)
+
+    def _send_inverse_to_matrices(self, matrix) -> None:
+        """Determinantes → Matrices: abre el Módulo 2 con A⁻¹ en la página de la inversa."""
+        self.set_module(1)
+        self.matrix_operations_view.receive_inverse(matrix)
 
     def _setup_shortcuts(self) -> None:
         for index in range(6):

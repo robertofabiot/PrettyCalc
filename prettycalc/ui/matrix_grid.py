@@ -258,7 +258,7 @@ class DynamicMatrixGrid(QFrame):
     ):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet("DynamicMatrixGrid { background: transparent; }")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
         self.augmented = augmented

@@ -209,6 +209,55 @@ def determinant_2x2(A: Matrix) -> DeterminantResult:
     )
 
 
+#: Celdas (fila, columna) de cada diagonal de Sarrus sobre la matriz 3×3.
+SARRUS_PRINCIPAL_DIAGONALS: Tuple[Tuple[Tuple[int, int], ...], ...] = (
+    ((0, 0), (1, 1), (2, 2)),
+    ((0, 1), (1, 2), (2, 0)),
+    ((0, 2), (1, 0), (2, 1)),
+)
+SARRUS_SECONDARY_DIAGONALS: Tuple[Tuple[Tuple[int, int], ...], ...] = (
+    ((0, 2), (1, 1), (2, 0)),
+    ((0, 0), (1, 2), (2, 1)),
+    ((0, 1), (1, 0), (2, 2)),
+)
+
+
+def _sarrus_diagonals(entries):
+    """(nombre, celdas, producto, signo) de las seis diagonales de Sarrus."""
+    out = []
+    for prefix, sign, diagonals in (
+        ("d", 1, SARRUS_PRINCIPAL_DIAGONALS),
+        ("s", -1, SARRUS_SECONDARY_DIAGONALS),
+    ):
+        for number, cells in enumerate(diagonals, start=1):
+            term = Fraction(1, 1)
+            for row, col in cells:
+                term *= entries[row][col]
+            out.append((f"{prefix}{number}", cells, term, sign))
+    return out
+
+
+def best_expansion_line(A: Matrix) -> Tuple[str, int, int]:
+    """Fila o columna con más ceros: ``("row" | "col", índice 0-based, ceros)``.
+
+    Es la estrategia de los libros para el desarrollo de Laplace: cada cero
+    anula un término y ahorra el cálculo de un menor. En empate gana la fila
+    de menor índice.
+    """
+    order = require_square_matrix(A, "elegir la línea de expansión")
+    best = ("row", 0, -1)
+    for along in ("row", "col"):
+        for index in range(order):
+            zeros = sum(
+                1
+                for offset in range(order)
+                if (A.get(index, offset) if along == "row" else A.get(offset, index)) == 0
+            )
+            if zeros > best[2]:
+                best = (along, index, zeros)
+    return best
+
+
 def determinant_sarrus_3x3(A: Matrix) -> DeterminantResult:
     """Regla de Sarrus: suma de las diagonales principales menos las secundarias.
 
@@ -243,6 +292,21 @@ def determinant_sarrus_3x3(A: Matrix) -> DeterminantResult:
         latex_title=r"\det(A)\text{ por Sarrus}",
     )
     steps: List[str] = []
+    for label, cells, term, sign in _sarrus_diagonals(entries):
+        factors = " · ".join(
+            f"a{row + 1}{col + 1}" for row, col in cells
+        )
+        values = " · ".join(f"({format_scalar(entries[row][col])})" for row, col in cells)
+        kind = "principal (se suma)" if sign > 0 else "secundaria (se resta)"
+        tracer.record_step(
+            A,
+            latex_formula=rf"{label[0]}_{{{label[1:]}}} = " + r" \cdot ".join(
+                f"a_{{{row + 1}{col + 1}}}" for row, col in cells
+            ) + f" = {format_scalar(term, mode='latex')}",
+            heuristic_text=f"Diagonal {kind}: {label} = {factors} = {values} = {format_scalar(term)}.",
+            highlight_cells=tuple(cells),
+        )
+        steps.append(f"{label} = {format_scalar(term)}")
     principal_text = " + ".join(format_scalar(term) for term in principal)
     secondary_text = " + ".join(format_scalar(term) for term in secondary)
     _record(
@@ -429,6 +493,18 @@ def determinant_laplace_expansion(
             "Cada término es la entrada por su cofactor (−1)^(i+j) M_ij."
         ),
         latex_title=rf"\det(A) = \sum a_{{ij}} C_{{ij}}\ \text{{({axis_name} {index + 1})}}",
+    )
+    line_cells = tuple(
+        (index, offset) if along == "row" else (offset, index) for offset in range(order)
+    )
+    tracer.record_step(
+        A,
+        latex_formula=rf"\text{{{axis_name} {index + 1}}}",
+        heuristic_text=(
+            f"La {axis_name} {index + 1} resaltada aporta las entradas a_ij del desarrollo. "
+            "Las entradas nulas anulan su término y no exigen calcular el menor."
+        ),
+        highlight_cells=line_cells,
     )
     steps: List[str] = []
     total = Fraction(0, 1)
@@ -662,11 +738,23 @@ def verify_determinant_scalar_scaling(
         scaled,
         latex_formula=rf"\det\left({format_scalar(scalar, mode='latex')} A\right) = {format_scalar(scalar, mode='latex')}^{{{order}}}\det(A)",
         heuristic_text=(
-            f"det(kA) = {format_scalar(det_scaled)} y kⁿ det(A) = {format_scalar(expected)}. "
+            f"{scaling_breakdown(scalar, order, det_a)}. det(kA) = {format_scalar(det_scaled)}. "
             + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
         ),
     )
     return det_scaled, expected, holds, tracer
+
+
+def scaling_breakdown(k: Fraction, order: int, det_a: Fraction) -> str:
+    """«kⁿ = 2² = 4 ⇒ 4 · 9 = 36»: la potencia del escalar escrita explícitamente."""
+    power = k ** order
+    shown_k = format_scalar(k)
+    base = f"({shown_k})" if k < 0 or "/" in shown_k else shown_k
+    superscript = str(order).translate(str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹"))
+    return (
+        f"kⁿ = {base}{superscript} = {format_scalar(power)} ⇒ "
+        f"{format_scalar(power)} · {format_scalar(det_a)} = {format_scalar(power * det_a)}"
+    )
 
 
 def verify_determinant_properties(
@@ -680,7 +768,7 @@ def verify_determinant_properties(
     tracer.record_initial(
         A,
         description="Comprobación de las propiedades del determinante.",
-        latex_title=r"\det",
+        latex_title=r"\text{Propiedades de } \det(A)",
     )
     for step in transpose_tracer.get_steps():
         if step.step_number == 0:

@@ -24,10 +24,11 @@ try:
         QMenu,
         QFileDialog,
     )
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, Signal
     from PySide6.QtGui import QGuiApplication, QKeyEvent
 except ImportError:
     QFrame = object  # type: ignore
+    Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.tracer import CalculationStep
 from prettycalc.core.types import format_scalar
@@ -93,9 +94,21 @@ def zero_row_alerts(step: CalculationStep, mode: str) -> Tuple[Tuple[int, ...], 
 class AlgorithmStepperCarousel(QFrame):
     """Stepper para navegar las transformaciones elementales del algoritmo."""
 
-    def __init__(self, parent: Optional[QWidget] = None, *, alert_mode: str = ALERT_NONE):
+    #: Índice del paso visible (−1 sin pasos). Permite sincronizar diagramas externos.
+    stepChanged = Signal(int)
+
+    def __init__(
+        self,
+        parent: Optional[QWidget] = None,
+        *,
+        alert_mode: str = ALERT_NONE,
+        variable_headers: bool = True,
+    ):
         super().__init__(parent)
         apply_widget_class(self, "elevated-card")
+        # Las cabeceras x₁ … xₙ solo tienen sentido sobre un sistema [A | b];
+        # en determinantes, LU o vectores se ocultan.
+        self._variable_headers = variable_headers
         self._steps: List[CalculationStep] = []
         self._current_index: int = 0
         self._display_mode: str = "fraction"
@@ -424,6 +437,7 @@ class AlgorithmStepperCarousel(QFrame):
             self.prev_btn.setEnabled(False)
             self.next_btn.setEnabled(False)
             self._sync_slider()
+            self.stepChanged.emit(-1)
             return
 
         total = len(self._steps)
@@ -473,4 +487,6 @@ class AlgorithmStepperCarousel(QFrame):
             animate=animate,
             alert_rows=alert_rows,
             highlight_cells=step.highlight_cells,
+            show_headers=self._variable_headers,
         )
+        self.stepChanged.emit(curr)

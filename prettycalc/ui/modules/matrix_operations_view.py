@@ -35,7 +35,6 @@ try:
         QLabel,
         QFrame,
         QButtonGroup,
-        QStackedWidget,
         QSizePolicy,
         QMessageBox,
     )
@@ -83,7 +82,6 @@ from prettycalc.ui.theme import (
     COLOR_FEEDBACK_ERROR,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
-    COLOR_SURFACE_INNER,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
@@ -515,7 +513,7 @@ class MatrixOperationsView(QWidget):
         steps_title = QLabel("Matrices intermedias")
         steps_title.setStyleSheet(f"font-size: 17px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
         layout.addWidget(steps_title)
-        self.dist_stepper = AlgorithmStepperCarousel()
+        self.dist_stepper = AlgorithmStepperCarousel(variable_headers=False)
         self.dist_stepper.setObjectName("distributiveStepper")
         self.dist_stepper.set_export_title("Propiedades del producto de matrices")
         self.dist_stepper.set_empty_hint("Calcula para recorrer B + C, A·B, A·C y los dos miembros.")
@@ -559,7 +557,7 @@ class MatrixOperationsView(QWidget):
         self.inverse_check_label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 18px;")
         outer.addWidget(self.inverse_check_label)
 
-        self.inverse_stepper = AlgorithmStepperCarousel(alert_mode=ALERT_SINGULAR)
+        self.inverse_stepper = AlgorithmStepperCarousel(alert_mode=ALERT_SINGULAR, variable_headers=False)
         self.inverse_stepper.setObjectName("inverseStepper")
         self.inverse_stepper.set_export_title("Inversa por Gauss-Jordan")
         self.inverse_stepper.set_empty_hint("Calcula para recorrer la reducción de [A | Iₙ].")
@@ -615,7 +613,7 @@ class MatrixOperationsView(QWidget):
         self.tmi_checklist.setTextInteractionFlags(Qt.TextSelectableByMouse)
         outer.addWidget(self.tmi_checklist)
 
-        self.tmi_stepper = AlgorithmStepperCarousel(alert_mode=ALERT_SINGULAR)
+        self.tmi_stepper = AlgorithmStepperCarousel(alert_mode=ALERT_SINGULAR, variable_headers=False)
         self.tmi_stepper.setObjectName("tmiStepper")
         self.tmi_stepper.set_export_title("Teorema de la Matriz Invertible")
         self.tmi_stepper.set_empty_hint("Calcula para ver el escalonamiento que cuenta los pivotes.")
@@ -678,7 +676,7 @@ class MatrixOperationsView(QWidget):
         self.identity_checklist.setTextInteractionFlags(Qt.TextSelectableByMouse)
         outer.addWidget(self.identity_checklist)
 
-        self.identity_stepper = AlgorithmStepperCarousel()
+        self.identity_stepper = AlgorithmStepperCarousel(variable_headers=False)
         self.identity_stepper.setObjectName("inverseAlgebraStepper")
         self.identity_stepper.set_export_title("Identidades de la inversa")
         self.identity_stepper.set_empty_hint("Calcula para ver A⁻¹, B⁻¹, AB y (AB)⁻¹.")
@@ -1146,6 +1144,20 @@ class MatrixOperationsView(QWidget):
             "A⁻¹ ahora es la entrada: el resultado es (A⁻¹)⁻¹, que debe coincidir con la A original.",
             kind="info",
             action_text="Volver a A",
+            action=self._restore_inverse_input,
+        )
+
+    def receive_inverse(self, matrix, source: str = "Determinantes") -> None:
+        """Recibe A⁻¹ de otro módulo en la página de la inversa y la invierte de nuevo."""
+        self._set_page(4)
+        self._on_mode_changed(4)
+        self.grid_inverse.set_matrix(matrix)
+        self.compute()
+        show_toast(
+            self,
+            f"A⁻¹ llegó desde {source}. Su inversa es la A original: (A⁻¹)⁻¹ = A.",
+            kind="success",
+            action_text="Deshacer",
             action=self._restore_inverse_input,
         )
 
