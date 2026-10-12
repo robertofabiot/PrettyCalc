@@ -14,14 +14,20 @@ except ImportError:
 from prettycalc.ui.theme import apply_widget_class
 
 
+# Marcas tipográficas (no emojis): los emojis se dibujan con Segoe UI Emoji en
+# Windows y con Noto Color Emoji en Linux, y se veían distintos en cada sistema.
 MODULE_TABS: Sequence[Tuple[str, str]] = (
-    ("🧮", "Sistemas Lineales"),
-    ("⊞", "Álgebra Matricial"),
-    ("↗", "Vectores en ℝⁿ"),
-    ("🔣", "Ecuaciones Matriciales"),
+    ("[A|b]", "Sistemas Lineales"),
+    ("A·B", "Álgebra Matricial"),
+    ("ℝⁿ", "Vectores en ℝⁿ"),
+    ("Ax", "Ecuaciones Matriciales"),
     ("det", "Determinantes"),
     ("LU", "Factorización LU"),
 )
+
+
+#: Rótulos cortos para ventanas angostas (el rótulo completo queda en el tooltip).
+SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU")
 
 
 class ModularNavigationBar(QWidget):
@@ -37,6 +43,9 @@ class ModularNavigationBar(QWidget):
         super().__init__(parent)
         self.setObjectName("modularNavigationBar")
         self._buttons: List[QPushButton] = []
+        self._full_texts: List[str] = []
+        self._short_texts: List[str] = []
+        self._compact = False
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
         self._setup_ui(tabs)
@@ -57,6 +66,10 @@ class ModularNavigationBar(QWidget):
 
         for index, (icon, label) in enumerate(tabs):
             btn = QPushButton(f"{icon}  {label}")
+            btn.setToolTip(f"{label}  (Ctrl+{index + 1})")
+            btn.setAccessibleName(label)
+            self._full_texts.append(btn.text())
+            self._short_texts.append(SHORT_LABELS[index] if index < len(SHORT_LABELS) else label)
             btn.setObjectName("navSegment")
             btn.setCheckable(True)
             btn.setCursor(Qt.PointingHandCursor)
@@ -83,6 +96,28 @@ class ModularNavigationBar(QWidget):
         self._buttons[index].setChecked(True)
         if emit:
             self.module_changed.emit(index)
+
+    def is_compact(self) -> bool:
+        return self._compact
+
+    def _needed_width(self, texts: Sequence[str]) -> int:
+        if not self._buttons:
+            return 0
+        metrics = self._buttons[0].fontMetrics()
+        return sum(metrics.horizontalAdvance(text) + 34 for text in texts) + 12
+
+    def set_compact(self, compact: bool) -> None:
+        """Rótulos cortos cuando el ancho no alcanza: evita textos recortados."""
+        if compact == self._compact:
+            return
+        self._compact = compact
+        texts = self._short_texts if compact else self._full_texts
+        for button, text in zip(self._buttons, texts):
+            button.setText(text)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.set_compact(self.width() < self._needed_width(self._full_texts))
 
     @property
     def buttons(self) -> List[QPushButton]:

@@ -23,6 +23,9 @@ class CalculationStep:
         split_col: Índice de columna para trazar la partición aumentada [A | b].
         actor_row: Fila de referencia (pivote) que no muta en esta operación.
         affected_rows: Filas que sí cambian en esta operación.
+        alert_rows: Filas a señalar como alerta (p. ej. una fila nula que prueba
+            singularidad o la contradicción [0 … 0 | c]).
+        highlight_cells: Celdas a resaltar (p. ej. la diagonal de U en det(A)).
     """
     step_number: int
     matrix: Matrix
@@ -32,6 +35,8 @@ class CalculationStep:
     split_col: Optional[int] = None
     actor_row: Optional[int] = None
     affected_rows: Tuple[int, ...] = ()
+    alert_rows: Tuple[int, ...] = ()
+    highlight_cells: Tuple[Tuple[int, int], ...] = ()
 
     def to_latex_display(self) -> str:
         """Retorna el código LaTeX completo de la matriz en este paso."""
@@ -78,6 +83,8 @@ class StepTracer:
         split_col: Optional[int] = None,
         actor_row: Optional[int] = None,
         affected_rows: Optional[Tuple[int, ...]] = None,
+        alert_rows: Optional[Tuple[int, ...]] = None,
+        highlight_cells: Optional[Tuple[Tuple[int, int], ...]] = None,
     ) -> CalculationStep:
         """Registra una nueva transformación elemental."""
         effective_split = split_col if split_col is not None else self._split_col
@@ -91,6 +98,8 @@ class StepTracer:
             split_col=effective_split,
             actor_row=actor_row,
             affected_rows=affected_rows or (),
+            alert_rows=alert_rows or (),
+            highlight_cells=highlight_cells or (),
         )
         self._steps.append(step)
         return step

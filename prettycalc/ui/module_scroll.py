@@ -57,9 +57,9 @@ class ModuleScroll(QScrollArea):
             child = event.child()
             if isinstance(child, QWidget):
                 self._watch(child)
-                QTimer.singleShot(0, self._sync_natural_height)
+                QTimer.singleShot(0, self, self._sync_natural_height)
         elif event.type() == QEvent.Type.LayoutRequest:
-            QTimer.singleShot(0, self._sync_natural_height)
+            QTimer.singleShot(0, self, self._sync_natural_height)
         return super().eventFilter(watched, event)
 
     def resizeEvent(self, event) -> None:

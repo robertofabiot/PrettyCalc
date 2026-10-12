@@ -88,6 +88,8 @@ def prettify_math_text(text: str) -> str:
     result = re.sub(r"(?<![\d.])1(?=x)", "", result)
     result = re.sub(r"(-?\d+/\d+)(?=x)", r"(\1)", result)
     result = re.sub(r"(^|[\s+−-])1\(", r"\1(", result)
+    result = result.replace("^{-1}", "⁻¹").replace("^{T}", "ᵀ")
+    result = re.sub(r"\bI_n\b", "Iₙ", result)
     result = result.replace("->", "→")
     result = result.replace("!=", "≠")
     result = result.replace("+ -", " − ")
@@ -237,7 +239,7 @@ def _extract_text_blocks(text: str) -> tuple[str, list[str]]:
 def _restore_text_blocks(text: str, slots: list[str]) -> str:
     for number, content in enumerate(slots):
         span = (
-            '<span style="font-family:sans-serif; font-style:normal;">'
+            f'<span style="font-family:{FONT_FAMILY_SANS}; font-style:normal;">'
             f"{html.escape(content)}</span>"
         )
         text = text.replace(_slot_token(number), span)

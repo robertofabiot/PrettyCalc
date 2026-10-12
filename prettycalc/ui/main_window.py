@@ -1,6 +1,7 @@
 """Ventana principal de PrettyCalc en PySide6."""
 
 from __future__ import annotations
+import os
 import sys
 
 try:
@@ -12,6 +13,7 @@ try:
         QLabel,
         QApplication,
         QStackedWidget,
+        QPushButton,
     )
     from PySide6.QtGui import QAction, QKeySequence, QColor, QPalette
     from PySide6.QtCore import Qt
@@ -25,7 +27,14 @@ from prettycalc.ui.modules.matrix_equations_view import MatrixEquationsView
 from prettycalc.ui.modules.determinants_view import DeterminantsView
 from prettycalc.ui.modules.lu_factorization_view import LUFactorizationView
 from prettycalc.ui.navigation_bar import ModularNavigationBar
+from prettycalc.ui.platform_setup import configure_high_dpi, prepare_application
+from prettycalc.ui.preferences_dialog import (
+    PreferencesDialog,
+    ShortcutsDialog,
+    restart_application,
+)
 from prettycalc.ui.theme import (
+    load_appearance,
     get_global_stylesheet,
     get_app_palette,
     COLOR_BG_BASE,
@@ -54,6 +63,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1080, 680)
         self.resize(1380, 800)
         app = QApplication.instance()
+        if app is not None:
+            prepare_application(app)
         palette = get_app_palette()
         if palette is not None:
             if app is not None:
@@ -78,6 +89,7 @@ class MainWindow(QMainWindow):
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         title_lbl = QLabel("PrettyCalc")
+        title_lbl.setObjectName("appTitle")
         title_lbl.setStyleSheet(
             f"font-size: 28px; font-weight: 600; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.02em;"
         )
@@ -90,6 +102,24 @@ class MainWindow(QMainWindow):
         self.nav_bar = ModularNavigationBar()
         self.nav_bar.module_changed.connect(self._on_module_changed)
         header_layout.addWidget(self.nav_bar, stretch=1, alignment=Qt.AlignVCenter)
+
+        self.shortcuts_btn = QPushButton("?")
+        self.shortcuts_btn.setObjectName("headerTool")
+        self.shortcuts_btn.setAccessibleName("Atajos de teclado")
+        self.shortcuts_btn.setToolTip("Atajos de teclado (F1)")
+        self.shortcuts_btn.setFixedWidth(40)
+        self.shortcuts_btn.setCursor(Qt.PointingHandCursor)
+        self.shortcuts_btn.clicked.connect(self.show_shortcuts)
+        header_layout.addWidget(self.shortcuts_btn, 0, Qt.AlignVCenter)
+
+        self.appearance_btn = QPushButton("Aa")
+        self.appearance_btn.setObjectName("headerTool")
+        self.appearance_btn.setAccessibleName("Apariencia y accesibilidad")
+        self.appearance_btn.setToolTip("Tema, alto contraste y tamaño de la interfaz (Ctrl+,)")
+        self.appearance_btn.setFixedWidth(46)
+        self.appearance_btn.setCursor(Qt.PointingHandCursor)
+        self.appearance_btn.clicked.connect(self.show_preferences)
+        header_layout.addWidget(self.appearance_btn, 0, Qt.AlignVCenter)
         main_layout.addLayout(header_layout)
 
         self.module_stack = QStackedWidget()
@@ -106,6 +136,12 @@ class MainWindow(QMainWindow):
         self.module_stack.addWidget(self.determinants_view)
         self.module_stack.addWidget(self.lu_view)
         main_layout.addWidget(self.module_stack, stretch=1)
+        self.determinants_view.inverseExported.connect(self._send_inverse_to_matrices)
+
+    def _send_inverse_to_matrices(self, matrix) -> None:
+        """Determinantes → Matrices: abre el Módulo 2 con A⁻¹ en la página de la inversa."""
+        self.set_module(1)
+        self.matrix_operations_view.receive_inverse(matrix)
 
     def _setup_shortcuts(self) -> None:
         for index in range(6):
@@ -113,6 +149,25 @@ class MainWindow(QMainWindow):
             action.setShortcut(QKeySequence(f"Ctrl+{index + 1}"))
             action.triggered.connect(lambda _checked=False, i=index: self.set_module(i))
             self.addAction(action)
+        help_action = QAction(self)
+        help_action.setShortcut(QKeySequence(Qt.Key_F1))
+        help_action.triggered.connect(self.show_shortcuts)
+        self.addAction(help_action)
+        prefs_action = QAction(self)
+        prefs_action.setShortcut(QKeySequence("Ctrl+,"))
+        prefs_action.triggered.connect(self.show_preferences)
+        self.addAction(prefs_action)
+
+    def show_shortcuts(self) -> None:
+        """Hoja de atajos de teclado (F1)."""
+        dialog = ShortcutsDialog(self)
+        dialog.exec()
+
+    def show_preferences(self) -> None:
+        """Tema y escala; ofrece reiniciar para aplicarlos."""
+        dialog = PreferencesDialog(self)
+        if dialog.exec() and dialog.restart_requested:
+            restart_application()
 
     def set_module(self, index: int) -> None:
         """Conmuta el módulo visible y sincroniza la barra de navegación."""
@@ -165,9 +220,34 @@ class MainWindow(QMainWindow):
         self.linear_systems_view.load_sample_case3()
 
 
+def apply_scale_environment() -> float:
+    """Aplica la escala guardada vía ``QT_SCALE_FACTOR`` antes de crear la aplicación.
+
+    Respeta un ``QT_SCALE_FACTOR`` puesto por el usuario; solo lo administra si
+    lo puso PrettyCalc (marca ``PRETTYCALC_SCALE_APPLIED``), para que un
+    reinicio desde Preferencias tome la escala nueva.
+    """
+    _theme, scale = load_appearance()
+    user_owned = "QT_SCALE_FACTOR" in os.environ and "PRETTYCALC_SCALE_APPLIED" not in os.environ
+    if user_owned:
+        return scale
+    if abs(scale - 1.0) > 1e-6:
+        os.environ["QT_SCALE_FACTOR"] = f"{scale:g}"
+        os.environ["PRETTYCALC_SCALE_APPLIED"] = "1"
+    else:
+        os.environ.pop("QT_SCALE_FACTOR", None)
+        os.environ.pop("PRETTYCALC_SCALE_APPLIED", None)
+    return scale
+
+
 def run_app():
-    """Arranque de la aplicación GUI."""
+    """Arranque de la aplicación GUI (misma apariencia en Windows, Linux y macOS)."""
+    apply_scale_environment()
+    configure_high_dpi()
     app = QApplication(sys.argv)
+    app.setOrganizationName("PrettyCalc")
+    app.setApplicationName("PrettyCalc")
+    prepare_application(app)
     palette = get_app_palette()
     if palette is not None:
         app.setPalette(palette)

@@ -19,3 +19,13 @@ prettycalc = "prettycalc.main:run_app"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["prettycalc*"]
+
+[tool.setuptools.package-data]
+# Fuentes y recursos empaquetados: sin ellos la app tomaría las fuentes de cada
+# sistema y se vería distinta en Windows y en Linux.
+"prettycalc.ui" = ["assets/*.svg", "assets/fonts/*.ttf", "assets/fonts/*.txt"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: pruebas que lanzan procesos aparte (layout multiplataforma)",
+]

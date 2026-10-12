@@ -10,6 +10,8 @@ try:
         QHBoxLayout,
         QLabel,
         QFrame,
+        QPushButton,
+        QMenu,
     )
     from PySide6.QtCore import Qt, QRect, QTimer
     from PySide6.QtGui import QPainter, QColor, QFont, QPaintEvent
@@ -21,6 +23,7 @@ from prettycalc.core.cramer import CramerResult, format_cramer_component
 from prettycalc.core.verifier import EquationVerification
 from prettycalc.core.types import Matrix, Vector, format_scalar
 from prettycalc.ui.book_matrix import draw_square_brackets, paint_book_scalar
+from prettycalc.ui.responsive import FlowLayout
 from prettycalc.ui.mathtext import (
     variable_symbol,
     variable_html,
@@ -40,9 +43,13 @@ from prettycalc.ui.theme import (
     COLOR_TEXT_MUTED,
     COLOR_SURFACE_INNER,
     COLOR_BG_BASE,
+    COLOR_INTERACTIVE_DISABLED,
     FONT_FAMILY_MONO,
     FONT_FAMILY_SANS,
     apply_widget_class,
+    contrast_ratio,
+    readable_text_on,
+    ui_font,
 )
 
 
@@ -63,10 +70,7 @@ class _ColumnVectorWidget(QWidget):
         top = 4
         bracket = QRect(2, top, self.width() - 4, rows * self._row_h)
         draw_square_brackets(painter, bracket, QColor(COLOR_TEXT_PRIMARY), thickness=2)
-        font = QFont()
-        font.setFamily(FONT_FAMILY_MONO.split(",")[0].strip())
-        font.setPointSize(11)
-        font.setBold(True)
+        font = ui_font(15, mono=True, weight=700)
         for index, text in enumerate(self._values):
             cell = QRect(
                 bracket.left() + 14,
@@ -86,6 +90,8 @@ class ResultsDashboardCard(QFrame):
         self.setMinimumWidth(320)
         self.parametric_solution: Optional[ParametricVectorSolution] = None
         self.cramer_result: Optional[CramerResult] = None
+        self.last_analysis: Optional[SystemAnalysis] = None
+        self._notice_action = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -93,19 +99,35 @@ class ResultsDashboardCard(QFrame):
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(14)
 
+        header = QHBoxLayout()
         title = QLabel("Resultados")
         title.setProperty("class", "section-title")
         title.setStyleSheet(
             f"font-size: 20px; font-weight: 600; letter-spacing: 0.04em; "
             f"color: {COLOR_TEXT_PRIMARY};"
         )
-        layout.addWidget(title)
+        header.addWidget(title)
+        header.addStretch(1)
+        self.copy_results_btn = QPushButton("Copiar")
+        self.copy_results_btn.setObjectName("secondaryAction")
+        self.copy_results_btn.setToolTip("Copiar los resultados como texto o la solución en LaTeX")
+        self.copy_results_btn.setEnabled(False)
+        self.copy_results_btn.clicked.connect(self._show_copy_menu)
+        header.addWidget(self.copy_results_btn)
+        layout.addLayout(header)
 
         self.status_badge = QLabel("Esperando cálculo")
         self.status_badge.setAlignment(Qt.AlignCenter)
         self.status_badge.setWordWrap(True)
-        self.status_badge.setStyleSheet(self._badge_style("#3A3642", COLOR_TEXT_PRIMARY))
+        self.status_badge.setStyleSheet(self._badge_style(COLOR_INTERACTIVE_DISABLED, COLOR_TEXT_PRIMARY))
         layout.addWidget(self.status_badge)
+
+        self.notice_action_btn = QPushButton("")
+        self.notice_action_btn.setObjectName("primaryAction")
+        self.notice_action_btn.setCursor(Qt.PointingHandCursor)
+        self.notice_action_btn.setVisible(False)
+        self.notice_action_btn.clicked.connect(self._run_notice_action)
+        layout.addWidget(self.notice_action_btn)
 
         self.summary_label = QLabel("")
         self.summary_label.setWordWrap(True)
@@ -148,15 +170,19 @@ class ResultsDashboardCard(QFrame):
     def clear(self) -> None:
         """Restablece el panel al estado vacío inicial."""
         self.status_badge.setText("Esperando cálculo")
-        self.status_badge.setStyleSheet(self._badge_style("#3A3642", COLOR_TEXT_PRIMARY))
+        self.status_badge.setStyleSheet(self._badge_style(COLOR_INTERACTIVE_DISABLED, COLOR_TEXT_PRIMARY))
         self.summary_label.setText("")
         self.parametric_solution = None
         self.cramer_result = None
+        self.last_analysis = None
+        self._notice_action = None
+        self.notice_action_btn.setVisible(False)
+        self.copy_results_btn.setEnabled(False)
         self._clear_layout(self.structure_layout)
         self._clear_layout(self.var_container)
         self._clear_layout(self.checklist_container)
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def display_results(
         self,
@@ -164,6 +190,10 @@ class ResultsDashboardCard(QFrame):
         verifications: Optional[List[EquationVerification]] = None,
     ) -> None:
         self.cramer_result = None
+        self.last_analysis = analysis
+        self._notice_action = None
+        self.notice_action_btn.setVisible(False)
+        self.copy_results_btn.setEnabled(True)
         if analysis.system_type == SystemType.CONSISTENT_DETERMINED:
             badge_color = COLOR_FEEDBACK_SUCCESS
             badge_text = "Consistente determinado"
@@ -267,7 +297,14 @@ class ResultsDashboardCard(QFrame):
             )
             self.var_container.addWidget(lbl)
             if analysis.inconsistent_row is not None:
-                inc_lbl = QLabel(f"La fila {analysis.inconsistent_row + 1} genera contradicción 0 = c con c ≠ 0.")
+                contradiction_value = self._contradiction_value(analysis)
+                detail = (
+                    f"0 = {contradiction_value}" if contradiction_value is not None else "0 = c con c ≠ 0"
+                )
+                inc_lbl = QLabel(
+                    f"La fila {analysis.inconsistent_row + 1} de la forma reducida genera la contradicción {detail}."
+                )
+                inc_lbl.setWordWrap(True)
                 inc_lbl.setStyleSheet(
                     f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; padding-top: 4px;"
                 )
@@ -279,18 +316,41 @@ class ResultsDashboardCard(QFrame):
             for v in verifications:
                 self.checklist_container.addWidget(self._verification_block(v))
         elif analysis.system_type == SystemType.INCONSISTENT:
-            lbl = QLabel("Contradicción:  0 = c  con  c ≠ 0")
+            contradiction_value = self._contradiction_value(analysis)
+            row_text = (
+                f"Fila {analysis.inconsistent_row + 1}:  0 = {contradiction_value}"
+                if analysis.inconsistent_row is not None and contradiction_value is not None
+                else "0 = c  con  c ≠ 0"
+            )
+            lbl = QLabel(f"Contradicción:  {row_text}")
+            lbl.setWordWrap(True)
             lbl.setStyleSheet(
                 f"color: {COLOR_FEEDBACK_ERROR}; font-size: 16px; font-style: italic; "
                 f"padding: 10px; background-color: {COLOR_SURFACE_INNER};"
             )
             self.checklist_container.addWidget(lbl)
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
-    def display_notice(self, title: str, message: str, *, error: bool = True) -> None:
-        """Muestra un aviso de método no aplicable, sin dejar resultados viejos."""
+    def display_notice(
+        self,
+        title: str,
+        message: str,
+        *,
+        error: bool = True,
+        action_text: Optional[str] = None,
+        action=None,
+    ) -> None:
+        """Muestra un aviso de método no aplicable, sin dejar resultados viejos.
+
+        Con ``action_text`` y ``action`` aparece un botón de acción directa
+        (por ejemplo «Cambiar a Gauss-Jordan para clasificar»).
+        """
         self.clear()
+        if action_text and action is not None:
+            self._notice_action = action
+            self.notice_action_btn.setText(action_text)
+            self.notice_action_btn.setVisible(True)
         if error:
             badge_color = COLOR_FEEDBACK_ERROR
             text_color = COLOR_TEXT_PRIMARY
@@ -301,7 +361,7 @@ class ResultsDashboardCard(QFrame):
         self.status_badge.setStyleSheet(self._badge_style(badge_color, text_color))
         self.summary_label.setText(message)
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def display_cramer(
         self,
@@ -311,6 +371,7 @@ class ResultsDashboardCard(QFrame):
         """Desglosa det(A), cada A_i(b) y x_i = det(A_i(b)) / det(A)."""
         self.clear()
         self.cramer_result = result
+        self.copy_results_btn.setEnabled(True)
         self.status_badge.setText("Regla de Cramer")
         self.status_badge.setStyleSheet(self._badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
         self.summary_label.setObjectName("cramerSummary")
@@ -374,7 +435,7 @@ class ResultsDashboardCard(QFrame):
             for verification in verifications:
                 self.checklist_container.addWidget(self._verification_block(verification))
         self._fit_minimum_height()
-        QTimer.singleShot(0, self._fit_minimum_height)
+        QTimer.singleShot(0, self, self._fit_minimum_height)
 
     def _matrix_readout(self, matrix: Matrix, object_name: str) -> QLabel:
         """Matriz en texto monoespaciado, seleccionable, para el panel de Cramer."""
@@ -411,38 +472,38 @@ class ResultsDashboardCard(QFrame):
 
         host = QWidget()
         host.setObjectName("parametricVectorForm")
-        row = QHBoxLayout(host)
+        # Sprint 10: los términos t·v saltan de línea en columnas angostas
+        # (1366 px) en lugar de forzar desplazamiento horizontal.
+        row = FlowLayout(host, spacing=6, center=True)
         row.setContentsMargins(0, 4, 0, 4)
-        row.setSpacing(6)
+
+        def group(*widgets: QWidget) -> QWidget:
+            box = QWidget()
+            layout = QHBoxLayout(box)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            for widget in widgets:
+                layout.addWidget(widget, 0, Qt.AlignVCenter)
+            return box
 
         equals = QLabel("x  =")
         equals.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO}; font-weight: 700;"
         )
-        row.addWidget(equals, 0, Qt.AlignVCenter)
-        row.addWidget(self._vector_term(solution.particular_vector, "particular p"), 0, Qt.AlignVCenter)
+        row.addWidget(group(equals, self._vector_term(solution.particular_vector, "particular p")))
 
         for free_idx in sorted(solution.null_basis_vectors):
             plus = QLabel("+")
             plus.setStyleSheet(
                 f"color: {COLOR_INTERACTIVE_IDLE}; font-size: 22px; font-weight: 700;"
             )
-            row.addWidget(plus, 0, Qt.AlignVCenter)
             name = QLabel(variable_html(free_idx, sub_size_px=14))
             name.setTextFormat(Qt.RichText)
             name.setStyleSheet(
                 f"color: {COLOR_ACCENT_WARNING}; font-size: 20px; font-family: {FONT_FAMILY_MONO}; font-weight: 700;"
             )
-            row.addWidget(name, 0, Qt.AlignVCenter)
             caption = f"base de {variable_symbol(free_idx)}"
-            row.addWidget(
-                self._vector_term(solution.null_basis_vectors[free_idx], caption),
-                0,
-                Qt.AlignVCenter,
-            )
-        row.addStretch(1)
-        host.layout().activate()
-        host.setMinimumWidth(host.sizeHint().width())
+            row.addWidget(group(plus, name, self._vector_term(solution.null_basis_vectors[free_idx], caption)))
         self.var_container.addWidget(host)
 
         equation = QLabel(
@@ -553,8 +614,79 @@ class ResultsDashboardCard(QFrame):
         col.addWidget(sub_lbl)
         return card
 
+    # ------------------------------------------------------------------
+    # Acciones
+    # ------------------------------------------------------------------
+
+    def _run_notice_action(self) -> None:
+        action = self._notice_action
+        if action is not None:
+            action()
+
+    @staticmethod
+    def _contradiction_value(analysis: SystemAnalysis) -> Optional[str]:
+        value = getattr(analysis, "inconsistent_value", None)
+        if value is None:
+            return None
+        return format_scalar(value)
+
+    def results_text(self) -> str:
+        """Resumen de todo el panel en texto plano (sin etiquetas HTML)."""
+        import html as _html
+        import re as _re
+
+        parts = []
+        for label in self.findChildren(QLabel):
+            if not label.isVisibleTo(self):
+                continue
+            text = label.text()
+            if not text.strip():
+                continue
+            text = _re.sub(r"<sub[^>]*>(.*?)</sub>", r"_\1", text)
+            text = _re.sub(r"<br\s*/?>", "\n", text)
+            text = _re.sub(r"<[^>]+>", "", text)
+            parts.append(_html.unescape(text).replace("\u00a0", " ").strip())
+        return "\n".join(parts) + "\n"
+
+    def solution_latex(self) -> str:
+        if self.cramer_result is not None:
+            values = ", ".join(format_scalar(v, mode="latex") for v in self.cramer_result.solution)
+            return rf"x = \left({values}\right)"
+        analysis = self.last_analysis
+        if analysis is None:
+            return ""
+        if analysis.unique_solution is not None:
+            values = r" \\ ".join(format_scalar(v, mode="latex") for v in analysis.unique_solution)
+            return rf"x = \begin{{bmatrix}} {values} \end{{bmatrix}}"
+        if analysis.parametric_vector_solution is not None:
+            return analysis.parametric_vector_solution.to_latex_equation()
+        return r"\text{Sistema inconsistente: no hay solución}"
+
+    def _show_copy_menu(self) -> None:
+        menu = QMenu(self)
+        text_action = menu.addAction("Copiar resultados como texto")
+        text_action.triggered.connect(lambda: self._copy(self.results_text(), "Resultados copiados como texto."))
+        latex_action = menu.addAction("Copiar solución en LaTeX")
+        latex_action.triggered.connect(lambda: self._copy(self.solution_latex(), "Solución copiada en LaTeX."))
+        menu.exec(self.copy_results_btn.mapToGlobal(self.copy_results_btn.rect().bottomLeft()))
+
+    def _copy(self, payload: str, message: str) -> bool:
+        if not payload:
+            return False
+        from PySide6.QtGui import QGuiApplication
+        from prettycalc.ui.feedback import show_toast
+
+        clipboard = QGuiApplication.clipboard()
+        if clipboard is None:
+            return False
+        clipboard.setText(payload)
+        show_toast(self, message, kind="success")
+        return True
+
     @staticmethod
     def _badge_style(bg: str, fg: str) -> str:
+        if contrast_ratio(fg, bg) < 4.5:
+            fg = readable_text_on(bg)
         return f"""
             background-color: {bg};
             color: {fg};

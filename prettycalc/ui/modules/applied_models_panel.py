@@ -1,6 +1,19 @@
-"""Asistente de las aplicaciones de sistemas lineales (Sesión 8)."""
+"""Asistente de las aplicaciones de sistemas lineales (Sesión 8).
+
+Sprint 10 (auditoría UI/UX, SEL_FLUJO_04):
+
+- La matriz de consumo de Leontief se edita en una cuadrícula n×n (con suma
+  de columnas en vivo) en lugar de una línea de texto con punto y coma.
+- La dieta y la red de tráfico ya no son ejemplos fijos: la tabla de
+  nutrientes y el balance de nodos son editables, con el ejemplo de la
+  sesión precargado y un botón para restaurarlo.
+- Ejemplos químicos de un clic.
+"""
 
 from __future__ import annotations
+
+from fractions import Fraction
+from typing import List
 
 try:
     from PySide6.QtWidgets import (
@@ -20,6 +33,7 @@ except ImportError:
     Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.applied_models import (
+    AppliedModelError,
     ChemicalBalanceResult,
     ChemicalFormulaError,
     LeontiefModelResult,
@@ -29,38 +43,34 @@ from prettycalc.core.applied_models import (
     balance_chemical_reaction,
     baltimore_traffic_network,
     cambridge_diet,
+    coal_electric_steel_consumption,
     parse_chemical_side,
     solve_leontief_exchange,
     solve_nutrition_mix,
 )
-from prettycalc.core.types import Matrix, format_scalar
+from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
+from prettycalc.ui.matrix_grid import DynamicMatrixGrid
+from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.theme import (
     COLOR_ACCENT_WARNING,
     COLOR_FEEDBACK_ERROR,
     COLOR_FEEDBACK_SUCCESS,
-    COLOR_INTERACTIVE_IDLE,
-    COLOR_SURFACE_INNER,
     COLOR_TEXT_PRIMARY,
-    FONT_FAMILY_MONO,
     apply_widget_class,
 )
 
 
-_FIELD_STYLE = f"""
-QLineEdit {{
-    background-color: {COLOR_SURFACE_INNER};
-    color: {COLOR_TEXT_PRIMARY};
-    border: 1px solid {COLOR_INTERACTIVE_IDLE};
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-family: {FONT_FAMILY_MONO};
-    font-size: 14px;
-    selection-background-color: {COLOR_INTERACTIVE_IDLE};
-    selection-color: {COLOR_SURFACE_INNER};
-}}
-"""
-
 _COAL_TEXT = "0, 0.4, 0.6; 0.6, 0.1, 0.2; 0.4, 0.5, 0.2"
+
+_CAMBRIDGE_INGREDIENTS = ["leche descremada", "harina de soya", "suero de leche"]
+_CAMBRIDGE_NUTRIENTS = ["proteínas", "carbohidratos", "grasa"]
+
+#: Reacciones de ejemplo: (rótulo, reactivos, productos).
+_CHEMICAL_EXAMPLES = (
+    ("Propano", "C3H8 + O2", "CO2 + H2O"),
+    ("Fotosíntesis", "CO2 + H2O", "C6H12O6 + O2"),
+    ("Óxido de hierro", "Fe + O2", "Fe2O3"),
+)
 
 
 def parse_consumption_text(text: str) -> Matrix:
@@ -78,8 +88,8 @@ def parse_consumption_text(text: str) -> Matrix:
 def _field(text: str, object_name: str) -> QLineEdit:
     edit = QLineEdit(text)
     edit.setObjectName(object_name)
-    edit.setStyleSheet(_FIELD_STYLE)
-    edit.setClearButtonEnabled(False)
+    apply_widget_class(edit, "text-field")
+    edit.setClearButtonEnabled(True)
     return edit
 
 
@@ -88,6 +98,20 @@ def _hint(text: str) -> QLabel:
     label.setWordWrap(True)
     label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 13px;")
     return label
+
+
+def _secondary(text: str, name: str) -> QPushButton:
+    button = QPushButton(text)
+    button.setObjectName(name)
+    apply_widget_class(button, "secondaryAction")
+    return button
+
+
+def _primary(text: str, name: str) -> QPushButton:
+    button = QPushButton(text)
+    button.setObjectName(name)
+    apply_widget_class(button, "primaryAction")
+    return button
 
 
 class AppliedModelsPanel(QFrame):
@@ -146,90 +170,155 @@ class AppliedModelsPanel(QFrame):
         self.forms.addWidget(self._traffic_form())
         layout.addWidget(self.forms)
 
-        self.result_label = QLabel("Elige una aplicación y calcula. La matriz aumentada se carga sola.")
+        self.result_label = QLabel(
+            "Elige una aplicación y calcula. La matriz aumentada se carga sola en la cuadrícula de arriba."
+        )
         self.result_label.setObjectName("appliedResult")
         self.result_label.setWordWrap(True)
         self.result_label.setTextFormat(Qt.RichText)
+        self.result_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.result_label.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 14px;")
         layout.addWidget(self.result_label)
 
-    def _chemical_form(self) -> QWidget:
+    # ------------------------------------------------------------------
+    # Formularios
+    # ------------------------------------------------------------------
+
+    def _page(self) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget()
         page.setStyleSheet("background: transparent;")
         form = QVBoxLayout(page)
         form.setContentsMargins(0, 0, 0, 0)
         form.setSpacing(6)
-        form.addWidget(_hint("Reactivos y productos, sin coeficientes. Ejemplo de la sesión: propano."))
+        return page, form
+
+    def _chemical_form(self) -> QWidget:
+        page, form = self._page()
+        form.addWidget(_hint("Reactivos y productos, sin coeficientes. Separa las especies con +."))
+        examples = QHBoxLayout()
+        examples.setSpacing(4)
+        self.chemical_example_buttons: List[QPushButton] = []
+        for label, reactants, products in _CHEMICAL_EXAMPLES:
+            chip = QPushButton(label)
+            apply_widget_class(chip, "chip")
+            chip.setToolTip(f"{reactants} → {products}")
+            chip.clicked.connect(
+                lambda _checked=False, r=reactants, p=products: self.load_chemical_example(r, p)
+            )
+            examples.addWidget(chip)
+            self.chemical_example_buttons.append(chip)
+        examples.addStretch(1)
+        form.addLayout(examples)
         form.addWidget(QLabel("Reactivos"))
         self.reactants_edit = _field("C3H8 + O2", "chemicalReactants")
+        self.reactants_edit.returnPressed.connect(self.balance_reaction)
         form.addWidget(self.reactants_edit)
         form.addWidget(QLabel("Productos"))
         self.products_edit = _field("CO2 + H2O", "chemicalProducts")
+        self.products_edit.returnPressed.connect(self.balance_reaction)
         form.addWidget(self.products_edit)
-        self.balance_btn = QPushButton("Balancear reacción")
-        self.balance_btn.setObjectName("balanceChemicalButton")
-        apply_widget_class(self.balance_btn, "primaryAction")
+        self.balance_btn = _primary("Balancear reacción", "balanceChemicalButton")
         self.balance_btn.clicked.connect(self.balance_reaction)
         form.addWidget(self.balance_btn)
         return page
 
     def _leontief_form(self) -> QWidget:
-        page = QWidget()
-        page.setStyleSheet("background: transparent;")
-        form = QVBoxLayout(page)
-        form.setContentsMargins(0, 0, 0, 0)
-        form.setSpacing(6)
+        page, form = self._page()
         form.addWidget(_hint(
-            "Matriz de consumo C. Cada fila va separada por punto y coma y cada columna debe sumar 1."
+            "Matriz de consumo C: la columna j dice cómo reparte su producción el sector j. "
+            "Cada columna debe sumar 1."
         ))
-        self.consumption_edit = _field(_COAL_TEXT, "leontiefConsumption")
-        form.addWidget(self.consumption_edit)
+        self.consumption_grid = DynamicMatrixGrid(
+            initial_rows=3,
+            initial_cols=3,
+            augmented=False,
+            row_expandable=False,
+            col_expandable=False,
+        )
+        self.consumption_grid.setObjectName("leontiefConsumption")
+        self.consumption_grid.set_matrix(coal_electric_steel_consumption(), record=False)
+        self.consumption_grid.matrixChanged.connect(self._refresh_column_sums)
+        self.consumption_grid.submitRequested.connect(self.solve_leontief)
+        self.sectors_control = MatrixSizeControl(
+            self.consumption_grid, square=True, order_label="Sectores n", minimum=2, maximum=8
+        )
+        form.addWidget(self.sectors_control)
+        form.addWidget(self.consumption_grid)
+        self.column_sums_label = QLabel("")
+        self.column_sums_label.setObjectName("leontiefColumnSums")
+        self.column_sums_label.setWordWrap(True)
+        form.addWidget(self.column_sums_label)
         actions = QHBoxLayout()
-        self.leontief_example_btn = QPushButton("Carbón, electricidad y acero")
-        self.leontief_example_btn.setObjectName("leontiefExampleButton")
-        apply_widget_class(self.leontief_example_btn, "secondaryAction")
+        self.leontief_example_btn = _secondary("Carbón, electricidad y acero", "leontiefExampleButton")
         self.leontief_example_btn.clicked.connect(self.load_coal_example)
         actions.addWidget(self.leontief_example_btn)
-        self.leontief_btn = QPushButton("Precios de equilibrio")
-        self.leontief_btn.setObjectName("leontiefButton")
-        apply_widget_class(self.leontief_btn, "primaryAction")
+        self.leontief_btn = _primary("Precios de equilibrio", "leontiefButton")
         self.leontief_btn.clicked.connect(self.solve_leontief)
         actions.addWidget(self.leontief_btn)
         form.addLayout(actions)
+        self._refresh_column_sums()
         return page
 
     def _diet_form(self) -> QWidget:
-        page = QWidget()
-        page.setStyleSheet("background: transparent;")
-        form = QVBoxLayout(page)
-        form.setContentsMargins(0, 0, 0, 0)
-        form.setSpacing(6)
+        page, form = self._page()
         form.addWidget(_hint(
-            "Dieta Cambridge: leche descremada, harina de soya y suero. "
-            "Cada unidad son 100 g y se cubren proteínas, carbohidratos y grasa."
+            "Filas: nutrientes. Columnas: alimentos (cantidad por porción de 100 g). "
+            "Columna b: requerimiento diario. Precargada con la dieta Cambridge."
         ))
-        self.diet_btn = QPushButton("Resolver dieta Cambridge")
-        self.diet_btn.setObjectName("dietButton")
-        apply_widget_class(self.diet_btn, "primaryAction")
+        composition, requirements = cambridge_diet()
+        self.diet_grid = DynamicMatrixGrid(initial_rows=3, initial_cols=3, augmented=True)
+        self.diet_grid.setObjectName("dietTable")
+        self.diet_grid.set_matrix(composition.augment(requirements.components), record=False)
+        self.diet_grid.submitRequested.connect(self.solve_cambridge_diet)
+        self.diet_size = MatrixSizeControl(
+            self.diet_grid,
+            rows_label="Nutrientes",
+            cols_label="Alimentos",
+            caption="Nutrientes × alimentos",
+            minimum=1,
+            maximum=6,
+        )
+        form.addWidget(self.diet_size)
+        form.addWidget(self.diet_grid)
+        actions = QHBoxLayout()
+        self.diet_example_btn = _secondary("Dieta Cambridge", "dietExampleButton")
+        self.diet_example_btn.clicked.connect(self.load_cambridge_example)
+        actions.addWidget(self.diet_example_btn)
+        self.diet_btn = _primary("Resolver mezcla", "dietButton")
         self.diet_btn.clicked.connect(self.solve_cambridge_diet)
-        form.addWidget(self.diet_btn)
+        actions.addWidget(self.diet_btn)
+        form.addLayout(actions)
         return page
 
     def _traffic_form(self) -> QWidget:
-        page = QWidget()
-        page.setStyleSheet("background: transparent;")
-        form = QVBoxLayout(page)
-        form.setContentsMargins(0, 0, 0, 0)
-        form.setSpacing(6)
+        page, form = self._page()
         form.addWidget(_hint(
-            "Red de un solo sentido en Baltimore. El balance de los nodos se carga solo "
-            "y las cotas evitan un flujo en contra del sentido (xᵢ ≥ 0)."
+            "Cada fila es un nodo: lo que entra = lo que sale. Pasa todos los xᵢ a la izquierda "
+            "(1 o −1) y el flujo externo a b. Las cotas evitan un flujo en contra del sentido (xᵢ ≥ 0). "
+            "Precargada con la red de Baltimore."
         ))
-        self.traffic_btn = QPushButton("Analizar red de Baltimore")
-        self.traffic_btn.setObjectName("trafficButton")
-        apply_widget_class(self.traffic_btn, "primaryAction")
+        self.traffic_grid = DynamicMatrixGrid(initial_rows=5, initial_cols=5, augmented=True)
+        self.traffic_grid.setObjectName("trafficNetwork")
+        self.traffic_grid.set_matrix(baltimore_traffic_network(), record=False)
+        self.traffic_grid.submitRequested.connect(self.solve_baltimore)
+        self.traffic_size = MatrixSizeControl(
+            self.traffic_grid,
+            rows_label="Ecuaciones",
+            cols_label="Tramos",
+            caption="Nodos × tramos",
+            minimum=1,
+            maximum=8,
+        )
+        form.addWidget(self.traffic_size)
+        form.addWidget(self.traffic_grid)
+        actions = QHBoxLayout()
+        self.traffic_example_btn = _secondary("Red de Baltimore", "trafficExampleButton")
+        self.traffic_example_btn.clicked.connect(self.load_baltimore_example)
+        actions.addWidget(self.traffic_example_btn)
+        self.traffic_btn = _primary("Analizar red", "trafficButton")
         self.traffic_btn.clicked.connect(self.solve_baltimore)
-        form.addWidget(self.traffic_btn)
+        actions.addWidget(self.traffic_btn)
+        form.addLayout(actions)
         return page
 
     def _show_form(self, index: int) -> None:
@@ -241,6 +330,15 @@ class AppliedModelsPanel(QFrame):
         if button is not None:
             button.setChecked(True)
         self.forms.setCurrentIndex(index)
+
+    # ------------------------------------------------------------------
+    # Química
+    # ------------------------------------------------------------------
+
+    def load_chemical_example(self, reactants: str, products: str) -> None:
+        self.reactants_edit.setText(reactants)
+        self.products_edit.setText(products)
+        self.balance_reaction()
 
     def balance_reaction(self) -> None:
         """Balancea los dos lados escritos en el formulario."""
@@ -263,15 +361,44 @@ class AppliedModelsPanel(QFrame):
             self._show_message(result.summary, error=True)
         self.model_ready.emit(result)
 
+    # ------------------------------------------------------------------
+    # Leontief
+    # ------------------------------------------------------------------
+
+    @property
+    def consumption_text(self) -> str:
+        """La matriz de consumo actual en el formato «a, b; c, d»."""
+        return "; ".join(", ".join(row) for row in self.consumption_grid.get_raw_strings())
+
+    def _refresh_column_sums(self) -> None:
+        if not self.consumption_grid.is_all_valid():
+            self.column_sums_label.setStyleSheet(f"color: {COLOR_FEEDBACK_ERROR}; font-size: 13px;")
+            self.column_sums_label.setText("Corrige las celdas marcadas para ver la suma de cada columna.")
+            return
+        matrix = self.consumption_grid.get_matrix()
+        sums = [sum((matrix.get(r, c) for r in range(matrix.rows)), Fraction(0)) for c in range(matrix.cols)]
+        ok = all(value == 1 for value in sums)
+        shown = ", ".join(format_scalar(value) for value in sums)
+        color = COLOR_FEEDBACK_SUCCESS if ok else COLOR_ACCENT_WARNING
+        verdict = "cada columna suma 1." if ok else "alguna columna no suma 1 (el modelo cerrado lo exige)."
+        self.column_sums_label.setStyleSheet(f"color: {color}; font-size: 13px; font-weight: 600;")
+        self.column_sums_label.setText(f"Suma por columna: ({shown}) — {verdict}")
+
     def load_coal_example(self) -> None:
         """Rellena C con la tabla de carbón, electricidad y acero."""
-        self.consumption_edit.setText(_COAL_TEXT)
+        self.consumption_grid.set_matrix(coal_electric_steel_consumption())
         self.solve_leontief()
 
     def solve_leontief(self) -> None:
-        """Resuelve (I − C) p = 0 con la matriz escrita en el formulario."""
+        """Resuelve (I − C) p = 0 con la matriz de la cuadrícula."""
+        if not self.consumption_grid.is_all_valid():
+            self._show_message(
+                "Corrige la matriz de consumo: " + self.consumption_grid.validation_message(),
+                error=True,
+            )
+            return
         try:
-            consumption = parse_consumption_text(self.consumption_edit.text())
+            consumption = self.consumption_grid.get_matrix()
             result = solve_leontief_exchange(consumption)
         except (ValueError, ZeroDivisionError) as exc:
             self._show_message(str(exc), error=True)
@@ -290,15 +417,36 @@ class AppliedModelsPanel(QFrame):
         )
         self.model_ready.emit(result)
 
-    def solve_cambridge_diet(self) -> None:
-        """Carga la tabla de la dieta y resuelve la mezcla."""
+    # ------------------------------------------------------------------
+    # Dieta
+    # ------------------------------------------------------------------
+
+    def load_cambridge_example(self) -> None:
         composition, requirements = cambridge_diet()
-        result = solve_nutrition_mix(
-            composition,
-            requirements,
-            ingredient_names=["leche descremada", "harina de soya", "suero de leche"],
-            nutrient_names=["proteínas", "carbohidratos", "grasa"],
-        )
+        self.diet_grid.set_matrix(composition.augment(requirements.components))
+        self.solve_cambridge_diet()
+
+    def solve_cambridge_diet(self) -> None:
+        """Resuelve la mezcla con la tabla de la cuadrícula (Cambridge por defecto)."""
+        if not self.diet_grid.is_all_valid():
+            self._show_message("Corrige la tabla: " + self.diet_grid.validation_message(), error=True)
+            return
+        table = self.diet_grid.get_matrix()
+        split = table.cols - 1
+        composition, requirement_matrix = table.split_augmented(split)
+        requirements = Vector.from_column_matrix(requirement_matrix)
+        cambridge_composition, cambridge_requirements = cambridge_diet()
+        is_cambridge = composition == cambridge_composition and requirements == cambridge_requirements
+        try:
+            result = solve_nutrition_mix(
+                composition,
+                requirements,
+                ingredient_names=_CAMBRIDGE_INGREDIENTS if is_cambridge else None,
+                nutrient_names=_CAMBRIDGE_NUTRIENTS if is_cambridge else None,
+            )
+        except (AppliedModelError, DimensionMismatchError, ValueError) as exc:
+            self._show_message(str(exc), error=True)
+            return
         self.last_nutrition = result
         if result.is_feasible:
             lines = "<br>".join(
@@ -309,14 +457,30 @@ class AppliedModelsPanel(QFrame):
                     result.ingredient_names, result.amounts, result.gram_amounts
                 )
             )
-            self._show_message(f"Mezcla exacta de la dieta Cambridge.<br>{lines}", error=False)
+            heading = "Mezcla exacta de la dieta Cambridge." if is_cambridge else "Mezcla exacta de la dieta."
+            self._show_message(f"{heading}<br>{lines}", error=False)
         else:
             self._show_message(result.summary, error=True)
         self.model_ready.emit(result)
 
+    # ------------------------------------------------------------------
+    # Tráfico
+    # ------------------------------------------------------------------
+
+    def load_baltimore_example(self) -> None:
+        self.traffic_grid.set_matrix(baltimore_traffic_network())
+        self.solve_baltimore()
+
     def solve_baltimore(self) -> None:
-        """Carga el balance de nodos y calcula las cotas de un solo sentido."""
-        result = analyze_network_flow(baltimore_traffic_network())
+        """Analiza la red de la cuadrícula: solución general y cotas de un solo sentido."""
+        if not self.traffic_grid.is_all_valid():
+            self._show_message("Corrige la red: " + self.traffic_grid.validation_message(), error=True)
+            return
+        try:
+            result = analyze_network_flow(self.traffic_grid.get_matrix())
+        except (AppliedModelError, ValueError) as exc:
+            self._show_message(str(exc), error=True)
+            return
         self.last_network = result
         ranges = "<br>".join(
             f"{name} ∈ {_interval_text(lower, upper)}"
@@ -331,8 +495,14 @@ class AppliedModelsPanel(QFrame):
 
     def _show_message(self, text: str, *, error: bool) -> None:
         color = COLOR_FEEDBACK_ERROR if error else COLOR_FEEDBACK_SUCCESS
-        self.result_label.setStyleSheet(f"color: {color}; font-size: 14px;")
-        self.result_label.setText(text)
+        self.result_label.setStyleSheet(
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 14px; border-left: 3px solid {color}; "
+            f"padding-left: 8px;"
+        )
+        mark = "✕" if error else "✓"
+        self.result_label.setText(
+            f"<span style='color:{color}; font-weight:700;'>{mark}</span>&nbsp; {text}"
+        )
 
 
 def _interval_text(lower, upper) -> str:

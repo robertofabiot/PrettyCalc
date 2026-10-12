@@ -91,6 +91,20 @@ QT_QPA_PLATFORM=offscreen pytest
 
 Hay casos de prueba en la columna izquierda: solución única, infinitas soluciones, sin solución, Cramer y el asistente de aplicaciones.
 
+**Atajos y ayudas comunes a todos los módulos** (F1 abre la hoja completa):
+
+| Acción | Atajo |
+| :--- | :--- |
+| Calcular / Resolver / Verificar desde cualquier celda | Ctrl+Intro |
+| Deshacer / rehacer un cambio de la cuadrícula (pegar, reiniciar, ejemplo) | Ctrl+Z / Ctrl+Y |
+| Eliminar la fila / la columna de la celda activa | Ctrl+Supr / Ctrl+Mayús+Supr |
+| Copiar / pegar la matriz completa (TSV, Excel, LaTeX) | Ctrl+C / Ctrl+V |
+| Ir al módulo 1 … 6 | Ctrl+1 … Ctrl+6 |
+| Apariencia (tema oscuro, alto contraste o claro; escala) | Ctrl+, |
+| Navegar el procedimiento | ← / → dentro del carrusel |
+
+Los errores se explican en línea («A, fila 2, columna 3: divide entre cero»), los cambios masivos muestran un aviso con **Deshacer** y la app se ve igual en Windows y en Linux porque trae sus propias fuentes (Inter, Fira Code y DejaVu Sans).
+
 ### Motor matemático (Python)
 
 El núcleo no necesita Qt. Ejemplo con el caso de solución única $x=2$, $y=1$, $z=1$:

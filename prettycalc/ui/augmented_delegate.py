@@ -43,9 +43,9 @@ class AugmentedMatrixDelegate(QStyledItemDelegate):
         if isinstance(font_role, QFont):
             font = font_role
         else:
-            font = QFont()
-            font.setFamily(FONT_FAMILY_MONO.split(",")[0].strip())
-            font.setPointSize(12)
+            from prettycalc.ui.theme import ui_font
+
+            font = ui_font(16, mono=True)
 
         text = str(index.data(Qt.DisplayRole) or "")
         paint_book_scalar(painter, option.rect, text, fg, font)

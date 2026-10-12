@@ -1,7 +1,16 @@
-"""Vista de factorización LU y resolución en dos etapas.
+"""Módulo 6: factorización LU (PA = LU) y resolución en dos etapas.
 
 Asignatura: Álgebra Lineal MTM0120, Universidad Americana (UAM).
-Sexta pestaña de la shell: A = LU, Ly = b y Ux = y.
+
+Sprint 10 (auditoría UI/UX, Módulo 6):
+
+- Tamaño de A con spinboxes directos m × n (sin modales al redimensionar).
+- Las filas que la permutación P movió se marcan en ocre sobre A.
+- Etapa 1, etapa 2 y clasificación en pestañas: los carruseles ya no se
+  comprimen en cuatro columnas a 1366 px.
+- Si U tiene un pivote nulo (o A no es cuadrada), «Clasificar A x = b»
+  muestra el tablero de resultados de los Módulos 1 y 4 con las variables
+  libres y la solución paramétrica.
 """
 
 from __future__ import annotations
@@ -18,12 +27,13 @@ try:
         QFrame,
         QSplitter,
         QScrollArea,
-        QMessageBox,
+        QTabWidget,
     )
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, QTimer
 except ImportError:
     QWidget = object  # type: ignore
 
+from prettycalc.core.classifier import SystemType, classify_system
 from prettycalc.core.lu_decomposition import (
     LUPivotZeroError,
     LUSingularError,
@@ -35,21 +45,24 @@ from prettycalc.core.lu_decomposition import (
 from prettycalc.core.matrix_inversion import NonSquareMatrixError
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
+from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.module_scroll import make_module_scroll
 from prettycalc.ui.mathtext import plain_formula_to_html
+from prettycalc.ui.results_dashboard import ResultsDashboardCard
+from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
-    COLOR_BG_BASE,
+    COLOR_ACCENT_WARNING,
     COLOR_FEEDBACK_ERROR,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
-    FONT_FAMILY_SANS,
-    apply_message_box_theme,
     apply_widget_class,
+    badge_style,
+    idle_badge_style,
 )
 
 MAX_LU_DIMENSION = 8
@@ -77,12 +90,19 @@ _EXAMPLE3_A = Matrix([
 ])
 
 
-def _badge_style(background: str, foreground: str) -> str:
-    return (
-        f"background-color: {background}; color: {foreground}; font-weight: 600; "
-        f"font-size: 16px; padding: 10px 14px; border-radius: 6px; "
-        f"font-family: {FONT_FAMILY_SANS};"
-    )
+def _badge_style(background: str, _foreground: str = "") -> str:
+    """Badge con el texto de mejor contraste (tokens del tema)."""
+    return badge_style(background)
+
+
+def permuted_rows(P: Matrix) -> list[int]:
+    """Filas de A que la permutación P movió de lugar (índices 0-based)."""
+    moved = []
+    for row in range(P.rows):
+        source = next((col for col in range(P.cols) if P.get(row, col) == 1), row)
+        if source != row:
+            moved.append(source)
+    return sorted(moved)
 
 
 def _matrix_inline(matrix: Matrix) -> str:
@@ -107,8 +127,8 @@ class LUFactorizationView(QWidget):
         super().__init__(parent)
         self.setObjectName("luFactorizationView")
         self._syncing_b = False
-        self.last_factorization: Optional[LUFactorizationResult] = None
-        self.last_solution: Optional[LUSystemSolutionResult] = None
+        self.last_factorization: Optional[PLUFactorizationResult] = None
+        self.last_solution: Optional[PLUSystemSolutionResult] = None
         self._setup_ui()
         self.grid.matrixChanged.connect(self._on_a_changed)
         self.b_grid.matrixChanged.connect(self._on_b_changed)
@@ -123,29 +143,26 @@ class LUFactorizationView(QWidget):
 
         controls = QHBoxLayout()
         controls.setSpacing(8)
-        controls.addWidget(self._caption("Filas"))
-        self.row_down_btn = self._step_button("−")
-        self.row_down_btn.clicked.connect(lambda: self._resize(-1, 0))
+        self.grid = DynamicMatrixGrid(
+            initial_rows=3,
+            initial_cols=3,
+            augmented=False,
+            row_expandable=False,
+            col_expandable=False,
+        )
+        self.size_control = MatrixSizeControl(
+            self.grid,
+            rows_label="Filas m",
+            cols_label="Columnas n",
+            caption="Tamaño de A",
+            minimum=1,
+            maximum=MAX_LU_DIMENSION,
+        )
+        controls.addWidget(self.size_control)
         self.shape_label = QLabel("3 × 3")
         self.shape_label.setObjectName("luShapeLabel")
-        self.shape_label.setAlignment(Qt.AlignCenter)
-        self.shape_label.setMinimumWidth(84)
-        self.shape_label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 16px; font-family: {FONT_FAMILY_MONO}; "
-            f"font-weight: 600;"
-        )
-        self.row_up_btn = self._step_button("+")
-        self.row_up_btn.clicked.connect(lambda: self._resize(1, 0))
-        controls.addWidget(self.row_down_btn)
+        self.shape_label.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px;")
         controls.addWidget(self.shape_label)
-        controls.addWidget(self.row_up_btn)
-        controls.addWidget(self._caption("Columnas"))
-        self.col_down_btn = self._step_button("−")
-        self.col_down_btn.clicked.connect(lambda: self._resize(0, -1))
-        self.col_up_btn = self._step_button("+")
-        self.col_up_btn.clicked.connect(lambda: self._resize(0, 1))
-        controls.addWidget(self.col_down_btn)
-        controls.addWidget(self.col_up_btn)
         controls.addStretch(1)
 
         self.example1_btn = QPushButton("Ejemplo 1 (3×3)")
@@ -157,21 +174,34 @@ class LUFactorizationView(QWidget):
         self.example3_btn = QPushButton("Ejemplo 3 (4×5)")
         self.example3_btn.setObjectName("secondaryAction")
         self.example3_btn.clicked.connect(self.load_example_3)
+        for button, tip in (
+            (self.example1_btn, "Sesión 12: x = [3, 4, −6]ᵀ"),
+            (self.example2_btn, "Sesión 12: matriz 4×4"),
+            (self.example3_btn, "Sesión 12: A rectangular 4×5 (una columna sin pivote)"),
+        ):
+            button.setToolTip(tip)
+            button.setCursor(Qt.PointingHandCursor)
         self.decompose_btn = QPushButton("Descomponer A = LU")
         self.decompose_btn.setObjectName("primaryAction")
+        self.decompose_btn.setToolTip("Calcula P, L y U (Ctrl+Intro desde A)")
         self.decompose_btn.clicked.connect(self.decompose)
         self.solve_btn = QPushButton("Resolver Ly = b y Ux = y")
         self.solve_btn.setObjectName("primaryAction")
+        self.solve_btn.setToolTip("Reutiliza L y U para resolver con el b actual (Ctrl+Intro desde b)")
         self.solve_btn.clicked.connect(self.solve)
-        for button in (
-            self.example1_btn,
-            self.example2_btn,
-            self.example3_btn,
-            self.decompose_btn,
-            self.solve_btn,
-        ):
-            controls.addWidget(button)
+        controls.addWidget(self.decompose_btn)
+        controls.addWidget(self.solve_btn)
         root.addLayout(controls)
+
+        examples_row = QHBoxLayout()
+        examples_row.setSpacing(8)
+        examples_caption = QLabel("Ejemplos de la Sesión 12")
+        examples_caption.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px;")
+        examples_row.addWidget(examples_caption)
+        for button in (self.example1_btn, self.example2_btn, self.example3_btn):
+            examples_row.addWidget(button)
+        examples_row.addStretch(1)
+        root.addLayout(examples_row)
 
         self.badge = QLabel("")
         self.badge.setObjectName("luBadge")
@@ -190,14 +220,14 @@ class LUFactorizationView(QWidget):
         left_layout.setContentsMargins(16, 14, 16, 14)
         left_layout.setSpacing(10)
         left_layout.addWidget(self._section_title("Matriz A"))
-        self.grid = DynamicMatrixGrid(
-            initial_rows=3,
-            initial_cols=3,
-            augmented=False,
-            row_expandable=False,
-            col_expandable=False,
-        )
+        self.grid.submitRequested.connect(self.decompose)
         left_layout.addWidget(self.grid, stretch=1)
+        self.swap_legend = QLabel("")
+        self.swap_legend.setObjectName("luSwapLegend")
+        self.swap_legend.setWordWrap(True)
+        self.swap_legend.setStyleSheet(f"color: {COLOR_ACCENT_WARNING}; font-size: 14px; font-weight: 600;")
+        self.swap_legend.setVisible(False)
+        left_layout.addWidget(self.swap_legend)
         upper.addWidget(self._scroll(left_card))
 
         center = QWidget()
@@ -205,7 +235,7 @@ class LUFactorizationView(QWidget):
         center_layout.setContentsMargins(0, 0, 0, 0)
         center_layout.setSpacing(8)
         center_layout.addWidget(self._section_title("Construcción de L y U"))
-        self.factor_stepper = AlgorithmStepperCarousel()
+        self.factor_stepper = AlgorithmStepperCarousel(variable_headers=False)
         self.factor_stepper.setObjectName("luFactorStepper")
         center_layout.addWidget(self.factor_stepper, stretch=1)
         upper.addWidget(center)
@@ -241,13 +271,14 @@ class LUFactorizationView(QWidget):
         right_layout.addStretch(1)
         upper.addWidget(self._scroll(right_card))
         upper.setSizes([360, 520, 420])
+        self.upper_splitter = upper
         root.addWidget(upper)
 
         root.addWidget(self._section_title("Solución en dos etapas"))
         lower = QSplitter(Qt.Horizontal)
         lower.setHandleWidth(10)
         lower.setChildrenCollapsible(False)
-        lower.setMinimumHeight(360)
+        lower.setMinimumHeight(420)
 
         b_card = QFrame()
         apply_widget_class(b_card, "elevated-card")
@@ -262,33 +293,63 @@ class LUFactorizationView(QWidget):
             row_expandable=False,
             col_expandable=False,
         )
-        b_layout.addWidget(self.b_grid, stretch=1)
+        self.b_grid.submitRequested.connect(self.solve)
+        b_layout.addWidget(self.b_grid, 0, Qt.AlignTop)
+        b_layout.addStretch(1)
         lower.addWidget(self._scroll(b_card))
 
+        self.stage_tabs = QTabWidget()
+        self.stage_tabs.setObjectName("luStageTabs")
         forward_box = QWidget()
         forward_layout = QVBoxLayout(forward_box)
-        forward_layout.setContentsMargins(0, 0, 0, 0)
+        forward_layout.setContentsMargins(8, 8, 8, 8)
         forward_layout.setSpacing(8)
         self.forward_title = self._section_title("Etapa 1 · Ly = b")
         forward_layout.addWidget(self.forward_title)
         self.forward_stepper = AlgorithmStepperCarousel()
         self.forward_stepper.setObjectName("luForwardStepper")
+        self.forward_stepper.set_export_title("LU · etapa 1 (sustitución hacia adelante)")
+        self.forward_stepper.set_empty_hint("Descompón A y pulsa Resolver.")
         forward_layout.addWidget(self.forward_stepper, stretch=1)
         self.forward_steps_label = self._steps_label("forwardStepsLabel")
         forward_layout.addWidget(self.forward_steps_label)
-        lower.addWidget(forward_box)
+        self.stage_tabs.addTab(forward_box, "Etapa 1 · Ly = b")
 
         backward_box = QWidget()
         backward_layout = QVBoxLayout(backward_box)
-        backward_layout.setContentsMargins(0, 0, 0, 0)
+        backward_layout.setContentsMargins(8, 8, 8, 8)
         backward_layout.setSpacing(8)
         backward_layout.addWidget(self._section_title("Etapa 2 · Ux = y"))
         self.backward_stepper = AlgorithmStepperCarousel()
         self.backward_stepper.setObjectName("luBackwardStepper")
+        self.backward_stepper.set_export_title("LU · etapa 2 (sustitución hacia atrás)")
+        self.backward_stepper.set_empty_hint("Descompón A y pulsa Resolver.")
         backward_layout.addWidget(self.backward_stepper, stretch=1)
         self.backward_steps_label = self._steps_label("backwardStepsLabel")
         backward_layout.addWidget(self.backward_steps_label)
-        lower.addWidget(backward_box)
+        self.stage_tabs.addTab(backward_box, "Etapa 2 · Ux = y")
+
+        classify_box = QWidget()
+        classify_layout = QVBoxLayout(classify_box)
+        classify_layout.setContentsMargins(8, 8, 8, 8)
+        classify_layout.setSpacing(8)
+        self.classify_hint = QLabel(
+            "Si U tiene un pivote nulo o A no es cuadrada, no hay solución única por sustitución. "
+            "Clasifica A x = b para ver si es inconsistente o tiene infinitas soluciones."
+        )
+        self.classify_hint.setWordWrap(True)
+        self.classify_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px;")
+        classify_layout.addWidget(self.classify_hint)
+        self.classify_btn = QPushButton("Clasificar A x = b")
+        self.classify_btn.setObjectName("secondaryAction")
+        self.classify_btn.setCursor(Qt.PointingHandCursor)
+        self.classify_btn.clicked.connect(self.classify)
+        self.classify_btn.setEnabled(False)
+        classify_layout.addWidget(self.classify_btn, 0, Qt.AlignLeft)
+        self.dashboard = ResultsDashboardCard()
+        classify_layout.addWidget(self.dashboard, stretch=1)
+        self.stage_tabs.addTab(classify_box, "Clasificación")
+        lower.addWidget(self.stage_tabs)
 
         answer_card = QFrame()
         apply_widget_class(answer_card, "elevated-card")
@@ -314,7 +375,7 @@ class LUFactorizationView(QWidget):
         answer_layout.addWidget(self.ax_label)
         answer_layout.addStretch(1)
         lower.addWidget(self._scroll(answer_card))
-        lower.setSizes([240, 420, 420, 320])
+        lower.setSizes([220, 760, 320])
         root.addWidget(lower)
 
         outer = QVBoxLayout(self)
@@ -330,12 +391,6 @@ class LUFactorizationView(QWidget):
         label = QLabel(text)
         label.setStyleSheet(f"font-size: 19px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
         return label
-
-    def _step_button(self, text: str) -> QPushButton:
-        button = QPushButton(text)
-        button.setObjectName("secondaryAction")
-        button.setFixedWidth(36)
-        return button
 
     def _steps_label(self, name: str) -> QLabel:
         label = QLabel("")
@@ -376,7 +431,24 @@ class LUFactorizationView(QWidget):
         scroll.setWidget(card)
         return scroll
 
+    def _fit_matrix_panel(self) -> None:
+        """Ensancha el panel de A si la matriz no cabe (p. ej. 4×5), a costa del panel de factores."""
+        sizes = self.upper_splitter.sizes()
+        if len(sizes) != 3 or sum(sizes) == 0:
+            return
+        panel = self.upper_splitter.widget(0)
+        card = panel.widget() if isinstance(panel, QScrollArea) else panel
+        need = max(self.grid.sizeHint().width() + 48, card.minimumSizeHint().width() + 4)
+        if sizes[0] >= need:
+            return
+        extra = need - sizes[0]
+        take_right = min(extra, max(0, sizes[2] - 260))
+        take_center = extra - take_right
+        self.upper_splitter.setSizes([need, max(300, sizes[1] - take_center), sizes[2] - take_right])
+
     def _on_a_changed(self) -> None:
+        # El tamaño de la cuadrícula se conoce cuando su layout se activa.
+        QTimer.singleShot(0, self, self._fit_matrix_panel)
         self._clear_results()
         self._sync_b()
         self._sync_controls(refresh_badge=True)
@@ -389,7 +461,7 @@ class LUFactorizationView(QWidget):
         self._sync_controls()
         if had_solution and self.last_factorization is not None:
             self.badge.setText("b cambió. L y U se reutilizan: vuelve a resolver las dos etapas.")
-            self.badge.setStyleSheet(_badge_style(COLOR_BG_BASE, COLOR_TEXT_MUTED))
+            self.badge.setStyleSheet(idle_badge_style())
 
     def _clear_solution(self) -> None:
         self.last_solution = None
@@ -403,10 +475,12 @@ class LUFactorizationView(QWidget):
         self.x_label.setText("")
         self.pb_label.setText("")
         self.forward_title.setText("Etapa 1 · Ly = b")
+        self.stage_tabs.setTabText(0, "Etapa 1 · Ly = b")
         self.ax_label.setText("A · x = b")
         self.ax_label.setStyleSheet(
             f"color: {COLOR_TEXT_MUTED}; font-size: 16px; font-weight: 600;"
         )
+        self.dashboard.clear()
 
     def _clear_results(self) -> None:
         self.last_factorization = None
@@ -423,15 +497,27 @@ class LUFactorizationView(QWidget):
             f"color: {COLOR_TEXT_MUTED}; font-size: 16px; font-weight: 600;"
         )
         self.multiplier_label.setText("")
+        self.grid.set_alert_rows([])
+        self.swap_legend.setVisible(False)
         self._clear_solution()
 
     def _blocking_reason(self) -> Optional[str]:
-        if not self.grid.is_all_valid():
-            return "Corrige las celdas de A. Se admiten enteros, fracciones (a/b) y decimales."
+        message = self.grid.validation_message()
+        if message:
+            return f"A, {message[0].lower()}{message[1:]}"
         matrix = self.grid.get_matrix()
         if matrix.rows > MAX_LU_DIMENSION or matrix.cols > MAX_LU_DIMENSION:
             return f"Cada dimensión debe estar entre 1 y {MAX_LU_DIMENSION}."
         return None
+
+    def _can_classify(self) -> bool:
+        """Hay factores, b es válido y la sustitución no da solución única."""
+        factorization = self.last_factorization
+        if factorization is None or not self.b_grid.is_all_valid():
+            return False
+        if self.b_grid.data_shape()[0] != factorization.original.rows:
+            return False
+        return not self._can_solve()
 
     def _can_solve(self) -> bool:
         factorization = self.last_factorization
@@ -471,37 +557,19 @@ class LUFactorizationView(QWidget):
             self._syncing_b = False
 
     def _sync_controls(self, refresh_badge: bool = False) -> None:
-        if self.grid.is_all_valid():
-            matrix = self.grid.get_matrix()
-            self.shape_label.setText(f"{matrix.rows} × {matrix.cols}")
-            self.row_down_btn.setEnabled(matrix.rows > 1)
-            self.row_up_btn.setEnabled(matrix.rows < MAX_LU_DIMENSION)
-            self.col_down_btn.setEnabled(matrix.cols > 1)
-            self.col_up_btn.setEnabled(matrix.cols < MAX_LU_DIMENSION)
+        rows, cols = self.grid.data_shape()
+        kind = "cuadrada" if rows == cols else "rectangular"
+        self.shape_label.setText(f"A es {rows} × {cols} ({kind})")
         reason = self._blocking_reason()
         self.decompose_btn.setEnabled(reason is None)
         self.solve_btn.setEnabled(reason is None and self._can_solve())
+        self.classify_btn.setEnabled(reason is None and self._can_classify())
         if reason is not None:
             self.badge.setText(reason)
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
         elif refresh_badge and self.last_factorization is None and self.last_solution is None:
             self.badge.setText("Matriz lista para descomponer A = LU.")
-            self.badge.setStyleSheet(_badge_style(COLOR_BG_BASE, COLOR_TEXT_MUTED))
-
-    def _resize(self, row_delta: int, col_delta: int) -> None:
-        if not self.grid.is_all_valid():
-            self._alert("Entrada inválida", "Corrige las celdas antes de cambiar el tamaño.")
-            return
-        current = self.grid.get_matrix()
-        new_rows = min(MAX_LU_DIMENSION, max(1, current.rows + row_delta))
-        new_cols = min(MAX_LU_DIMENSION, max(1, current.cols + col_delta))
-        if (new_rows, new_cols) == current.shape:
-            return
-        data = [[0 for _ in range(new_cols)] for _ in range(new_rows)]
-        for row_index in range(min(new_rows, current.rows)):
-            for col_index in range(min(new_cols, current.cols)):
-                data[row_index][col_index] = current.get(row_index, col_index)
-        self.grid.set_matrix(Matrix(data))
+            self.badge.setStyleSheet(idle_badge_style())
 
     def load_example_1(self) -> None:
         """Sesión 12, diapositivas 6 a 10. x = [3, 4, −6]ᵀ."""
@@ -527,7 +595,7 @@ class LUFactorizationView(QWidget):
         reason = self._blocking_reason()
         if reason is not None:
             self.badge.setText(reason)
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
             self.decompose_btn.setEnabled(False)
             return
         matrix = self.grid.get_matrix()
@@ -543,8 +611,11 @@ class LUFactorizationView(QWidget):
         if self.last_factorization is None:
             return
         if not self.b_grid.is_all_valid():
-            self.badge.setText("Corrige las celdas del vector b.")
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            cell = self.b_grid.first_invalid_cell()
+            detail = f" (componente {cell.row + 1}: {cell.error_message})" if cell is not None else ""
+            self.badge.setText(f"Corrige las celdas del vector b{detail}.")
+            self.b_grid.focus_first_invalid()
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
             return
         load = Vector.from_column_matrix(self.b_grid.get_matrix())
         try:
@@ -556,7 +627,7 @@ class LUFactorizationView(QWidget):
                 target = self.backward_stepper if "x_" in str(exc) else self.forward_stepper
                 target.set_steps(tracer.get_steps())
             self.badge.setText(str(exc))
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
             self._sync_controls()
             return
         self.last_solution = solution
@@ -573,6 +644,15 @@ class LUFactorizationView(QWidget):
             f"{count} multiplicador{'es' if count != 1 else ''} guardado{'s' if count != 1 else ''} en L."
         )
         swapped = factorization.permutation_count > 0
+        moved = permuted_rows(factorization.P) if swapped else []
+        self.grid.set_alert_rows(moved)
+        if moved:
+            self.swap_legend.setText(
+                "Filas de A que P cambió de lugar: "
+                + ", ".join(str(row + 1) for row in moved)
+                + " (resaltadas en ocre)."
+            )
+        self.swap_legend.setVisible(bool(moved))
         if swapped:
             self.permutation_note.setText(
                 f"Se intercambiaron filas {factorization.permutation_count} "
@@ -601,27 +681,27 @@ class LUFactorizationView(QWidget):
         )
         if not factorization.is_valid:
             self.badge.setText("La comprobación P · A = L · U no cerró.")
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
         elif factorization.permutation_count > 0 and original.rows == original.cols and not singular:
             self.badge.setText(
                 "P · A = L · U verificada. Hay permutación de filas: la primera etapa resuelve L y = P b."
             )
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS))
         elif original.rows != original.cols:
             self.badge.setText(
                 f"A = LU verificada. A es {original.rows}×{original.cols}: "
                 "la solución única en dos etapas pide una matriz cuadrada."
             )
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS))
         elif singular:
             self.badge.setText(
                 "A = LU verificada, pero U tiene un pivote diagonal nulo. "
-                "Ax = b no tiene solución única por sustitución hacia atrás."
+                "Ax = b no tiene solución única por sustitución hacia atrás: usa «Clasificar A x = b»."
             )
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
         else:
             self.badge.setText("A = LU verificada. Ya se puede resolver Ly = b y Ux = y.")
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS))
 
     def _publish_solution(self, solution: PLUSystemSolutionResult) -> None:
         self.y_view.set_matrix(solution.y_intermediate.to_column_matrix(), show_headers=False)
@@ -634,6 +714,7 @@ class LUFactorizationView(QWidget):
         self.backward_stepper.set_steps(solution.backward_tracer.get_steps())
         swapped = solution.factorization.permutation_count > 0
         self.forward_title.setText("Etapa 1 · Ly = Pb" if swapped else "Etapa 1 · Ly = b")
+        self.stage_tabs.setTabText(0, "Etapa 1 · Ly = Pb" if swapped else "Etapa 1 · Ly = b")
         if swapped:
             self.pb_label.setText(f"Pb = {_vector_inline(solution.permuted_b)}")
         else:
@@ -648,25 +729,33 @@ class LUFactorizationView(QWidget):
                 f"x = {_vector_inline(solution.x_solution)}. "
                 f"Se comprobó {stage}, U x = y y A x = b."
             )
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_SUCCESS))
         else:
             self.ax_label.setText("A · x no coincide con b")
             self.ax_label.setStyleSheet(
                 f"color: {COLOR_FEEDBACK_ERROR}; font-size: 16px; font-weight: 600;"
             )
             self.badge.setText("La sustitución terminó, pero la comprobación A · x = b no cerró.")
-            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY))
+            self.badge.setStyleSheet(_badge_style(COLOR_FEEDBACK_ERROR))
 
     @staticmethod
     def _show_matrix(view: BookMatrixWidget, readout: QLabel, matrix: Matrix) -> None:
         view.set_matrix(matrix, show_headers=False)
         readout.setText(_matrix_inline(matrix))
 
-    def _alert(self, title: str, text: str) -> None:
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Warning)
-        box.setWindowTitle(title)
-        box.setText(text)
-        box.setStandardButtons(QMessageBox.Ok)
-        apply_message_box_theme(box)
-        box.exec()
+    def classify(self) -> None:
+        """Clasifica [A | b] cuando la sustitución no da solución única (SCI o SI)."""
+        if not self._can_classify():
+            return
+        a = self.grid.get_matrix()
+        b = self.b_grid.get_matrix()
+        augmented = Matrix([[*(a.get(r, c) for c in range(a.cols)), b.get(r, 0)] for r in range(a.rows)])
+        analysis = classify_system(augmented, split_col=a.cols)
+        self.dashboard.display_results(analysis)
+        self.stage_tabs.setCurrentIndex(2)
+        names = {
+            SystemType.CONSISTENT_DETERMINED: "solución única",
+            SystemType.CONSISTENT_INDETERMINED: "infinitas soluciones",
+            SystemType.INCONSISTENT: "sin solución",
+        }
+        show_toast(self, f"A x = b: {names.get(analysis.system_type, 'clasificado')}.", kind="info")
