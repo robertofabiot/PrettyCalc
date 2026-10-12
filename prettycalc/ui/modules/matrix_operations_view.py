@@ -72,6 +72,7 @@ from prettycalc.ui.theme import (
     FONT_FAMILY_SANS,
     apply_message_box_theme,
     apply_widget_class,
+    ui_font,
 )
 
 
@@ -293,7 +294,7 @@ class MatrixOperationsView(QWidget):
         k_layout.addWidget(k_title)
         self.scalar_edit = QLineEdit("2")
         self.scalar_edit.setObjectName("scalarField")
-        self.scalar_edit.setFont(QFont("Fira Code", 14))
+        self.scalar_edit.setFont(ui_font(19, mono=True))
         self.scalar_edit.setAlignment(Qt.AlignCenter)
         self.scalar_edit.textChanged.connect(self._on_operands_changed)
         k_layout.addWidget(self.scalar_edit)
@@ -393,7 +394,7 @@ class MatrixOperationsView(QWidget):
         extras.addWidget(k_label)
         self.identity_scalar_edit = QLineEdit("1")
         self.identity_scalar_edit.setObjectName("scalarField")
-        self.identity_scalar_edit.setFont(QFont("Fira Code", 14))
+        self.identity_scalar_edit.setFont(ui_font(19, mono=True))
         self.identity_scalar_edit.setFixedWidth(88)
         self.identity_scalar_edit.setAlignment(Qt.AlignCenter)
         self.identity_scalar_edit.setToolTip("Escalar usado en la comprobación (k·A)ᵀ = k·Aᵀ")

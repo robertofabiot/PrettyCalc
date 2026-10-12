@@ -289,7 +289,7 @@ class MatrixEquationsView(QWidget):
         self.stepper.setMinimumHeight(340)
         tab_stepper_layout.addWidget(self.stepper, stretch=1)
 
-        self.results_tabs.addTab(tab_stepper, "📋  Procedimiento Paso a Paso [A | b]")
+        self.results_tabs.addTab(tab_stepper, "Procedimiento Paso a Paso [A | b]")
 
         root.addWidget(self.results_tabs)
 

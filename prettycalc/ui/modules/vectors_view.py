@@ -58,6 +58,7 @@ from prettycalc.ui.theme import (
     FONT_FAMILY_MONO,
     apply_message_box_theme,
     apply_widget_class,
+    ui_font,
 )
 
 
@@ -239,7 +240,7 @@ class VectorsView(QWidget):
         self.basic_k = QLineEdit("2")
         self.basic_k.setObjectName("scalarField")
         self.basic_k.setAlignment(Qt.AlignCenter)
-        self.basic_k.setFont(QFont("Fira Code", 14))
+        self.basic_k.setFont(ui_font(19, mono=True))
         self.basic_k.textChanged.connect(self._refresh_basic_badge)
         scale_layout.addWidget(self.basic_k)
         scale_layout.addStretch(1)
@@ -988,10 +989,10 @@ class VectorsView(QWidget):
         self._last_indep_result = res
 
         if res.is_linearly_independent:
-            badge_text = "🟢 CONJUNTO LINEALMENTE INDEPENDIENTE (L.I.)"
+            badge_text = "CONJUNTO LINEALMENTE INDEPENDIENTE (L.I.)"
             badge_css = _badge_style(COLOR_FEEDBACK_SUCCESS, COLOR_BG_BASE)
         else:
-            badge_text = "🔴 CONJUNTO LINEALMENTE DEPENDIENTE (L.D.)"
+            badge_text = "CONJUNTO LINEALMENTE DEPENDIENTE (L.D.)"
             badge_css = _badge_style(COLOR_FEEDBACK_ERROR, COLOR_TEXT_PRIMARY)
 
         self.indep_badge.setText(badge_text)

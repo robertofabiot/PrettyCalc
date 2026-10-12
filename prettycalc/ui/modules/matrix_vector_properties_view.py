@@ -56,6 +56,7 @@ from prettycalc.ui.theme import (
     FONT_FAMILY_SANS,
     apply_message_box_theme,
     apply_widget_class,
+    ui_font,
 )
 
 
@@ -306,7 +307,7 @@ class MatrixVectorPropertiesView(QWidget):
         self.results_tabs.addTab(self._build_comparison_tab(), "✓  Demostración y Comprobación")
 
         # Pestaña 2: Desglose algebraico paso a paso
-        self.results_tabs.addTab(self._build_steps_tab(), "📋  Desglose Matemático Paso a Paso")
+        self.results_tabs.addTab(self._build_steps_tab(), "Desglose Matemático Paso a Paso")
 
         root.addWidget(self.results_tabs)
 
@@ -398,7 +399,7 @@ class MatrixVectorPropertiesView(QWidget):
         self.input_c = QLineEdit("3")
         self.input_c.setObjectName("scalarField")
         self.input_c.setAlignment(Qt.AlignCenter)
-        self.input_c.setFont(QFont("Fira Code", 14))
+        self.input_c.setFont(ui_font(19, mono=True))
         self.input_c.setMinimumHeight(38)
         self.input_c.textChanged.connect(self._refresh_validation)
         scalar_layout.addWidget(self.input_c)
