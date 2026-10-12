@@ -1,7 +1,18 @@
-"""Cuadrícula interactiva DynamicMatrixGrid: matriz aumentada de libro, ghosting y teclado."""
+"""Cuadrícula interactiva DynamicMatrixGrid: matriz aumentada de libro, ghosting y teclado.
+
+Sprint 10 (auditoría UI/UX, Módulo 7):
+
+- Historial de deshacer/rehacer (``Ctrl+Z`` / ``Ctrl+Y``) para reinicios,
+  ejemplos cargados, pegados y cambios de tamaño.
+- Mensaje en línea bajo la cuadrícula que explica qué celda falló y por qué.
+- Una celda que queda vacía al perder el foco se completa con ``0``.
+- ``Ctrl+Supr`` elimina la fila activa y ``Ctrl+Mayús+Supr`` la columna.
+- ``Ctrl+Intro`` emite ``submitRequested`` para calcular sin tocar el ratón.
+- Pegar una matriz muestra un aviso con «Deshacer» y un destello en las celdas.
+"""
 
 from __future__ import annotations
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from fractions import Fraction
 
 try:
@@ -20,11 +31,9 @@ try:
     from PySide6.QtCore import Qt, Signal, QRect, QPoint, QTimer
     from PySide6.QtGui import (
         QKeyEvent,
-        QFont,
         QPainter,
         QColor,
         QPaintEvent,
-        QAction,
         QFocusEvent,
         QContextMenuEvent,
         QKeySequence,
@@ -34,6 +43,7 @@ except ImportError:
     QWidget = object  # type: ignore
     Signal = lambda *args: None  # type: ignore
 
+from prettycalc.core.input_diagnostics import diagnose_scalar_text
 from prettycalc.core.types import Matrix, parse_scalar, format_scalar
 from prettycalc.ui.clipboard import (
     copy_matrix_to_clipboard,
@@ -41,13 +51,20 @@ from prettycalc.ui.clipboard import (
     get_matrix_from_clipboard,
     has_matrix_in_clipboard,
 )
-from prettycalc.ui.mathtext import variable_symbol
 from prettycalc.ui.book_matrix import draw_square_brackets, draw_split_bar
 from prettycalc.ui.theme import (
     COLOR_INTERACTIVE_IDLE,
     COLOR_TEXT_PRIMARY,
     apply_widget_class,
+    repolish,
+    ui_font,
 )
+
+#: Estado restaurable de la cuadrícula: (filas, columnas de coeficientes, textos).
+GridSnapshot = Tuple[int, int, Tuple[Tuple[str, ...], ...]]
+
+_HISTORY_LIMIT = 60
+_FLASH_MS = 520
 
 
 def _make_ghost_button(tooltip: str) -> QPushButton:
@@ -57,7 +74,12 @@ def _make_ghost_button(tooltip: str) -> QPushButton:
     btn.setToolTip(tooltip)
     btn.setCursor(Qt.PointingHandCursor)
     btn.setFlat(True)
+    btn.setFocusPolicy(Qt.NoFocus)
     return btn
+
+
+def _is_shortcut(event: QKeyEvent, key: int, modifiers) -> bool:
+    return event.key() == key and event.modifiers() == modifiers
 
 
 class MatrixCellEdit(QLineEdit):
@@ -71,18 +93,20 @@ class MatrixCellEdit(QLineEdit):
         col: int,
         default_val: str = "0",
         parent: Optional[QWidget] = None,
-        grid: Optional[DynamicMatrixGrid] = None,
+        grid: Optional["DynamicMatrixGrid"] = None,
     ):
         super().__init__(default_val, parent)
         self.row = row
         self.col = col
         self._grid = grid
+        self.error_message = ""
         self.setFixedSize(58, 38)
         self.setAlignment(Qt.AlignCenter)
-        self.setFont(QFont("Fira Code", 12))
+        self.setFont(ui_font(16, mono=True))
         self.setFrame(False)
         apply_widget_class(self, "matrix-cell")
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
+        self.setAccessibleName(f"Celda fila {row + 1}, columna {col + 1}")
         self.textChanged.connect(self._on_text_changed)
         self._is_valid = True
 
@@ -96,24 +120,26 @@ class MatrixCellEdit(QLineEdit):
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
         self.selectAll()
+
         def _safe_select_all():
             try:
                 self.selectAll()
             except RuntimeError:
                 pass
+
         QTimer.singleShot(0, _safe_select_all)
 
-    def _on_text_changed(self, text: str) -> None:
-        cleaned = text.strip()
-        if not cleaned:
-            self._set_error_state(False)
-            return
+    def focusOutEvent(self, event: QFocusEvent) -> None:
+        """Una celda vacía se completa con 0: evita ambigüedad entre módulos."""
+        super().focusOutEvent(event)
+        if not self.text().strip():
+            self.setText("0")
 
-        try:
-            parse_scalar(cleaned)
-            self._set_error_state(False)
-        except Exception:
-            self._set_error_state(True)
+    def _on_text_changed(self, text: str) -> None:
+        diagnosis = diagnose_scalar_text(text, allow_empty=True)
+        self.error_message = "" if diagnosis.is_valid else diagnosis.message
+        self.setToolTip(self.error_message)
+        self._set_error_state(not diagnosis.is_valid)
 
     def _set_error_state(self, has_error: bool) -> None:
         self._is_valid = not has_error
@@ -130,6 +156,43 @@ class MatrixCellEdit(QLineEdit):
         return parse_scalar(text)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        ctrl = Qt.ControlModifier
+        ctrl_shift = Qt.ControlModifier | Qt.ShiftModifier
+
+        if self._grid is not None:
+            if event.matches(QKeySequence.Undo) or _is_shortcut(event, Qt.Key_Z, ctrl):
+                if self.isUndoAvailable():
+                    super().keyPressEvent(event)
+                else:
+                    self._grid.undo()
+                event.accept()
+                return
+            if (
+                event.matches(QKeySequence.Redo)
+                or _is_shortcut(event, Qt.Key_Y, ctrl)
+                or _is_shortcut(event, Qt.Key_Z, ctrl_shift)
+            ):
+                if self.isRedoAvailable():
+                    super().keyPressEvent(event)
+                else:
+                    self._grid.redo()
+                event.accept()
+                return
+            if _is_shortcut(event, Qt.Key_Delete, ctrl):
+                if self._grid.row_expandable:
+                    self._grid.remove_row(self.row, focus_after=True)
+                event.accept()
+                return
+            if _is_shortcut(event, Qt.Key_Delete, ctrl_shift):
+                if self._grid.col_expandable:
+                    self._grid.remove_column(self.col, focus_after=True)
+                event.accept()
+                return
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() & Qt.ControlModifier:
+                self._grid.submitRequested.emit()
+                event.accept()
+                return
+
         if event.matches(QKeySequence.Copy) or (
             event.key() == Qt.Key_C and event.modifiers() == Qt.ControlModifier
         ):
@@ -177,6 +240,9 @@ class DynamicMatrixGrid(QFrame):
     """Cuadrícula [A | b] con corchetes de libro, barra vertical y celdas fantasma."""
 
     matrixChanged = Signal()
+    validityChanged = Signal(bool)
+    submitRequested = Signal()
+    historyChanged = Signal()
 
     def __init__(
         self,
@@ -188,6 +254,7 @@ class DynamicMatrixGrid(QFrame):
         show_headers: bool = True,
         row_expandable: bool = True,
         col_expandable: bool = True,
+        show_hint: bool = True,
     ):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground, True)
@@ -202,7 +269,15 @@ class DynamicMatrixGrid(QFrame):
         self.num_vars = initial_cols
         self._highlight_rows: set[int] = set()
         self._highlight_cols: set[int] = set()
+        self._alert_rows: set[int] = set()
         self.cells: List[List[MatrixCellEdit]] = []
+        self._undo_stack: List[GridSnapshot] = []
+        self._redo_stack: List[GridSnapshot] = []
+        self._restoring = False
+        self._last_valid = True
+        self._flash_timer = QTimer(self)
+        self._flash_timer.setSingleShot(True)
+        self._flash_timer.timeout.connect(self._end_flash)
 
         self._outer_layout = QVBoxLayout(self)
         self._outer_layout.setContentsMargins(8, 4, 8, 4)
@@ -216,6 +291,16 @@ class DynamicMatrixGrid(QFrame):
 
         self._outer_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self._outer_layout.addWidget(self._center_container, 0, Qt.AlignCenter)
+
+        self.hint_label = QLabel("")
+        self.hint_label.setObjectName("gridHint")
+        self.hint_label.setWordWrap(True)
+        self.hint_label.setAlignment(Qt.AlignCenter)
+        apply_widget_class(self.hint_label, "grid-hint")
+        self.hint_label.setVisible(False)
+        self._show_hint = show_hint
+        self._outer_layout.addWidget(self.hint_label)
+
         self._outer_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self._build_grid()
@@ -247,8 +332,6 @@ class DynamicMatrixGrid(QFrame):
         if self.augmented:
             b_cell = self.cells[0][-1]
             b_top = b_cell.mapTo(self, b_cell.rect().topLeft())
-            last_b = self.cells[-1][-1]
-            _b_bottom = last_b.mapTo(self, last_b.rect().bottomLeft())
             bar_x = b_top.x() - 6
             draw_split_bar(
                 painter,
@@ -300,13 +383,15 @@ class DynamicMatrixGrid(QFrame):
             for c in range(total_cols):
                 cell = MatrixCellEdit(r, c, grid=self)
                 cell.navigate.connect(self._handle_cell_navigation)
-                cell.textChanged.connect(lambda: self.matrixChanged.emit())
+                cell.textChanged.connect(self._on_cell_text_changed)
                 self._grid_layout.addWidget(cell, r + header_row, c)
                 row_cells.append(cell)
             self.cells.append(row_cells)
 
         self.ghost_col_btn = _make_ghost_button(
-            "Agregar variable" if self.augmented else "Agregar columna"
+            "Agregar variable (o pulsa → al final de la última columna)"
+            if self.augmented
+            else "Agregar columna (o pulsa → al final de la última columna)"
         )
         self.ghost_col_btn.setFixedWidth(36)
         self.ghost_col_btn.setMinimumWidth(36)
@@ -317,7 +402,9 @@ class DynamicMatrixGrid(QFrame):
             self.ghost_col_btn.hide()
 
         self.ghost_row_btn = _make_ghost_button(
-            "Agregar ecuación" if self.augmented else "Agregar fila"
+            "Agregar ecuación (o pulsa ↓ en la última fila)"
+            if self.augmented
+            else "Agregar fila (o pulsa ↓ en la última fila)"
         )
         self.ghost_row_btn.setFixedHeight(32)
         self.ghost_row_btn.clicked.connect(self.add_row)
@@ -328,6 +415,7 @@ class DynamicMatrixGrid(QFrame):
             self.ghost_row_btn.hide()
 
         self._apply_highlight()
+        self._refresh_hint()
         self.update()
 
     def _total_cols(self) -> int:
@@ -336,6 +424,59 @@ class DynamicMatrixGrid(QFrame):
     def data_shape(self) -> tuple[int, int]:
         """Dimensiones de la matriz de datos (filas × columnas editables)."""
         return (self.num_rows, self._total_cols())
+
+    # ------------------------------------------------------------------
+    # Validación visible
+    # ------------------------------------------------------------------
+
+    def _on_cell_text_changed(self, _text: str = "") -> None:
+        self._refresh_hint()
+        self.matrixChanged.emit()
+
+    def first_invalid_cell(self) -> Optional[MatrixCellEdit]:
+        for row in self.cells:
+            for cell in row:
+                if not cell.is_valid:
+                    return cell
+        return None
+
+    def validation_message(self) -> str:
+        """Explicación de la primera celda inválida, o cadena vacía."""
+        cell = self.first_invalid_cell()
+        if cell is None:
+            return ""
+        if self.augmented and cell.col == self.num_vars:
+            where = f"Fila {cell.row + 1}, columna b"
+        else:
+            where = f"Fila {cell.row + 1}, columna {cell.col + 1}"
+        invalid_count = sum(1 for row in self.cells for c in row if not c.is_valid)
+        extra = ""
+        if invalid_count > 1:
+            others = invalid_count - 1
+            extra = f" (y {others} celda{'s' if others > 1 else ''} más)"
+        return f"{where}: {cell.error_message}{extra}"
+
+    def _refresh_hint(self) -> None:
+        message = self.validation_message()
+        valid = not message
+        if self._show_hint:
+            self.hint_label.setText(f"✕  {message}" if message else "")
+            self.hint_label.setVisible(bool(message))
+        if valid != self._last_valid:
+            self._last_valid = valid
+            self.validityChanged.emit(valid)
+
+    def focus_first_invalid(self) -> bool:
+        cell = self.first_invalid_cell()
+        if cell is None:
+            return False
+        cell.setFocus()
+        cell.selectAll()
+        return True
+
+    # ------------------------------------------------------------------
+    # Resaltados
+    # ------------------------------------------------------------------
 
     def set_highlight(
         self,
@@ -350,16 +491,113 @@ class DynamicMatrixGrid(QFrame):
     def clear_highlight(self) -> None:
         self.set_highlight([], [])
 
+    def set_alert_rows(self, rows: Optional[List[int]] = None) -> None:
+        """Marca filas en ocre (por ejemplo, filas permutadas en P · A = L · U)."""
+        self._alert_rows = set(rows or [])
+        self._apply_highlight()
+
+    def highlighted_rows(self) -> set[int]:
+        return set(self._highlight_rows)
+
+    def highlighted_cols(self) -> set[int]:
+        return set(self._highlight_cols)
+
+    def alert_rows(self) -> set[int]:
+        return set(self._alert_rows)
+
     def _apply_highlight(self) -> None:
         for r, row in enumerate(self.cells):
             for c, cell in enumerate(row):
                 active = r in self._highlight_rows or c in self._highlight_cols
                 cell.setProperty("highlighted", active)
-                style = cell.style()
-                if style is not None:
-                    style.unpolish(cell)
-                    style.polish(cell)
-                cell.update()
+                cell.setProperty("alert", r in self._alert_rows and not active)
+                repolish(cell)
+
+    def flash(self) -> None:
+        """Destello breve en todas las celdas: confirma que el contenido cambió."""
+        for row in self.cells:
+            for cell in row:
+                cell.setProperty("flash", True)
+                repolish(cell)
+        self._flash_timer.start(_FLASH_MS)
+
+    def _end_flash(self) -> None:
+        for row in self.cells:
+            for cell in row:
+                try:
+                    cell.setProperty("flash", False)
+                    repolish(cell)
+                except RuntimeError:
+                    pass
+
+    # ------------------------------------------------------------------
+    # Historial (deshacer / rehacer)
+    # ------------------------------------------------------------------
+
+    def snapshot(self) -> GridSnapshot:
+        return (
+            self.num_rows,
+            self.num_vars,
+            tuple(tuple(cell.text() for cell in row) for row in self.cells),
+        )
+
+    def checkpoint(self) -> None:
+        """Guarda el estado actual antes de un cambio masivo (reinicio, ejemplo, pegado)."""
+        if self._restoring:
+            return
+        state = self.snapshot()
+        if self._undo_stack and self._undo_stack[-1] == state:
+            return
+        self._undo_stack.append(state)
+        if len(self._undo_stack) > _HISTORY_LIMIT:
+            del self._undo_stack[0]
+        self._redo_stack.clear()
+        self.historyChanged.emit()
+
+    def can_undo(self) -> bool:
+        return bool(self._undo_stack)
+
+    def can_redo(self) -> bool:
+        return bool(self._redo_stack)
+
+    def _restore(self, state: GridSnapshot) -> None:
+        rows, num_vars, data = state
+        self._restoring = True
+        try:
+            self.num_rows = rows
+            self.num_vars = num_vars
+            self._build_grid()
+            self.set_raw_strings([list(row) for row in data])
+        finally:
+            self._restoring = False
+        self._refresh_hint()
+        self.matrixChanged.emit()
+        self.flash()
+
+    def undo(self) -> bool:
+        """Restaura el estado anterior al último cambio masivo."""
+        if not self._undo_stack:
+            return False
+        current = self.snapshot()
+        previous = self._undo_stack.pop()
+        self._redo_stack.append(current)
+        self._restore(previous)
+        self.historyChanged.emit()
+        return True
+
+    def redo(self) -> bool:
+        if not self._redo_stack:
+            return False
+        current = self.snapshot()
+        following = self._redo_stack.pop()
+        self._undo_stack.append(current)
+        self._restore(following)
+        self.historyChanged.emit()
+        return True
+
+    # ------------------------------------------------------------------
+    # Menú contextual
+    # ------------------------------------------------------------------
 
     def _cell_at(self, pos: QPoint) -> Optional[MatrixCellEdit]:
         """Localiza la celda bajo un punto en coordenadas del contenedor."""
@@ -408,7 +646,9 @@ class DynamicMatrixGrid(QFrame):
             menu.addSeparator()
 
             delete_row = menu.addAction("Eliminar fila")
+            delete_row.setShortcut(QKeySequence("Ctrl+Delete"))
             delete_col = menu.addAction("Eliminar columna")
+            delete_col.setShortcut(QKeySequence("Ctrl+Shift+Delete"))
 
             can_delete_row = self.num_rows > 1 and self.row_expandable
             can_delete_col = self.num_vars > 1 and self.col_expandable and (
@@ -427,31 +667,56 @@ class DynamicMatrixGrid(QFrame):
             delete_row.triggered.connect(lambda: self.remove_row(cell.row))
             delete_col.triggered.connect(lambda: self.remove_column(cell.col))
 
+        menu.addSeparator()
+        undo_action = menu.addAction("Deshacer cambio de matriz")
+        undo_action.setShortcut(QKeySequence.Undo)
+        undo_action.setEnabled(self.can_undo())
+        undo_action.triggered.connect(self.undo)
+        redo_action = menu.addAction("Rehacer")
+        redo_action.setShortcut(QKeySequence("Ctrl+Y"))
+        redo_action.setEnabled(self.can_redo())
+        redo_action.triggered.connect(self.redo)
+
         menu.exec(global_pos)
 
-    def remove_row(self, index: int) -> None:
+    # ------------------------------------------------------------------
+    # Cambios estructurales
+    # ------------------------------------------------------------------
+
+    def remove_row(self, index: int, focus_after: bool = False) -> None:
         """Elimina una ecuación. No permite dejar la matriz sin filas."""
         if self.num_rows <= 1 or index < 0 or index >= self.num_rows:
             return
+        self.checkpoint()
         data = self.get_raw_strings()
         del data[index]
         self.num_rows -= 1
         self._build_grid()
         self.set_raw_strings(data)
         self.matrixChanged.emit()
+        if focus_after:
+            self._focus_cell(min(index, self.num_rows - 1), 0)
 
-    def remove_column(self, index: int) -> None:
+    def remove_column(self, index: int, focus_after: bool = False) -> None:
         """Elimina una columna. En modo aumentado no elimina b ni deja el sistema sin incógnitas."""
         if index < 0 or self.num_vars <= 1:
             return
         if self.augmented and index >= self.num_vars:
             return
+        self.checkpoint()
         data = self.get_raw_strings()
         trimmed = [row[:index] + row[index + 1 :] for row in data]
         self.num_vars -= 1
         self._build_grid()
         self.set_raw_strings(trimmed)
         self.matrixChanged.emit()
+        if focus_after:
+            self._focus_cell(0, min(index, self.num_vars - 1))
+
+    def _focus_cell(self, row: int, col: int) -> None:
+        if 0 <= row < len(self.cells) and 0 <= col < len(self.cells[row]):
+            self.cells[row][col].setFocus()
+            self.cells[row][col].selectAll()
 
     def _handle_cell_navigation(self, r: int, c: int, direction: str) -> None:
         target_r, target_c = r, c
@@ -474,13 +739,12 @@ class DynamicMatrixGrid(QFrame):
                 self.add_column()
                 target_c = self._total_cols() - 1 if not self.augmented else self.num_vars - 1
 
-        if 0 <= target_r < len(self.cells) and 0 <= target_c < len(self.cells[target_r]):
-            self.cells[target_r][target_c].setFocus()
-            self.cells[target_r][target_c].selectAll()
+        self._focus_cell(target_r, target_c)
 
     def add_row(self) -> None:
         if not self.row_expandable:
             return
+        self.checkpoint()
         current_data = self.get_raw_strings()
         self.num_rows += 1
         self._build_grid()
@@ -490,6 +754,7 @@ class DynamicMatrixGrid(QFrame):
     def add_column(self) -> None:
         if not self.col_expandable:
             return
+        self.checkpoint()
         current_data = self.get_raw_strings()
         self.num_vars += 1
         self._build_grid()
@@ -505,13 +770,44 @@ class DynamicMatrixGrid(QFrame):
             self.set_raw_strings(padded)
         self.matrixChanged.emit()
 
+    def resize_to(self, rows: int, data_cols: int) -> None:
+        """Fija el tamaño de golpe conservando las entradas que caben.
+
+        ``data_cols`` cuenta todas las columnas editables; en modo aumentado
+        incluye la columna ``b`` (que se conserva como última columna).
+        """
+        rows = max(1, rows)
+        min_cols = 2 if self.augmented else 1
+        data_cols = max(min_cols, data_cols)
+        if (rows, data_cols) == self.data_shape():
+            return
+        self.checkpoint()
+        current = self.get_raw_strings()
+        new_data: List[List[str]] = []
+        for r in range(rows):
+            source = current[r] if r < len(current) else []
+            if self.augmented:
+                coeffs = source[:-1] if source else []
+                b_val = source[-1] if source else "0"
+                coeffs = (coeffs + ["0"] * data_cols)[: data_cols - 1]
+                new_data.append(coeffs + [b_val or "0"])
+            else:
+                new_data.append((source + ["0"] * data_cols)[:data_cols])
+        self.num_rows = rows
+        self.num_vars = data_cols - 1 if self.augmented else data_cols
+        self._build_grid()
+        self.set_raw_strings(new_data)
+        self.matrixChanged.emit()
+
     def get_matrix(self) -> Matrix:
         data: List[List[Fraction]] = []
         for row in self.cells:
             data.append([cell.get_value() for cell in row])
         return Matrix(data)
 
-    def set_matrix(self, matrix: Matrix) -> None:
+    def set_matrix(self, matrix: Matrix, *, record: bool = True) -> None:
+        if record:
+            self.checkpoint()
         self.num_rows = matrix.rows
         self.num_vars = matrix.cols - 1 if self.augmented else matrix.cols
         self._build_grid()
@@ -549,6 +845,7 @@ class DynamicMatrixGrid(QFrame):
         if pasted_mat is None:
             return False
 
+        self.checkpoint()
         p_rows = pasted_mat.rows
         p_cols = pasted_mat.cols
 
@@ -588,6 +885,20 @@ class DynamicMatrixGrid(QFrame):
                         self.cells[r][c].setText(val_str)
 
         self.matrixChanged.emit()
+        self.flash()
+        rows, cols = self.data_shape()
+        try:
+            from prettycalc.ui.feedback import show_toast
+
+            show_toast(
+                self,
+                f"Matriz {rows}×{cols} pegada. Ctrl+Z restaura la anterior.",
+                kind="success",
+                action_text="Deshacer",
+                action=self.undo,
+            )
+        except Exception:
+            pass
         return True
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -601,6 +912,14 @@ class DynamicMatrixGrid(QFrame):
             event.key() == Qt.Key_V and event.modifiers() == Qt.ControlModifier
         ):
             if self.paste_from_clipboard():
+                event.accept()
+                return
+        if event.matches(QKeySequence.Undo):
+            if self.undo():
+                event.accept()
+                return
+        if event.matches(QKeySequence.Redo) or _is_shortcut(event, Qt.Key_Y, Qt.ControlModifier):
+            if self.redo():
                 event.accept()
                 return
         super().keyPressEvent(event)

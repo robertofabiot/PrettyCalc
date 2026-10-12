@@ -29,14 +29,14 @@ from prettycalc.core.types import Matrix, format_scalar
 from prettycalc.ui.clipboard import copy_matrix_to_clipboard
 from prettycalc.ui.mathtext import variable_symbol
 from prettycalc.ui.theme import (
+    COLOR_ACCENT_WARNING,
     COLOR_BG_BASE,
     COLOR_TEXT_PRIMARY,
     COLOR_INTERACTIVE_IDLE,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_TEXT_MUTED,
     COLOR_SURFACE_INNER,
-    FONT_FAMILY_MONO,
-    FONT_FAMILY_SANS,
+    ui_font,
 )
 
 
@@ -150,6 +150,9 @@ class BookMatrixWidget(QWidget):
         self._flash_alpha: float = 0.0
         self._highlight_row: Optional[int] = None
         self._highlight_col: Optional[int] = None
+        self._alert_rows: Tuple[int, ...] = ()
+        self._highlight_cells: Tuple[Tuple[int, int], ...] = ()
+        self._empty_text = "Sin matriz para mostrar"
         self._cell_rects: List[List[QRect]] = []
         self._clickable: bool = False
         self._flash = QPropertyAnimation(self, b"flashAlpha", self)
@@ -185,8 +188,12 @@ class BookMatrixWidget(QWidget):
         highlight_col: Optional[int] = None,
         clickable: Optional[bool] = None,
         show_headers: Optional[bool] = None,
+        alert_rows: Tuple[int, ...] = (),
+        highlight_cells: Tuple[Tuple[int, int], ...] = (),
     ) -> None:
         self._matrix = matrix
+        self._alert_rows = tuple(alert_rows or ())
+        self._highlight_cells = tuple(tuple(cell) for cell in (highlight_cells or ()))
         self._split_col = split_col
         self._pivot = pivot
         self._mode = mode
@@ -211,6 +218,17 @@ class BookMatrixWidget(QWidget):
     def matrix(self) -> Optional[Matrix]:
         return self._matrix
 
+    def alert_rows(self) -> Tuple[int, ...]:
+        return self._alert_rows
+
+    def highlight_cells(self) -> Tuple[Tuple[int, int], ...]:
+        return self._highlight_cells
+
+    def set_empty_text(self, text: str) -> None:
+        """Texto del estado vacío (por ejemplo «Pulsa Calcular para ver C»)."""
+        self._empty_text = text
+        self.update()
+
     def clear(self) -> None:
         self.set_matrix(None)
 
@@ -224,25 +242,19 @@ class BookMatrixWidget(QWidget):
 
         if self._matrix is None:
             painter.setPen(QColor(COLOR_TEXT_MUTED))
-            font = QFont()
-            font.setFamily(FONT_FAMILY_SANS.split(",")[0].strip())
-            font.setItalic(True)
-            font.setPointSize(12)
-            painter.setFont(font)
-            painter.drawText(self.rect(), Qt.AlignCenter, "Sin matriz para mostrar")
+            painter.setFont(ui_font(16, italic=True))
+            painter.drawText(
+                self.rect().adjusted(12, 0, -12, 0), Qt.AlignCenter | Qt.TextWordWrap, self._empty_text
+            )
             return
 
         matrix = self._matrix
         rows, cols = matrix.rows, matrix.cols
         split = self._split_col
 
-        mono = QFont()
-        mono.setFamily(FONT_FAMILY_MONO.split(",")[0].strip())
-        mono.setPointSize(13)
-        header_font = QFont()
-        header_font.setFamily(FONT_FAMILY_SANS.split(",")[0].strip())
-        header_font.setPointSize(11)
-        header_font.setItalic(True)
+        # Píxeles, no puntos: 13 pt / 11 pt a 96 ppp, iguales en Windows y Linux.
+        mono = ui_font(17, mono=True)
+        header_font = ui_font(15, italic=True)
 
         fm = QFontMetrics(mono)
         header_fm = QFontMetrics(header_font)
@@ -302,9 +314,7 @@ class BookMatrixWidget(QWidget):
 
         # Encabezados
         if self._show_headers:
-            sub_font = QFont(header_font)
-            sub_font.setPointSize(max(7, int(header_font.pointSize() * 0.68)))
-            sub_font.setItalic(False)
+            sub_font = ui_font(max(9, int(header_font.pixelSize() * 0.68)))
             sub_fm = QFontMetrics(sub_font)
             painter.setPen(QColor(COLOR_INTERACTIVE_IDLE))
 
@@ -367,6 +377,15 @@ class BookMatrixWidget(QWidget):
                 wash.setAlphaF(0.18)
                 painter.fillRect(row_band, wash)
 
+            if r in self._alert_rows:
+                alert_wash = QColor(COLOR_ACCENT_WARNING)
+                alert_wash.setAlphaF(0.20)
+                painter.fillRect(row_band, alert_wash)
+                painter.fillRect(
+                    QRect(row_band.right() - 3, row_band.top(), 3, row_band.height()),
+                    QColor(COLOR_ACCENT_WARNING),
+                )
+
             if is_affected:
                 if self._flash_alpha > 0:
                     wash = QColor(COLOR_FEEDBACK_SUCCESS)
@@ -392,6 +411,14 @@ class BookMatrixWidget(QWidget):
                     col_wash = QColor(COLOR_INTERACTIVE_IDLE)
                     col_wash.setAlphaF(0.16)
                     painter.fillRect(cell, col_wash)
+
+                if (r, c) in self._highlight_cells and not (r == pivot_r and c == pivot_c):
+                    painter.save()
+                    ring = QPen(QColor(COLOR_ACCENT_WARNING), 2)
+                    painter.setPen(ring)
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRoundedRect(cell.adjusted(5, 7, -5, -7), 4, 4)
+                    painter.restore()
 
                 if r == pivot_r and c == pivot_c:
                     painter.save()
@@ -437,7 +464,24 @@ class BookMatrixWidget(QWidget):
         copy_action = menu.addAction("Copiar matriz")
         copy_action.setShortcut(QKeySequence.Copy)
         copy_action.triggered.connect(self.copy_to_clipboard)
+        latex_action = menu.addAction("Copiar como LaTeX")
+        latex_action.triggered.connect(self.copy_latex_to_clipboard)
         menu.exec(event.globalPos())
+
+    def copy_latex_to_clipboard(self) -> bool:
+        """Copia la matriz en notación LaTeX (bmatrix o arreglo aumentado)."""
+        if self._matrix is None:
+            return False
+        try:
+            from PySide6.QtGui import QGuiApplication
+
+            clipboard = QGuiApplication.clipboard()
+        except Exception:
+            return False
+        if clipboard is None:
+            return False
+        clipboard.setText(self._matrix.to_latex(split_col=self._split_col))
+        return True
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if self._matrix is not None and (
