@@ -106,6 +106,8 @@ def _record(
     pivot_pos: Optional[tuple[int, int]] = None,
     actor_row: Optional[int] = None,
     affected_rows: Optional[tuple[int, ...]] = None,
+    highlight_cells: Optional[tuple[tuple[int, int], ...]] = None,
+    alert_rows: Optional[tuple[int, ...]] = None,
 ) -> None:
     steps.append(heuristic_text)
     tracer.record_step(
@@ -115,6 +117,8 @@ def _record(
         pivot_pos=pivot_pos,
         actor_row=actor_row,
         affected_rows=affected_rows,
+        highlight_cells=highlight_cells,
+        alert_rows=alert_rows,
     )
 
 
@@ -306,6 +310,7 @@ def determinant_triangulation(A: Matrix) -> DeterminantResult:
                 text,
                 steps,
                 pivot_pos=(col_index, col_index),
+                highlight_cells=tuple((i, i) for i in range(order)),
             )
             return _pack(
                 value=Fraction(0, 1),
@@ -363,12 +368,19 @@ def determinant_triangulation(A: Matrix) -> DeterminantResult:
         f"Matriz triangular superior. det(A) = ({sign_text}) · ({product_text}) "
         f"= {format_scalar(value)}. Intercambios de fila: {swaps}."
     )
+    factors = "".join(
+        f"({format_scalar(working.get(index, index))})" for index in range(order)
+    )
     _record(
         tracer,
         working,
-        rf"\det(A) = (-1)^{{{swaps}}} \prod u_{{ii}}",
+        (
+            rf"\det(A) = (-1)^{{{swaps}}} \prod u_{{ii}} = "
+            rf"({format_scalar(sign)}) \cdot {factors} = {format_scalar(value)}"
+        ),
         text,
         steps,
+        highlight_cells=tuple((index, index) for index in range(order)),
     )
     return _pack(
         value=value,

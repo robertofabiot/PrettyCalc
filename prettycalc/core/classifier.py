@@ -129,6 +129,7 @@ class SystemAnalysis:
     pivot_columns: Optional[List[int]] = None
     has_augmented_pivot: bool = False
     parametric_vector_solution: Optional[ParametricVectorSolution] = None
+    inconsistent_value: Optional[Fraction] = None
 
     def __post_init__(self):
         if self.pivot_columns is None:
@@ -231,6 +232,11 @@ def classify_system(matrix: Matrix, split_col: Optional[int] = None) -> SystemAn
             ),
             pivot_columns=basic_vars,
             has_augmented_pivot=True,
+            inconsistent_value=(
+                rref.get(inconsistent_row, effective_split)
+                if inconsistent_row is not None
+                else None
+            ),
         )
 
     if rank_a == num_variables:
