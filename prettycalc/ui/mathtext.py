@@ -88,6 +88,8 @@ def prettify_math_text(text: str) -> str:
     result = re.sub(r"(?<![\d.])1(?=x)", "", result)
     result = re.sub(r"(-?\d+/\d+)(?=x)", r"(\1)", result)
     result = re.sub(r"(^|[\s+−-])1\(", r"\1(", result)
+    result = result.replace("^{-1}", "⁻¹").replace("^{T}", "ᵀ")
+    result = re.sub(r"\bI_n\b", "Iₙ", result)
     result = result.replace("->", "→")
     result = result.replace("!=", "≠")
     result = result.replace("+ -", " − ")

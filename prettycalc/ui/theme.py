@@ -1021,7 +1021,9 @@ def get_global_stylesheet() -> str:
     QLineEdit#scalarField:focus, QLineEdit[class="scalar-field"]:focus {{
         border: 2px solid {COLOR_TEXT_PRIMARY};
     }}
-    QLineEdit[invalid="true"] {{
+    QLineEdit[invalid="true"],
+    QLineEdit#scalarField[invalid="true"],
+    QLineEdit[class="scalar-field"][invalid="true"] {{
         border: 2px solid {COLOR_FEEDBACK_ERROR};
         background-color: {rgba(COLOR_FEEDBACK_ERROR, 0.12)};
     }}
