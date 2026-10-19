@@ -383,4 +383,35 @@ def test_all_verification_font_sizes_are_large_and_rich(qtbot):
     assert prop_view.steps_text.textFormat() == Qt.RichText
 
 
+def test_matrix_operations_descriptive_result_syntax(qtbot):
+    """Verifica que la sintaxis de las operaciones sea descriptiva (C = AB, C = A + B, C = A − B)."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_module(1)
+    view = window.matrix_operations_view
 
+    # Por defecto está seleccionada la multiplicación
+    assert "C = AB" in view.result_title_lbl.text()
+    assert "C = AB" in view.result_view.empty_text()
+
+    # Cargar ejemplo compatible y calcular
+    view.load_compatible_product_sample()
+    assert "C = AB" in view.result_title_lbl.text()
+    assert "C = AB" in view.inspector_label.text()
+    assert "(AB)" in view.inspector_label.text()
+
+    # Inspeccionar celda (0, 0)
+    view._on_result_cell_clicked(0, 0)
+    assert "C_1,1 = (AB)_1,1" in view.inspector_label.text()
+    assert "(AB)" in view.inspector_label.text()
+    assert "C₁,₁ = (AB)₁,₁" in view.inspect_badge.toolTip()
+
+    # Cambiar a suma
+    view.add_btn.click()
+    assert "C = A + B" in view.result_title_lbl.text()
+    assert "C = A + B" in view.result_view.empty_text()
+
+    # Cambiar a resta
+    view.sub_btn.click()
+    assert "C = A − B" in view.result_title_lbl.text()
+    assert "C = A − B" in view.result_view.empty_text()

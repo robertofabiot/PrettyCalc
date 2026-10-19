@@ -317,14 +317,14 @@ class MatrixOperationsView(QWidget):
         row.add_connector("=", "=", _CONNECTOR_STYLE)
 
         self.result_view = BookMatrixWidget()
-        self.result_view.set_empty_text("Pulsa Calcular para ver C")
+        self.result_view.set_empty_text("Pulsa Calcular para ver C = AB (A · B)")
         self.result_view.cellClicked.connect(self._on_result_cell_clicked)
         self.inspect_badge = QLabel("")
         self.inspect_badge.setObjectName("inspectBadge")
         self.inspect_badge.setVisible(False)
         self.inspect_badge.setStyleSheet(badge_style(COLOR_INTERACTIVE_IDLE, font_size=13, padding="4px 10px"))
         result_card, self.result_title_lbl = self._create_titled_matrix_card(
-            "Matriz C", self.result_view, header_extra=self.inspect_badge
+            "Matriz C = AB (A · B)", self.result_view, header_extra=self.inspect_badge
         )
         row.add_widget(result_card, 3)
         layout.addWidget(row)
@@ -730,9 +730,27 @@ class MatrixOperationsView(QWidget):
         self._clear_result()
         self._refresh_compatibility()
 
+    def _update_result_title(self) -> None:
+        """Actualiza el título de la tarjeta de resultado y el texto vacío según la operación."""
+        if not hasattr(self, "result_title_lbl") or not hasattr(self, "result_view"):
+            return
+        if self._op == "add":
+            title = "Matriz C = A + B"
+            empty = "Pulsa Calcular para ver C = A + B"
+        elif self._op == "sub":
+            title = "Matriz C = A − B"
+            empty = "Pulsa Calcular para ver C = A − B"
+        else:
+            title = "Matriz C = AB (A · B)"
+            empty = "Pulsa Calcular para ver C = AB (A · B)"
+        self.result_title_lbl.setText(title)
+        if self._result is None:
+            self.result_view.set_empty_text(empty)
+
     def _on_op_changed(self, op_id: int) -> None:
         self._op = {0: "add", 1: "sub", 2: "mul"}[op_id]
         self._clear_result()
+        self._update_result_title()
         self._refresh_compatibility()
 
     def _on_operands_changed(self) -> None:
@@ -1047,20 +1065,21 @@ class MatrixOperationsView(QWidget):
         if self._op == "add":
             result = matrix_add(primary, other)
             self._details = []
-            self.inspector_label.setText("Suma elemento a elemento: Cᵢⱼ = Aᵢⱼ + Bᵢⱼ.")
+            self.inspector_label.setText("Suma elemento a elemento: Cᵢⱼ = (A + B)ᵢⱼ = Aᵢⱼ + Bᵢⱼ.")
         elif self._op == "sub":
             result = matrix_sub(primary, other)
             self._details = []
-            self.inspector_label.setText("Resta elemento a elemento: Cᵢⱼ = Aᵢⱼ − Bᵢⱼ.")
+            self.inspector_label.setText("Resta elemento a elemento: Cᵢⱼ = (A − B)ᵢⱼ = Aᵢⱼ − Bᵢⱼ.")
         else:
             result, self._details = matrix_multiply_with_details(primary, other)
             self.inspector_label.setText(
-                "Producto calculado con tres bucles anidados. "
-                "Pulsa una celda de C para inspeccionar Cᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ."
+                "Producto matricial C = AB (A · B) calculado con tres bucles anidados. "
+                "Pulsa una celda de C = AB para inspeccionar Cᵢⱼ = (AB)ᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ."
             )
         self._result = result
         self._set_inspected(None)
         self.result_view.set_matrix(result, split_col=None, clickable=self._op == "mul", show_headers=False)
+        self._update_result_title()
         self._show_properties(primary, other, None)
 
     def _inverse_check_html(self, order: int, left_ok: bool, right_ok: bool) -> str:
@@ -1270,9 +1289,14 @@ class MatrixOperationsView(QWidget):
         if cell is None:
             self.inspect_badge.setVisible(False)
             self.inspect_badge.setText("")
+            self.inspect_badge.setToolTip("")
             return
         row, col = cell
         self.inspect_badge.setText(f"Inspeccionando C{to_subscript(f'{row + 1},{col + 1}')}")
+        self.inspect_badge.setToolTip(
+            f"Celda C{to_subscript(f'{row + 1},{col + 1}')} = (AB){to_subscript(f'{row + 1},{col + 1}')}: "
+            f"producto fila {row + 1} de A × columna {col + 1} de B"
+        )
         self.inspect_badge.setVisible(True)
 
     def inspected_cell(self) -> Optional[Tuple[int, int]]:
@@ -1298,6 +1322,7 @@ class MatrixOperationsView(QWidget):
         terms = []
         for k, (a_ik, b_kj, prod) in enumerate(detail.products):
             terms.append(
+                f"(AB)_{row + 1}{col + 1} término {k + 1}: "
                 f"A_{row + 1}{k + 1}·B_{k + 1}{col + 1} = "
                 f"({format_scalar(a_ik)})·({format_scalar(b_kj)}) = {format_scalar(prod)}"
             )
@@ -1320,6 +1345,7 @@ class MatrixOperationsView(QWidget):
             self.id_wrong_order_view,
         ):
             view.clear()
+        self._update_result_title()
         self.dist_comparison_label.clear()
         self.dist_equals_lbl.setText("=")
         self.dist_stepper.set_steps([])
@@ -1336,7 +1362,7 @@ class MatrixOperationsView(QWidget):
         self._clear_highlights()
         self.inspector_label.setTextFormat(Qt.PlainText)
         self.inspector_label.setText(
-            "Calcula un producto A · B y pulsa una celda de C para ver la fila de A, "
+            "Calcula un producto A · B y pulsa una celda de C = AB para ver la fila de A, "
             "la columna de B y la sumatoria de productos parciales."
         )
         self.properties_label.setText(

@@ -37,7 +37,7 @@ def _require_conformable(A: Matrix, B: Matrix) -> None:
         raise DimensionMismatchError(
             f"No se puede multiplicar: columnas de A ({A.cols}) ≠ filas de B ({B.rows}). "
             f"El producto A_{{{A.rows}×{A.cols}}} · B_{{{B.rows}×{B.cols}}} no es conformable. "
-            "Se requiere A m×n y B n×p para obtener C m×p.",
+            "Se requiere A m×n y B n×p para obtener la matriz producto C = AB de tamaño m×p.",
             left_shape=A.shape,
             right_shape=B.shape,
             operation="multiplicar matrices",
@@ -96,7 +96,7 @@ def matrix_transpose(A: Matrix) -> Matrix:
 
 @dataclass(frozen=True)
 class MultiplicationStepDetail:
-    """Desglose pedagógico de una celda C_ij = Σ_k A_ik · B_kj.
+    """Desglose pedagógico de una celda C_ij = (AB)_ij = Σ_k A_ik · B_kj.
 
     Attributes:
         row: Índice i (0-based) de la fila en A y en C.
@@ -123,7 +123,8 @@ def _format_cell_formula(
     total_text = format_scalar(total, mode="fraction")
     sum_body = " + ".join(term_texts) if term_texts else "0"
     return (
-        f"C_{row_index + 1},{col_index + 1} = Σ_k A_{row_index + 1}k · B_k{col_index + 1} "
+        f"C_{row_index + 1},{col_index + 1} = (AB)_{row_index + 1},{col_index + 1} "
+        f"= Σ_k A_{row_index + 1}k · B_k{col_index + 1} "
         f"= {sum_body} = {total_text}"
     )
 
@@ -152,7 +153,7 @@ def _cell_product(A: Matrix, B: Matrix, row_index: int, col_index: int) -> Multi
 
 
 def matrix_multiply(A: Matrix, B: Matrix) -> Matrix:
-    """Producto C = A · B. Exige columnas de A = filas de B y devuelve C."""
+    """Producto C = AB = A · B. Exige columnas de A = filas de B y devuelve C."""
     result, _ = matrix_multiply_with_details(A, B)
     return result
 
@@ -161,7 +162,7 @@ def matrix_multiply_with_details(
     A: Matrix,
     B: Matrix,
 ) -> Tuple[Matrix, List[MultiplicationStepDetail]]:
-    """Producto A · B y una ficha por cada C_ij. Devuelve (C, detalles)."""
+    """Producto A · B (C = AB) y desglose por celda C_ij = (AB)_ij. Devuelve (C, detalles)."""
     _require_conformable(A, B)
     result = Matrix.zeros(A.rows, B.cols)
     details: List[MultiplicationStepDetail] = []

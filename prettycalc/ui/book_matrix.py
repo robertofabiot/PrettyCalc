@@ -225,9 +225,13 @@ class BookMatrixWidget(QWidget):
         return self._highlight_cells
 
     def set_empty_text(self, text: str) -> None:
-        """Texto del estado vacío (por ejemplo «Pulsa Calcular para ver C»)."""
+        """Texto del estado vacío (por ejemplo «Pulsa Calcular para ver C = AB (A · B)»)."""
         self._empty_text = text
         self.update()
+
+    def empty_text(self) -> str:
+        """Retorna el texto actual del estado vacío."""
+        return self._empty_text
 
     def clear(self) -> None:
         self.set_matrix(None)

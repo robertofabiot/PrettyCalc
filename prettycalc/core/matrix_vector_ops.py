@@ -91,7 +91,7 @@ def matrix_vector_multiply_with_details(
         result_components.append(accum)
         terms_joined = " + ".join(terms) if terms else "0"
         step_descriptions.append(
-            f"Fila {i + 1}: {terms_joined} = {format_scalar(accum)}"
+            f"Fila {i + 1}: (A · {vector_name})_{i + 1} = {terms_joined} = {format_scalar(accum)}"
         )
 
     return Vector(result_components), step_descriptions

@@ -111,3 +111,5 @@ def test_matrix_multiply_with_details_matches_product():
     assert cell_00.total == Fraction(7, 2)
     assert cell_00.products[-1][2] == Fraction(1, 2)
     assert "C_1,1" in cell_00.formula
+    assert "(AB)_1,1" in cell_00.formula
+    assert "C_1,1 = (AB)_1,1" in cell_00.formula

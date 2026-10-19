@@ -136,8 +136,8 @@ def suma_resta_matrices_interactivo() -> None:
 
     print_matrix(A, "Matriz A")
     print_matrix(B, "Matriz B")
-    print_matrix(S, "Resultado: A + B")
-    print_matrix(R, "Resultado: A - B")
+    print_matrix(S, "Resultado: Matriz C = A + B")
+    print_matrix(R, "Resultado: Matriz C = A - B")
 
 
 def producto_escalar_interactivo() -> None:
@@ -153,13 +153,13 @@ def producto_escalar_interactivo() -> None:
     scaled = [[k * A[i][j] for j in range(cols)] for i in range(rows)]
 
     print_matrix(A, "Matriz Original A")
-    print_matrix(scaled, f"Resultado: ({fmt(k)}) · A")
+    print_matrix(scaled, f"Resultado: Matriz C = ({fmt(k)}) · A")
 
 
 def producto_matrices_interactivo() -> None:
     """Operación 3: Producto de matrices A_{m×n} · B_{n×p}."""
     print("\n" + "-" * 60)
-    print("PRODUCTO MATRICIAL: A_{m×n} · B_{n×p} = C_{m×p}")
+    print("PRODUCTO MATRICIAL: A_{m×n} · B_{n×p} = C_{m×p} (donde C = AB = A · B)")
     print("-" * 60)
     m = read_positive_int("Filas de A (m): ")
     n = read_positive_int("Columnas de A / Filas de B (n): ")
@@ -179,7 +179,14 @@ def producto_matrices_interactivo() -> None:
 
     print_matrix(A, f"Matriz A ({m}×{n})")
     print_matrix(B, f"Matriz B ({n}×{p})")
-    print_matrix(C, f"Matriz Producto C = A · B ({m}×{p})")
+    print_matrix(C, f"Matriz Producto C = AB = A · B ({m}×{p})")
+
+    print("\nDesglose pedagógico por celda C_ij = (AB)_ij = Σ_k A_ik · B_kj:")
+    for i in range(m):
+        for j in range(p):
+            terms = [f"({fmt(A[i][k_idx])})·({fmt(B[k_idx][j])})" for k_idx in range(n)]
+            terms_str = " + ".join(terms) if terms else "0"
+            print(f"   C[{i+1},{j+1}] = (AB)[{i+1},{j+1}] = {terms_str} = {fmt(C[i][j])}")
 
 
 def traspuesta_matriz_interactivo() -> None:

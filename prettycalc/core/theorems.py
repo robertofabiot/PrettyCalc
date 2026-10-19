@@ -117,9 +117,13 @@ def text_matrices() -> str:
         """
 1. CONFORMABILIDAD Y MULTIPLICACION:
    * La suma y resta A +- B solo estan definidas si A y B tienen el mismo tamano m x n.
+     El resultado es una matriz C = A +- B de tamano m x n con c_ij = a_ij +- b_ij.
    * El producto A*B esta definido si y solo si el numero de columnas de A coincide
      con el numero de filas de B:
          A_{m x n} * B_{n x p} = C_{m x p}
+     donde la matriz producto C equivale a AB (notacion por yuxtaposicion C = AB = A · B),
+     y cada entrada se calcula como la sumatoria de productos parciales:
+         c_ij = (AB)_ij = sum_{k=1}^n a_ik * b_kj
    * IMPORTANTE: El producto matricial NO es conmutativo en general (A*B != B*A).
 
 2. PROPIEDADES DE LA TRASPUESTA:
