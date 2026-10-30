@@ -206,6 +206,7 @@ class BookMatrixWidget(QWidget):
         if show_headers is not None:
             self._show_headers = show_headers
         self.setCursor(Qt.PointingHandCursor if self._clickable and matrix is not None else Qt.ArrowCursor)
+        self._fit_minimum_height()
         self.update()
         self.updateGeometry()
         if animate and affected_rows:
@@ -214,6 +215,17 @@ class BookMatrixWidget(QWidget):
         elif not animate:
             self._flash.stop()
             self._flash_alpha = 0.0
+
+    def _fit_minimum_height(self) -> None:
+        """Garantiza que quepan todas las filas (misma geometría que paintEvent)."""
+        if self._matrix is None:
+            self.setMinimumHeight(180)
+            return
+        fm = QFontMetrics(ui_font(17, mono=True))
+        header_h = QFontMetrics(ui_font(15, italic=True)).height() + 8 if self._show_headers else 0
+        row_h = max(44, int(fm.height() * 2.4))
+        needed = header_h + self._matrix.rows * row_h + 2 * 10 + 16
+        self.setMinimumHeight(max(180, needed))
 
     def matrix(self) -> Optional[Matrix]:
         return self._matrix
