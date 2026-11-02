@@ -88,8 +88,14 @@ QT_QPA_PLATFORM=offscreen pytest
     - **Leontief** lee la matriz de consumo \(C\) y resuelve \((I - C)p = 0\). El ejemplo de carbón, electricidad y acero normaliza el precio del acero en 1.
     - **Dieta** carga la tabla Cambridge y muestra las unidades exactas y los gramos.
     - **Tráfico** carga la red de Baltimore y las cotas \(x_i \ge 0\).
+15. En **Transformaciones Lineales** (Módulo 7, Ctrl+7):
+    - **T(v) = A · v**: ingresa una matriz de transformación \(A\) (\(m \times n\)) y un vector \(v \in \mathbb{R}^n\) para obtener la imagen \(T(v) \in \mathbb{R}^m\), con el desglose del producto fila a fila.
+    - **Propiedades**: reduce \(A\) a su forma escalonada reducida (RREF) por Gauss-Jordan, calcula el **rango** y la **nulidad**, y halla bases exactas del **núcleo** \(\operatorname{nu}(T)\) y de la **imagen** \(\operatorname{im}(T)\), verificando el **Teorema de la Dimensión** (\(\dim(\text{dominio}) = \text{nulidad} + \text{rango}\)).
+16. En **Espacios Vectoriales** (Módulo 8, Ctrl+8):
+    - **Conjunto Generador**: ingresa un conjunto de vectores como columnas de una matriz \(A\) (\(m \times k\)) y determina si generan el espacio \(\mathbb{R}^m\) verificando si \(\operatorname{rango}(A) = m\).
+    - **Base · Dimensión**: ingresa los coeficientes de un sistema homogéneo \(Ax = 0\) (cada fila es una ecuación) para obtener la base y dimensión (nulidad) del subespacio solución (\(\operatorname{Ker} A\)) a partir de las variables libres en la RREF, validando que \(\dim(\operatorname{Ker} A) + \operatorname{rango}(A) = n\).
 
-Hay casos de prueba en la columna izquierda: solución única, infinitas soluciones, sin solución, Cramer y el asistente de aplicaciones.
+Hay casos de prueba en la columna izquierda: solución única, infinitas soluciones, sin solución, Cramer, aplicaciones, transformaciones lineales y espacios vectoriales.
 
 **Atajos y ayudas comunes a todos los módulos** (F1 abre la hoja completa):
 
@@ -99,7 +105,7 @@ Hay casos de prueba en la columna izquierda: solución única, infinitas solucio
 | Deshacer / rehacer un cambio de la cuadrícula (pegar, reiniciar, ejemplo) | Ctrl+Z / Ctrl+Y |
 | Eliminar la fila / la columna de la celda activa | Ctrl+Supr / Ctrl+Mayús+Supr |
 | Copiar / pegar la matriz completa (TSV, Excel, LaTeX) | Ctrl+C / Ctrl+V |
-| Ir al módulo 1 … 6 | Ctrl+1 … Ctrl+6 |
+| Ir al módulo 1 … 8 | Ctrl+1 … Ctrl+8 |
 | Apariencia (tema oscuro, alto contraste o claro; escala) | Ctrl+, |
 | Navegar el procedimiento | ← / → dentro del carrusel |
 
@@ -254,6 +260,64 @@ assert dieta.is_feasible
 
 red = analyze_network_flow(baltimore_traffic_network())
 assert red.parameter_range == (0, 500)
+```
+
+Las transformaciones lineales están en `prettycalc.core.linear_transformations`:
+
+```python
+from prettycalc.core import (
+    Matrix,
+    Vector,
+    evaluate_transform,
+    compute_kernel_and_image,
+)
+
+A = Matrix([
+    [1, 0, -1],
+    [0, 1,  1],
+    [0, 0,  0],
+])
+v = Vector([2, -1, 1])
+
+# Evaluación T(v) = A · v con desglose pedagógico
+Tv, pasos = evaluate_transform(A, v)
+assert Tv == Vector([1, 0, 0])
+
+# Análisis de núcleo, imagen, rango y nulidad
+res = compute_kernel_and_image(A)
+assert res.rank == 2
+assert res.nullity == 1
+assert res.theorem_holds  # dim(dominio) = nulidad + rango (3 = 1 + 2)
+assert len(res.kernel_basis) == 1
+assert len(res.image_basis) == 2
+```
+
+Los espacios vectoriales (conjuntos generadores, base y dimensión) están en `prettycalc.core.vector_spaces`:
+
+```python
+from prettycalc.core import (
+    Matrix,
+    check_generating_set,
+    compute_subspace_basis,
+)
+
+# 1. Determinar si 3 vectores en ℝ³ generan ℝ³ (vectores como columnas)
+generadores = Matrix([
+    [1, 0, 2],
+    [0, 1, -1],
+    [0, 0, 1],
+])
+res_gen = check_generating_set(generadores)
+assert res_gen.generates and res_gen.rank == 3
+
+# 2. Base y dimensión de un subespacio homogéneo Ax = 0 en ℝ⁴
+ecuaciones = Matrix([
+    [1, -2, 1, 0],
+    [2, -4, 0, 2],
+])
+res_base = compute_subspace_basis(ecuaciones)
+assert res_base.dimension == 2  # Nulidad = 2
+assert len(res_base.basis) == 2  # Dos vectores en la base de Ker(A)
 ```
 
 ## Licencia

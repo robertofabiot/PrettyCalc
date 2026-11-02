@@ -189,6 +189,24 @@ from prettycalc.core.verifier import (
     EquationVerification,
     SolutionVerifier,
 )
+from prettycalc.core.linear_transformations import (
+    LinearTransformResult,
+    evaluate_transform,
+    compute_kernel_and_image,
+    format_vector_set,
+    kernel_summary,
+    image_summary,
+    theorem_summary,
+)
+from prettycalc.core.vector_spaces import (
+    GeneratingSetResult,
+    SubspaceBasisResult,
+    check_generating_set,
+    compute_subspace_basis,
+    format_basis_vectors,
+    generating_summary,
+    subspace_summary,
+)
 
 __all__ = [
     "Matrix",
@@ -343,5 +361,19 @@ __all__ = [
     "all_theorem_texts",
     "EquationVerification",
     "SolutionVerifier",
+    "LinearTransformResult",
+    "evaluate_transform",
+    "compute_kernel_and_image",
+    "format_vector_set",
+    "kernel_summary",
+    "image_summary",
+    "theorem_summary",
+    "GeneratingSetResult",
+    "SubspaceBasisResult",
+    "check_generating_set",
+    "compute_subspace_basis",
+    "format_basis_vectors",
+    "generating_summary",
+    "subspace_summary",
 ]
 
