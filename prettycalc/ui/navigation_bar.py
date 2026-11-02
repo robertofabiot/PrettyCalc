@@ -23,11 +23,13 @@ MODULE_TABS: Sequence[Tuple[str, str]] = (
     ("Ax", "Ecuaciones Matriciales"),
     ("det", "Determinantes"),
     ("LU", "Factorización LU"),
+    ("T(v)", "Transformaciones Lineales"),
+    ("EV",   "Espacios Vectoriales"),
 )
 
 
 #: Rótulos cortos para ventanas angostas (el rótulo completo queda en el tooltip).
-SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU")
+SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU", "Transform.", "Espacios")
 
 
 class ModularNavigationBar(QWidget):
