@@ -15,6 +15,11 @@ de Gauss-Jordan (RREF) con aritmética exacta:
 Restricciones:
   - Aritmética 100 % exacta con fractions.Fraction.
   - PROHIBIDO importar NumPy, SciPy o cualquier módulo de prettycalc.ui.
+
+En resumen:
+matemática exacta sin librerías externas. Este archivo tiene solo dos funciones centrales: una que usa Gauss-Jordan
+ para ver si el rango alcanza a generar todo el espacio, y otra que resuelve el sistema homogéneo 
+ (Ax=0) para extraer los vectores de la base de un subespacio.
 """
 
 from __future__ import annotations

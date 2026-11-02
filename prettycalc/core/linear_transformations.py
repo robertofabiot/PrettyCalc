@@ -12,6 +12,13 @@ Reutiliza exclusivamente módulos existentes del core:
 Restricciones:
   - Aritmética 100 % exacta con fractions.Fraction.
   - PROHIBIDO importar NumPy, SciPy o cualquier módulo de prettycalc.ui.
+
+  
+En Resumen:
+ En este archivo importamos fracciones exactas y nuestro módulo de Gauss-Jordan.
+ Aquí hacemos todo el trabajo matemático duro de forma aislada: evaluamos el vector resultante 
+ T(v) y reducimos la matriz para extraer los pivotes y las variables libres, armando así las bases del Núcleo y la Imagen.
+
 """
 
 from __future__ import annotations

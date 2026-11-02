@@ -12,6 +12,13 @@ Funcionalidades:
 Widgets reutilizados (sin modificarlos):
   DynamicMatrixGrid, AlgorithmStepperCarousel, theme, feedback, mathtext,
   module_scroll, size_control.
+
+
+  En resumen:
+  aquí usamos PySide6. Este archivo no calcula nada de matemáticas; solo arma la ventana, 
+  recibe los números que teclea el usuario, se los manda al archivo lógico y grafica el resultado en pantalla 
+  junto con el carrusel de pasos interactivo.
+  
 """
 
 from __future__ import annotations

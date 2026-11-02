@@ -12,6 +12,12 @@ Funcionalidades:
 Widgets reutilizados (sin modificarlos):
   DynamicMatrixGrid, MatrixSizeControl, AlgorithmStepperCarousel,
   theme, feedback, mathtext.
+
+En resumen:
+este archivo arma la ventana de los Espacios Vectoriales. Lo más destacable aquí a nivel de programación 
+es que reciclamos los mismos componentes de interfaz (como la cuadrícula y el carrusel de Gauss-Jordan) 
+del módulo anterior, manteniendo un código limpio y una arquitectura profesional.
+
 """
 
 from __future__ import annotations
