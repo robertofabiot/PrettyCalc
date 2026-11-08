@@ -29,6 +29,12 @@ from typing import Dict, List, Tuple
 
 from prettycalc.core.elimination import gauss_jordan_elimination
 from prettycalc.core.matrix_vector_ops import matrix_vector_multiply_with_details
+from prettycalc.core.basis_steps import (
+    record_dimension_theorem,
+    record_image_basis,
+    record_kernel_basis,
+    record_pivot_analysis,
+)
 from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import Matrix, Vector, format_scalar
 
@@ -227,6 +233,12 @@ def compute_kernel_and_image(A: Matrix) -> LinearTransformResult:
 
     kernel_basis = _build_kernel_basis(rref, pivot_cols, free_cols)
     image_basis = _build_image_basis(A, pivot_cols)
+
+    # Cómo se leen de la RREF el rango, el núcleo y la imagen.
+    record_pivot_analysis(tracer, rref, pivot_cols, free_cols)
+    record_kernel_basis(tracer, rref, pivot_cols, free_cols, kernel_basis, "n", "nu(T)")
+    record_image_basis(tracer, A, pivot_cols, image_basis)
+    record_dimension_theorem(tracer, rref, n, rank, nullity)
 
     return LinearTransformResult(
         rref=rref,
