@@ -639,6 +639,29 @@ def get_global_stylesheet() -> str:
         border: 1px solid {COLOR_FEEDBACK_ERROR};
     }}
 
+    QPushButton#stepNav {{
+        background-color: transparent;
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.50)};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-size: 14px;
+        font-weight: 600;
+    }}
+    QPushButton#stepNav:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+        border-color: {COLOR_INTERACTIVE_IDLE};
+    }}
+    QPushButton#stepNav:focus {{
+        border: 2px solid {COLOR_TEXT_PRIMARY};
+    }}
+    QPushButton#stepNav:disabled {{
+        background-color: transparent;
+        color: {COLOR_TEXT_DISABLED};
+        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.16)};
+    }}
+
     QPushButton#modeToggle, QPushButton[class="modeToggle"] {{
         background-color: transparent;
         color: {COLOR_INTERACTIVE_IDLE};

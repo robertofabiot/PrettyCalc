@@ -123,37 +123,35 @@ class AlgorithmStepperCarousel(QFrame):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
+        # Fila de navegación: ‹ Anterior · posición · Siguiente ›. El interruptor
+        # de fracciones y la exportación viven con el selector de paso, así el
+        # carrusel cabe en columnas angostas sin recortar ningún botón.
         nav_layout = QHBoxLayout()
         nav_layout.setSpacing(8)
 
-        self.prev_btn = QPushButton("Anterior")
-        self.prev_btn.setMinimumWidth(96)
+        self.prev_btn = QPushButton("‹  Anterior")
+        self.prev_btn.setObjectName("stepNav")
         self.prev_btn.setToolTip("Paso anterior (←)")
+        self.prev_btn.setAccessibleName("Paso anterior")
+        self.prev_btn.setCursor(Qt.PointingHandCursor)
         self.prev_btn.clicked.connect(self.prev_step)
         nav_layout.addWidget(self.prev_btn)
 
-        self.step_label = QLabel("Paso 0 de 0")
+        self.step_label = QLabel("Sin pasos")
         self.step_label.setAlignment(Qt.AlignCenter)
-        self.step_label.setMinimumWidth(96)
+        self.step_label.setTextFormat(Qt.RichText)
         self.step_label.setStyleSheet(
-            f"font-weight: 600; font-size: 17px; letter-spacing: 0.04em; color: {COLOR_TEXT_PRIMARY};"
+            f"font-weight: 600; font-size: 17px; letter-spacing: 0.02em; color: {COLOR_TEXT_PRIMARY};"
         )
         nav_layout.addWidget(self.step_label, stretch=1)
 
-        self.next_btn = QPushButton("Siguiente")
-        self.next_btn.setMinimumWidth(106)
+        self.next_btn = QPushButton("Siguiente  ›")
+        self.next_btn.setObjectName("stepNav")
         self.next_btn.setToolTip("Paso siguiente (→)")
+        self.next_btn.setAccessibleName("Paso siguiente")
+        self.next_btn.setCursor(Qt.PointingHandCursor)
         self.next_btn.clicked.connect(self.next_step)
         nav_layout.addWidget(self.next_btn)
-
-        self.mode_btn = QPushButton("Fracciones")
-        self.mode_btn.setObjectName("modeToggle")
-        self.mode_btn.setCheckable(True)
-        self.mode_btn.setChecked(True)
-        self.mode_btn.setToolTip("Interruptor: vista actual en fracciones o decimales")
-        self.mode_btn.setMinimumWidth(106)
-        apply_widget_class(self.mode_btn, "modeToggle")
-        nav_layout.addWidget(self.mode_btn)
 
         layout.addLayout(nav_layout)
 
@@ -168,10 +166,20 @@ class AlgorithmStepperCarousel(QFrame):
         self.step_slider.setMinimum(1)
         self.step_slider.setMaximum(1)
         self.step_slider.setPageStep(1)
+        self.step_slider.setMinimumWidth(60)
         self.step_slider.setToolTip("Arrastra para saltar a cualquier paso (Inicio/Fin: primero/último)")
         self.step_slider.setAccessibleName("Selector de paso del procedimiento")
         self.step_slider.valueChanged.connect(self._on_slider_moved)
         scrub_row.addWidget(self.step_slider, stretch=1)
+
+        self.mode_btn = QPushButton("Fracciones")
+        self.mode_btn.setObjectName("modeToggle")
+        self.mode_btn.setCheckable(True)
+        self.mode_btn.setChecked(True)
+        self.mode_btn.setToolTip("Interruptor: vista actual en fracciones o decimales")
+        apply_widget_class(self.mode_btn, "modeToggle")
+        scrub_row.addWidget(self.mode_btn)
+
         self.export_btn = QPushButton("Exportar")
         self.export_btn.setObjectName("secondaryAction")
         self.export_btn.setToolTip("Copiar o guardar el procedimiento completo (PDF, HTML, LaTeX o texto)")
@@ -428,7 +436,9 @@ class AlgorithmStepperCarousel(QFrame):
     def _update_view(self, animate: bool = False) -> None:
         self.export_btn.setEnabled(bool(self._steps))
         if not self._steps:
-            self.step_label.setText("Sin pasos")
+            self.step_label.setText(
+                f"<span style='color:{COLOR_TEXT_MUTED}; font-weight:500; font-size:15px;'>Sin pasos</span>"
+            )
             self.formula_label.setText(
                 f"<span style='color:{COLOR_TEXT_MUTED}; font-style:italic; font-size:16px;'>Esperando resolución</span>"
             )
@@ -446,12 +456,12 @@ class AlgorithmStepperCarousel(QFrame):
         curr = self._current_index
         step = self._steps[curr]
 
+        position = f"{curr + 1}<span style='color:{COLOR_TEXT_MUTED}; font-weight:500;'> / {total}</span>"
         if curr == 0:
-            self.step_label.setText(f"1 / {total}   inicial")
+            position += f"<span style='color:{COLOR_TEXT_MUTED}; font-size:13px; font-weight:500;'>&nbsp;&nbsp;inicial</span>"
         elif curr == total - 1:
-            self.step_label.setText(f"{curr + 1} / {total}   final")
-        else:
-            self.step_label.setText(f"{curr + 1} / {total}")
+            position += f"<span style='color:{COLOR_TEXT_MUTED}; font-size:13px; font-weight:500;'>&nbsp;&nbsp;final</span>"
+        self.step_label.setText(position)
 
         self.formula_label.setText(latex_to_book_html(step.latex_formula))
         self.heuristic_label.setText(step.heuristic_text)
