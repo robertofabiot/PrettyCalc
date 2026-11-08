@@ -191,3 +191,22 @@ def test_title_bar_theme_is_a_no_op_outside_windows(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
     assert apply_title_bar_theme(window, dark=True, platform="linux") is False
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="None es inmortal desde Python 3.12")
+def test_pyside_does_not_leak_none_references(qtbot):
+    """PySide6 6.12.0 restaba una referencia a None en cada setter y abortaba.
+
+    En lugar de un «none_dealloc» en una prueba cualquiera, esta falla con un
+    mensaje claro si se instala una versión afectada.
+    """
+    import PySide6
+    from PySide6.QtGui import QFont
+
+    font = QFont()
+    font.setPixelSize(15)
+    before = sys.getrefcount(None)
+    for _ in range(200):
+        font.setPixelSize(15)
+    lost = before - sys.getrefcount(None)
+    assert lost < 50, f"PySide6 {PySide6.__version__} pierde referencias a None: excluirla en requirements.txt"
