@@ -183,8 +183,9 @@ class AlgorithmStepperCarousel(QFrame):
         layout.addWidget(self.scrub_host)
 
         formula_box = QFrame()
+        formula_box.setObjectName("stepFormulaBox")
         formula_box.setStyleSheet(f"""
-            QFrame {{
+            QFrame#stepFormulaBox {{
                 background-color: {COLOR_SURFACE_INNER};
                 border: none;
                 border-radius: 4px;
@@ -212,8 +213,9 @@ class AlgorithmStepperCarousel(QFrame):
         layout.addWidget(self.alert_label)
 
         heuristic_box = QFrame()
+        heuristic_box.setObjectName("stepHeuristicBox")
         heuristic_box.setStyleSheet(f"""
-            QFrame {{
+            QFrame#stepHeuristicBox {{
                 background-color: {COLOR_SURFACE_INNER};
                 border-left: 3px solid {COLOR_FEEDBACK_SUCCESS};
                 border-radius: 2px;
