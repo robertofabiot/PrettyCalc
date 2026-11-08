@@ -164,3 +164,30 @@ def test_layout_is_identical_without_any_system_font():
         isolated = _probe({"FONTCONFIG_FILE": str(config)})
     moved = {key: (base[key], isolated.get(key)) for key in base if base[key] != isolated.get(key)}
     assert moved == {}
+
+
+def test_windows_uses_freetype_and_its_own_taskbar_id(monkeypatch):
+    """Mismo motor de rasterizado que Linux; el icono propio en la barra de tareas."""
+    from prettycalc.ui.platform_setup import configure_platform_environment
+
+    monkeypatch.delenv("QT_QPA_PLATFORM", raising=False)
+    applied = configure_platform_environment(platform="win32")
+    assert os.environ["QT_QPA_PLATFORM"] == "windows:fontengine=freetype"
+    assert "fontengine=freetype" in applied
+
+
+def test_platform_environment_respects_the_user_and_skips_linux(monkeypatch):
+    from prettycalc.ui.platform_setup import configure_platform_environment
+
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    assert "fontengine=freetype" not in configure_platform_environment(platform="win32")
+    assert os.environ["QT_QPA_PLATFORM"] == "offscreen"
+    assert configure_platform_environment(platform="linux") == []
+
+
+def test_title_bar_theme_is_a_no_op_outside_windows(qtbot):
+    from prettycalc.ui.platform_setup import apply_title_bar_theme
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    assert apply_title_bar_theme(window, dark=True, platform="linux") is False

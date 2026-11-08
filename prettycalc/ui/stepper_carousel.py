@@ -383,18 +383,23 @@ class AlgorithmStepperCarousel(QFrame):
         if not self._steps:
             return None
         safe = "".join(ch if ch.isalnum() else "_" for ch in self._export_title).strip("_") or "procedimiento"
-        # Diálogo de Qt (no el del sistema) para que se vea igual en Windows y Linux.
-        path, _selected = QFileDialog.getSaveFileName(
+        # Diálogo de Qt (no el del sistema) para que se vea igual en Windows y
+        # Linux; como instancia, para poder oscurecer su barra de título.
+        from prettycalc.ui.platform_setup import apply_title_bar_theme
+        from prettycalc.ui.theme import ACTIVE_THEME
+
+        dialog = QFileDialog(
             self,
             "Guardar procedimiento",
             f"{safe.lower()}.pdf",
             "PDF (*.pdf);;Página web (*.html);;LaTeX (*.tex);;Texto (*.txt)",
-            "",
-            QFileDialog.DontUseNativeDialog,
         )
-        if not path:
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        apply_title_bar_theme(dialog, dark=ACTIVE_THEME != "light")
+        if not dialog.exec() or not dialog.selectedFiles():
             return None
-        return self.save_steps(path)
+        return self.save_steps(dialog.selectedFiles()[0])
 
     def save_steps(self, path: str) -> Optional[str]:
         from prettycalc.ui.export import write_report

@@ -426,6 +426,9 @@ def apply_message_box_theme(box: Any) -> None:
     box.setPalette(pal)
     box.setStyleSheet(get_message_box_stylesheet())
     _status_icon_for(box)
+    from prettycalc.ui.platform_setup import apply_title_bar_theme
+
+    apply_title_bar_theme(box, dark=ACTIVE_THEME != "light")
     try:
         from PySide6.QtWidgets import QLabel
         for label in box.findChildren(QLabel):

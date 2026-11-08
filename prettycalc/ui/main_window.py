@@ -29,13 +29,19 @@ from prettycalc.ui.modules.lu_factorization_view import LUFactorizationView
 from prettycalc.ui.modules.linear_transformations_view import LinearTransformationsView
 from prettycalc.ui.modules.vector_spaces_view import VectorSpacesView
 from prettycalc.ui.navigation_bar import ModularNavigationBar, brand_icon
-from prettycalc.ui.platform_setup import configure_high_dpi, prepare_application
+from prettycalc.ui.platform_setup import (
+    apply_title_bar_theme,
+    configure_high_dpi,
+    configure_platform_environment,
+    prepare_application,
+)
 from prettycalc.ui.preferences_dialog import (
     PreferencesDialog,
     ShortcutsDialog,
     restart_application,
 )
 from prettycalc.ui.theme import (
+    ACTIVE_THEME,
     load_appearance,
     get_global_stylesheet,
     get_app_palette,
@@ -101,6 +107,11 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         self.nav_bar.set_compact(self.width() < _COMPACT_NAV_BELOW)
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        # Windows pinta la barra de título blanca aunque el tema sea oscuro.
+        apply_title_bar_theme(self, dark=ACTIVE_THEME != "light")
 
     def _setup_ui(self) -> None:
         root_widget = QWidget()
@@ -262,6 +273,7 @@ def apply_scale_environment() -> float:
 def run_app():
     """Arranque de la aplicación GUI (misma apariencia en Windows, Linux y macOS)."""
     apply_scale_environment()
+    configure_platform_environment()
     configure_high_dpi()
     app = QApplication(sys.argv)
     app.setOrganizationName("PrettyCalc")
