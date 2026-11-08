@@ -28,7 +28,7 @@ from prettycalc.ui.modules.determinants_view import DeterminantsView
 from prettycalc.ui.modules.lu_factorization_view import LUFactorizationView
 from prettycalc.ui.modules.linear_transformations_view import LinearTransformationsView
 from prettycalc.ui.modules.vector_spaces_view import VectorSpacesView
-from prettycalc.ui.navigation_bar import ModularNavigationBar
+from prettycalc.ui.navigation_bar import ModularNavigationBar, brand_icon
 from prettycalc.ui.platform_setup import configure_high_dpi, prepare_application
 from prettycalc.ui.preferences_dialog import (
     PreferencesDialog,
@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PrettyCalc — Álgebra lineal")
+        self.setWindowIcon(brand_icon())
         self.setMinimumSize(1180, 680)
         self.resize(1380, 800)
         app = QApplication.instance()
@@ -266,6 +267,7 @@ def run_app():
     app.setOrganizationName("PrettyCalc")
     app.setApplicationName("PrettyCalc")
     prepare_application(app)
+    app.setWindowIcon(brand_icon())
     palette = get_app_palette()
     if palette is not None:
         app.setPalette(palette)

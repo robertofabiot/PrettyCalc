@@ -27,7 +27,7 @@ try:
         QWidget,
     )
     from PySide6.QtCore import QRectF, QSize, Qt, Signal
-    from PySide6.QtGui import QColor, QFontMetrics, QLinearGradient, QPainter, QPainterPath, QPen
+    from PySide6.QtGui import QColor, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 except ImportError:
     QWidget = object  # type: ignore
     QPushButton = object  # type: ignore
@@ -269,6 +269,20 @@ def paint_brand_mark(painter: "QPainter", rect: "QRectF") -> None:
     dot = s * 0.085
     for cx, cy in ((0.42, 0.40), (0.58, 0.60)):
         painter.drawEllipse(QRectF(x0 + s * cx - dot, y0 + s * cy - dot, dot * 2, dot * 2))
+
+
+def brand_icon() -> "QIcon":
+    """Icono de la ventana y de la barra de tareas: el mismo logotipo, en varios tamaños."""
+    icon = QIcon()
+    for size in (16, 24, 32, 48, 64, 128, 256):
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        paint_brand_mark(painter, QRectF(0, 0, size, size))
+        painter.end()
+        icon.addPixmap(pixmap)
+    return icon
 
 
 class ModularNavigationBar(QFrame):

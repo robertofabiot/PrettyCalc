@@ -425,3 +425,11 @@ def test_matrix_operations_descriptive_result_syntax(qtbot):
     view.sub_btn.click()
     assert "C = A − B" in view.result_title_lbl.text()
     assert "C = A − B" in view.result_view.empty_text()
+
+
+def test_window_has_the_brand_icon(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    icon = window.windowIcon()
+    assert not icon.isNull()
+    assert any(size.width() >= 64 for size in icon.availableSizes())
