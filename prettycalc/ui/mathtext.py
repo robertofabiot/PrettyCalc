@@ -98,6 +98,21 @@ def prettify_math_text(text: str) -> str:
     return result
 
 
+def prettify_step_text(text: str) -> str:
+    """Notación de libro para la explicación de un paso del carrusel.
+
+    Más conservadora que ``prettify_math_text`` (pensada para ecuaciones): solo
+    convierte subíndices numéricos (``a_12`` → ``a₁₂``), ``^{-1}``, ``^{T}`` e
+    ``I_n``, sin tocar coeficientes ni paréntesis.
+    """
+    if not text:
+        return ""
+    result = _SUB_DIGITS_BRACES.sub(lambda m: to_subscript(m.group(1)), text)
+    result = _SUB_DIGITS_PLAIN.sub(lambda m: to_subscript(m.group(1)), result)
+    result = result.replace("^{-1}", "⁻¹").replace("^{T}", "ᵀ")
+    return re.sub(r"\bI_n\b", "Iₙ", result)
+
+
 def format_subscripts_html(text: str, sub_size_px: Optional[int] = None) -> str:
     r"""Convierte subíndices de notación LaTeX (_\{k\}), ASCII (_k) o Unicode (ₖ) a HTML <sub>."""
     if not text:

@@ -33,7 +33,7 @@ except ImportError:
 from prettycalc.core.tracer import CalculationStep
 from prettycalc.core.types import format_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
-from prettycalc.ui.mathtext import latex_to_book_html, variable_html
+from prettycalc.ui.mathtext import latex_to_book_html, prettify_step_text, variable_html
 from prettycalc.ui.theme import (
     COLOR_ACCENT_WARNING,
     COLOR_FEEDBACK_ERROR,
@@ -469,7 +469,7 @@ class AlgorithmStepperCarousel(QFrame):
         self.step_label.setText(position)
 
         self.formula_label.setText(latex_to_book_html(step.latex_formula))
-        self.heuristic_label.setText(step.heuristic_text)
+        self.heuristic_label.setText(prettify_step_text(step.heuristic_text))
 
         if step.pivot_pos is not None:
             pr, pc = step.pivot_pos
