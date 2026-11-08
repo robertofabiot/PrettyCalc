@@ -41,6 +41,8 @@ La aplicación prioriza la elegancia, la claridad cognitiva y la eliminación to
 * **Avisos** (éxito, error, atención, información): tinte del color al 20 %, borde y franja izquierda del mismo color y texto primario. Se leen de un vistazo sin competir con las matrices.
 * **Veredictos** (el badge del tablero de resultados): sólidos, porque son la conclusión.
 * **Paneles laterales** dentro de un divisor nunca quedan más angostos que su contenido (`track_content_width`): el ancho se le quita a la columna del procedimiento.
+* **Tres columnas que no caben** (Sistemas, Determinantes, LU): el panel de resultados baja a todo el ancho debajo de las otras dos (`StackingSplitterHost`) y vuelve a su columna al ensanchar la ventana. La cabecera de Ecuaciones pasa sus botones a una segunda línea.
+* **Sin desplazamiento horizontal** en ninguna vista desde la ventana mínima (1080 × 680) hasta 1920 px; `tests/ui/test_responsive_layout.py` lo comprueba con los ejemplos cargados.
 
 ## 3. Flujo de Inicialización y Crecimiento Dinámico (Ghosting Pattern)
 * **Inicio Inmediato sin Fricción:**
@@ -92,7 +94,9 @@ La aplicación prioriza la elegancia, la claridad cognitiva y la eliminación to
   * Las tres familias van **empaquetadas** en `prettycalc/ui/assets/fonts/` (licencias OFL/Bitstream incluidas) y se registran al arrancar; nunca se usa una fuente del sistema.
   * Los tamaños se fijan en **píxeles** (`ui_font(px)`), no en puntos, y sin *hinting*: el mismo texto mide lo mismo con 96 o 144 ppp.
   * Estilo **Fusion** en todas las plataformas, iconos de los diálogos dibujados por la app, diálogo de archivos no nativo y **sin emojis** (dependen de la fuente de color del sistema).
-  * La única diferencia que queda es la barra de título, que dibuja el sistema operativo.
+  * En Windows el texto se rasteriza con FreeType (`windows:fontengine=freetype`), el mismo motor que en Linux, en lugar de DirectWrite.
+  * La barra de título la dibuja el sistema operativo; en Windows 10/11 se pide oscura con los temas oscuro y de alto contraste, y un AppUserModelID propio hace que la barra de tareas muestre el icono de PrettyCalc y no el de Python.
+  * El wheel incluye las diez fuentes, sus licencias y los SVG (`[tool.setuptools.package-data]`).
 
 ---
 
