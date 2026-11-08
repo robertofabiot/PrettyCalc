@@ -54,8 +54,10 @@ from prettycalc.ui.theme import (
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
     apply_widget_class,
     badge_style,
+    rgba,
 )
 from prettycalc.ui.vector_set_editor import VectorColumnEditor
 
@@ -443,11 +445,11 @@ class MatrixEquationsView(QWidget):
             all_ok = result.product_matches
             status_color = COLOR_FEEDBACK_SUCCESS if all_ok else COLOR_FEEDBACK_ERROR
             status_text = (
-                "✓ ¡Igualdad exacta comprobada!  A · x = b (igualdad exacta)" if all_ok else "✕ No coincide la igualdad"
+                "✓ A · x = b con igualdad exacta" if all_ok else "✕ No coincide la igualdad"
             )
             rows = [
-                f'<div style="background-color:rgba(129, 178, 154, 0.12); border:1px solid rgba(129, 178, 154, 0.40); '
-                f'border-radius:6px; padding:10px 14px; margin-bottom:12px;">'
+                f'<div style="background-color:{rgba(status_color, 0.12)}; border:1px solid {rgba(status_color, 0.40)}; '
+                f'border-radius:6px; padding:10px 14px; margin-bottom:12px; font-family:{FONT_FAMILY_SANS};">'
                 f'<span style="font-size:22px; font-weight:700; color:{status_color};">{status_text}</span>'
                 f"</div>"
             ]

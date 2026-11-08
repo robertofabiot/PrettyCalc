@@ -487,13 +487,14 @@ def format_comparison_row_html(
         COLOR_FEEDBACK_ERROR,
         COLOR_FEEDBACK_SUCCESS,
         COLOR_INTERACTIVE_IDLE,
-        COLOR_SURFACE_INNER,
-        FONT_FAMILY_MONO,
+        FONT_FAMILY_SANS,
+        rgba,
     )
 
+    # Tintes del tema activo (antes eran los valores fijos del tema oscuro).
     mark_color = COLOR_FEEDBACK_SUCCESS if ok else COLOR_FEEDBACK_ERROR
-    bg_color = "rgba(129, 178, 154, 0.10)" if ok else "rgba(238, 108, 77, 0.10)"
-    border_color = "rgba(129, 178, 154, 0.40)" if ok else "rgba(238, 108, 77, 0.40)"
+    bg_color = rgba(mark_color, 0.10)
+    border_color = rgba(mark_color, 0.40)
     status_text = "Coinciden exactamente" if ok else "No coinciden"
 
     lhs_has_eq = "=" in lhs_expr and not lhs_expr.startswith("=")
@@ -532,15 +533,19 @@ def format_comparison_row_html(
             f'<span style="color:{COLOR_TEXT_PRIMARY}; font-size:{font_size_px}px; font-weight:600;">{rhs_clean}</span>'
         )
 
+    # Inter en lugar de Fira Code: la fila entra en columnas angostas sin
+    # partirse a mitad de la igualdad, y cada bloque (rótulo, igualdad,
+    # estado) se mantiene entero con white-space: nowrap.
     return (
         f'<div style="background-color:{bg_color}; border:1px solid {border_color}; '
-        f'border-radius:6px; padding:10px 14px; margin:6px 0; font-family:{FONT_FAMILY_MONO};">'
+        f'border-radius:6px; padding:10px 14px; margin:6px 0; font-family:{FONT_FAMILY_SANS};">'
+        f'<span style="white-space:nowrap;">'
         f'<span style="color:{mark_color}; font-weight:700; font-size:{font_size_px + 2}px;">{mark}</span>'
-        f'&nbsp;&nbsp;&nbsp;&nbsp;'
-        f'<span style="color:{COLOR_INTERACTIVE_IDLE}; font-weight:600; font-size:{font_size_px - 2}px;">{label}:</span>'
-        f'&nbsp;&nbsp;&nbsp;&nbsp;'
-        f'{comparison_content}'
-        f'&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:{mark_color}; font-size:{font_size_px - 4}px; font-style:italic;">({status_text})</span>'
+        f'&nbsp;&nbsp;'
+        f'<span style="color:{COLOR_INTERACTIVE_IDLE}; font-weight:600; font-size:{font_size_px - 4}px;">{label}:</span>'
+        f'</span>&nbsp;&nbsp; '
+        f'<span style="white-space:nowrap;">{comparison_content}</span> '
+        f'&nbsp;<span style="white-space:nowrap; color:{mark_color}; font-size:{font_size_px - 6}px; font-style:italic;">({status_text})</span>'
         f'</div>'
     )
 
