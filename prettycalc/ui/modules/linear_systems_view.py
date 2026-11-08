@@ -47,6 +47,7 @@ from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.stepper_carousel import ALERT_SYSTEM, AlgorithmStepperCarousel
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
 from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
+from prettycalc.ui.responsive import StackingSplitterHost
 from prettycalc.ui.theme import (
     apply_message_box_theme,
     COLOR_ACCENT_WARNING,
@@ -282,7 +283,8 @@ class LinearSystemsView(QWidget):
         body_splitter.setStretchFactor(0, 2)
         body_splitter.setStretchFactor(1, 4)
         body_splitter.setStretchFactor(2, 2)
-        main_layout.addWidget(body_splitter, stretch=1)
+        self.body_host = StackingSplitterHost(body_splitter)
+        main_layout.addWidget(self.body_host, stretch=1)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(make_module_scroll(content))

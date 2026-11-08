@@ -47,7 +47,8 @@ from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
-from prettycalc.ui.module_scroll import make_module_scroll
+from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
+from prettycalc.ui.responsive import StackingSplitterHost
 from prettycalc.ui.mathtext import plain_formula_to_html
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
 from prettycalc.ui.size_control import MatrixSizeControl
@@ -272,7 +273,8 @@ class LUFactorizationView(QWidget):
         upper.addWidget(self._scroll(right_card))
         upper.setSizes([360, 520, 420])
         self.upper_splitter = upper
-        root.addWidget(upper)
+        self.upper_host = StackingSplitterHost(upper)
+        root.addWidget(self.upper_host)
 
         root.addWidget(self._section_title("Solución en dos etapas"))
         lower = QSplitter(Qt.Horizontal)
@@ -376,7 +378,9 @@ class LUFactorizationView(QWidget):
         answer_layout.addStretch(1)
         lower.addWidget(self._scroll(answer_card))
         lower.setSizes([220, 760, 320])
-        root.addWidget(lower)
+        self.lower_splitter = lower
+        self.lower_host = StackingSplitterHost(lower, below_min_height=0)
+        root.addWidget(self.lower_host)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -429,6 +433,7 @@ class LUFactorizationView(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setWidget(card)
+        track_content_width(scroll)
         return scroll
 
     def _fit_matrix_panel(self) -> None:

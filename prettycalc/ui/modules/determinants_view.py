@@ -55,7 +55,7 @@ from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
-from prettycalc.ui.responsive import ResponsiveRow
+from prettycalc.ui.responsive import ResponsiveRow, StackingSplitterHost
 from prettycalc.ui.sarrus_diagram import SarrusDiagram
 from prettycalc.ui.scalar_field import CANONICAL_SCALARS, ScalarField, ScalarInput
 from prettycalc.ui.size_control import MatrixSizeControl
@@ -235,7 +235,8 @@ class DeterminantsView(QWidget):
         self.splitter.addWidget(self._build_steps_panel())
         self.splitter.addWidget(self._build_result_panel())
         self.splitter.setSizes([380, 520, 420])
-        root.addWidget(self.splitter, stretch=1)
+        self.splitter_host = StackingSplitterHost(self.splitter)
+        root.addWidget(self.splitter_host, stretch=1)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
