@@ -16,10 +16,23 @@ módulo fija las tres para que PrettyCalc se vea igual en cualquier equipo:
 
 También fija la política de escalado de alta densidad (``PassThrough``) para
 que 125 % o 150 % en Windows y en Linux se traten igual.
+
+En Windows, además (``configure_platform_environment``):
+
+5. Rasterizado con FreeType (``windows:fontengine=freetype``): Linux dibuja
+   las letras con FreeType y Windows, por defecto, con DirectWrite, que
+   ajusta los trazos de otra manera. Con el mismo motor, las mismas fuentes
+   y sin *hinting*, cada letra sale igual en los dos sistemas.
+6. Un AppUserModelID propio: sin él, la barra de tareas agrupa la ventana
+   bajo ``python.exe`` y muestra el icono de Python en vez del de PrettyCalc.
+7. Barra de título oscura con los temas oscuro y de alto contraste
+   (``apply_title_bar_theme``); de lo contrario Windows la pinta blanca.
 """
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 from typing import Any, Iterable, List, Optional, Sequence
 
@@ -114,6 +127,61 @@ def make_font(
     font.setHintingPreference(QFont.PreferNoHinting)
     font.setStyleStrategy(QFont.PreferAntialias)
     return font
+
+
+#: Identificador de la aplicación para la barra de tareas de Windows.
+WINDOWS_APP_ID = "UAM.PrettyCalc.AlgebraLineal"
+
+
+def configure_platform_environment(platform: Optional[str] = None) -> List[str]:
+    """Ajustes de Windows que deben aplicarse antes de crear ``QApplication``.
+
+    Devuelve la lista de ajustes aplicados (vacía fuera de Windows). Respeta
+    un ``QT_QPA_PLATFORM`` puesto por el usuario (por ejemplo ``offscreen``).
+    """
+    platform = platform or sys.platform
+    applied: List[str] = []
+    if not platform.startswith("win"):
+        return applied
+    if not os.environ.get("QT_QPA_PLATFORM"):
+        os.environ["QT_QPA_PLATFORM"] = "windows:fontengine=freetype"
+        applied.append("fontengine=freetype")
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(WINDOWS_APP_ID)
+        applied.append("app-user-model-id")
+    except (AttributeError, OSError):
+        pass
+    return applied
+
+
+def apply_title_bar_theme(window: Any, dark: bool, platform: Optional[str] = None) -> bool:
+    """Barra de título oscura en Windows 10/11 para los temas oscuros.
+
+    Es lo único que dibuja el sistema operativo; en Linux la decide el gestor
+    de ventanas y no se toca. Devuelve ``True`` si Windows aceptó el cambio.
+    """
+    platform = platform or sys.platform
+    if not platform.startswith("win"):
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        hwnd = wintypes.HWND(int(window.winId()))
+        value = ctypes.c_int(1 if dark else 0)
+        dwmapi = ctypes.windll.dwmapi
+        # 20 = DWMWA_USE_IMMERSIVE_DARK_MODE (Windows 10 20H1+); 19 en versiones previas.
+        for attribute in (20, 19):
+            result = dwmapi.DwmSetWindowAttribute(
+                hwnd, ctypes.c_uint(attribute), ctypes.byref(value), ctypes.sizeof(value)
+            )
+            if result == 0:
+                return True
+    except (AttributeError, OSError, ValueError, TypeError):
+        pass
+    return False
 
 
 def configure_high_dpi() -> None:

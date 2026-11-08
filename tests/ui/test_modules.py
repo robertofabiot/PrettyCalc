@@ -6,17 +6,19 @@ from prettycalc.ui.theme import COLOR_FEEDBACK_ERROR, COLOR_FEEDBACK_SUCCESS
 from prettycalc.core.types import Matrix
 
 
-def test_navigation_bar_has_six_modules(qtbot):
+def test_navigation_bar_has_eight_modules(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
-    assert len(window.nav_bar.buttons) == 6
-    assert window.module_stack.count() == 6
+    assert len(window.nav_bar.buttons) == 8
+    assert window.module_stack.count() == 8
     assert "Sistemas Lineales" in window.nav_bar.buttons[0].text()
     assert "Álgebra Matricial" in window.nav_bar.buttons[1].text()
     assert "Vectores" in window.nav_bar.buttons[2].text()
     assert "Ecuaciones" in window.nav_bar.buttons[3].text()
     assert "Determinantes" in window.nav_bar.buttons[4].text()
     assert "Factorización LU" in window.nav_bar.buttons[5].text()
+    assert "Transformaciones Lineales" in window.nav_bar.buttons[6].text()
+    assert "Espacios Vectoriales" in window.nav_bar.buttons[7].text()
 
 
 def test_set_module_switches_stacked_widget_and_subtitle(qtbot):
@@ -46,6 +48,14 @@ def test_set_module_switches_stacked_widget_and_subtitle(qtbot):
     assert window.module_stack.currentIndex() == 5
     assert window.module_stack.currentWidget() is window.lu_view
     assert "Factorización LU" in window.subtitle_lbl.text()
+
+    window.set_module(6)
+    assert window.module_stack.currentWidget() is window.linear_transformations_view
+    assert "Transformaciones Lineales" in window.subtitle_lbl.text()
+
+    window.set_module(7)
+    assert window.module_stack.currentWidget() is window.vector_spaces_view
+    assert "Espacios Vectoriales" in window.subtitle_lbl.text()
 
     window.set_module(0)
     assert window.module_stack.currentWidget() is window.linear_systems_view
@@ -93,7 +103,7 @@ def test_matrix_operations_compatible_badge_and_inspector(qtbot):
     assert view._result == Matrix([[58, 64], [139, 154]])
 
     view._on_result_cell_clicked(0, 0)
-    assert "C_1,1" in view.inspector_label.text()
+    assert "C<sub>1,1</sub>" in view.inspector_label.text()
     assert view.grid_a._highlight_rows == {0}
     assert view.grid_b._highlight_cols == {0}
 
@@ -402,7 +412,7 @@ def test_matrix_operations_descriptive_result_syntax(qtbot):
 
     # Inspeccionar celda (0, 0)
     view._on_result_cell_clicked(0, 0)
-    assert "C_1,1 = (AB)_1,1" in view.inspector_label.text()
+    assert "C<sub>1,1</sub> = (AB)<sub>1,1</sub>" in view.inspector_label.text()
     assert "(AB)" in view.inspector_label.text()
     assert "C₁,₁ = (AB)₁,₁" in view.inspect_badge.toolTip()
 
@@ -415,3 +425,11 @@ def test_matrix_operations_descriptive_result_syntax(qtbot):
     view.sub_btn.click()
     assert "C = A − B" in view.result_title_lbl.text()
     assert "C = A − B" in view.result_view.empty_text()
+
+
+def test_window_has_the_brand_icon(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    icon = window.windowIcon()
+    assert not icon.isNull()
+    assert any(size.width() >= 64 for size in icon.availableSizes())

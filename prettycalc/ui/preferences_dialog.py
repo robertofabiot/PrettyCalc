@@ -42,7 +42,7 @@ from prettycalc.ui.theme import (
 
 SHORTCUTS = (
     ("Navegación", (
-        ("Ctrl+1 … Ctrl+6", "Cambiar de módulo"),
+        ("Ctrl+1 … Ctrl+8", "Cambiar de módulo (en el orden de la barra lateral)"),
         ("F1", "Mostrar esta ayuda de atajos"),
         ("Ctrl+,", "Preferencias de apariencia y accesibilidad"),
     )),

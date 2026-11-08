@@ -46,7 +46,8 @@ from prettycalc.ui.modules.applied_models_panel import AppliedModelsPanel
 from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.stepper_carousel import ALERT_SYSTEM, AlgorithmStepperCarousel
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
-from prettycalc.ui.module_scroll import make_module_scroll
+from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
+from prettycalc.ui.responsive import StackingSplitterHost
 from prettycalc.ui.theme import (
     apply_message_box_theme,
     COLOR_ACCENT_WARNING,
@@ -247,7 +248,7 @@ class LinearSystemsView(QWidget):
         left_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         left_scroll.setWidget(left_pane)
         left_pane.setAutoFillBackground(False)
-        left_scroll.setMinimumWidth(left_pane.minimumSizeHint().width() + 18)
+        track_content_width(left_scroll)
         body_splitter.addWidget(left_scroll)
 
         center_pane = QWidget()
@@ -275,13 +276,15 @@ class LinearSystemsView(QWidget):
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         right_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         right_scroll.setWidget(self.dashboard_card)
+        track_content_width(right_scroll)
         body_splitter.addWidget(right_scroll)
 
         body_splitter.setSizes([400, 520, 390])
         body_splitter.setStretchFactor(0, 2)
         body_splitter.setStretchFactor(1, 4)
         body_splitter.setStretchFactor(2, 2)
-        main_layout.addWidget(body_splitter, stretch=1)
+        self.body_host = StackingSplitterHost(body_splitter)
+        main_layout.addWidget(self.body_host, stretch=1)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(make_module_scroll(content))

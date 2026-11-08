@@ -43,6 +43,7 @@ from prettycalc.ui.mathtext import format_comparison_row_html, prettify_math_tex
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.matrix_vector_properties_view import MatrixVectorPropertiesView
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
+from prettycalc.ui.responsive import ResponsiveRow
 from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.stepper_carousel import ALERT_SYSTEM, AlgorithmStepperCarousel
 from prettycalc.ui.theme import (
@@ -54,8 +55,10 @@ from prettycalc.ui.theme import (
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
     apply_widget_class,
     badge_style,
+    rgba,
 )
 from prettycalc.ui.vector_set_editor import VectorColumnEditor
 
@@ -90,11 +93,16 @@ class MatrixEquationsView(QWidget):
         # 1. Cabecera: título, ejemplos y la única acción primaria
         header_card = QFrame()
         apply_widget_class(header_card, "elevated-card")
-        header_layout = QHBoxLayout(header_card)
-        header_layout.setContentsMargins(14, 10, 14, 10)
-        header_layout.setSpacing(12)
+        card_layout = QVBoxLayout(header_card)
+        card_layout.setContentsMargins(14, 10, 14, 10)
+        # Título y botones en una fila; en ventanas angostas los botones bajan
+        # debajo del título en lugar de forzar un desplazamiento horizontal.
+        self.header_row = ResponsiveRow(breakpoint=1150, spacing=12)
+        card_layout.addWidget(self.header_row)
 
-        title_col = QVBoxLayout()
+        title_box = QWidget()
+        title_col = QVBoxLayout(title_box)
+        title_col.setContentsMargins(0, 0, 0, 0)
         title_col.setSpacing(2)
         main_title = QLabel("Ecuación matricial  A · x = b")
         main_title.setStyleSheet(f"font-size: 19px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
@@ -105,9 +113,11 @@ class MatrixEquationsView(QWidget):
         )
         title_col.addWidget(main_title)
         title_col.addWidget(self.formula_lbl)
-        header_layout.addLayout(title_col, stretch=1)
+        self.header_row.add_widget(title_box, stretch=1)
 
-        samples_row = QHBoxLayout()
+        samples_box = QWidget()
+        samples_row = QHBoxLayout(samples_box)
+        samples_row.setContentsMargins(0, 0, 0, 0)
         samples_row.setSpacing(8)
         for text, tip, slot in (
             ("Ejemplo SCD (3×3)", "Sistema con solución única: x = (2, 1, 1)", self.load_sample),
@@ -135,7 +145,7 @@ class MatrixEquationsView(QWidget):
         self.solve_btn.clicked.connect(self.solve)
         samples_row.addWidget(self.solve_btn)
         self.header_solve_btn = self.solve_btn
-        header_layout.addLayout(samples_row)
+        self.header_row.add_widget(samples_box)
         root.addWidget(header_card)
 
         # 2. Badge de conformabilidad y validación
@@ -443,11 +453,11 @@ class MatrixEquationsView(QWidget):
             all_ok = result.product_matches
             status_color = COLOR_FEEDBACK_SUCCESS if all_ok else COLOR_FEEDBACK_ERROR
             status_text = (
-                "✓ ¡Igualdad exacta comprobada!  A · x = b (igualdad exacta)" if all_ok else "✕ No coincide la igualdad"
+                "✓ A · x = b con igualdad exacta" if all_ok else "✕ No coincide la igualdad"
             )
             rows = [
-                f'<div style="background-color:rgba(129, 178, 154, 0.12); border:1px solid rgba(129, 178, 154, 0.40); '
-                f'border-radius:6px; padding:10px 14px; margin-bottom:12px;">'
+                f'<div style="background-color:{rgba(status_color, 0.12)}; border:1px solid {rgba(status_color, 0.40)}; '
+                f'border-radius:6px; padding:10px 14px; margin-bottom:12px; font-family:{FONT_FAMILY_SANS};">'
                 f'<span style="font-size:22px; font-weight:700; color:{status_color};">{status_text}</span>'
                 f"</div>"
             ]

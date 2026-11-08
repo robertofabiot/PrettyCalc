@@ -87,7 +87,7 @@ class ResultsDashboardCard(QFrame):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         apply_widget_class(self, "elevated-card")
-        self.setMinimumWidth(320)
+        self.setMinimumWidth(288)
         self.parametric_solution: Optional[ParametricVectorSolution] = None
         self.cramer_result: Optional[CramerResult] = None
         self.last_analysis: Optional[SystemAnalysis] = None
@@ -136,7 +136,8 @@ class ResultsDashboardCard(QFrame):
         )
         layout.addWidget(self.summary_label)
 
-        struct_title = QLabel("Estructura de Variables y Pivotes")
+        struct_title = QLabel("Variables y pivotes")
+        struct_title.setWordWrap(True)
         struct_title.setStyleSheet(
             f"font-weight: 600; font-size: 18px; color: {COLOR_TEXT_PRIMARY}; margin-top: 6px;"
         )
@@ -458,7 +459,7 @@ class ResultsDashboardCard(QFrame):
         if needed <= 0:
             return
         self.setMinimumHeight(needed)
-        self.setMinimumWidth(max(320, layout.minimumSize().width()))
+        self.setMinimumWidth(max(288, layout.minimumSize().width()))
         self.updateGeometry()
 
     def _append_parametric_form(self, solution: ParametricVectorSolution) -> None:

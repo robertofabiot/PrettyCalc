@@ -2,13 +2,13 @@
 
 Tokens oficiales del tema oscuro (predeterminado):
 
-- color-bg-base: #1A181B (Shadow Grey)
-- color-surface-elevated: #4A4257 (Vintage Grape profundo, Sprint 10)
-- color-surface-inner: #242028
+- color-bg-base: #17151A (Shadow Grey)
+- color-surface-elevated: #2F2A37 (Graphite Grape: elevación sutil)
+- color-surface-inner: #1F1C24
 - color-text-primary: #E0FBFC (Light Cyan)
 - color-text-muted: #C9C3D6 (Lilac Grey, Sprint 10: ≥ 4.5:1 sobre tarjetas)
 - color-interactive-idle: #98C1D9 (Powder Blue)
-- color-interactive-disabled: #3A3642 (Dimmed Grape)
+- color-interactive-disabled: #3C3646 (Dimmed Grape)
 - color-feedback-error: #EE6C4D (Burnt Peach)
 - color-feedback-success: #81B29A (Muted Sage)
 - color-accent-warning: #E9C46A (Warm Ochre)
@@ -47,15 +47,15 @@ except ImportError:
 
 PALETTES: Dict[str, Dict[str, str]] = {
     "dark": {
-        "bg_base": "#1A181B",
-        "surface_elevated": "#4A4257",
-        "surface_inner": "#242028",
+        "bg_base": "#17151A",
+        "surface_elevated": "#2F2A37",
+        "surface_inner": "#1F1C24",
         "text_primary": "#E0FBFC",
         "text_muted": "#C9C3D6",
         "text_disabled": "#A8A3B2",
         "interactive_idle": "#98C1D9",
         "interactive_hover": "#B3D4E6",
-        "interactive_disabled": "#3A3642",
+        "interactive_disabled": "#3C3646",
         "feedback_error": "#EE6C4D",
         "feedback_success": "#81B29A",
         "success_hover": "#93C4AE",
@@ -237,14 +237,38 @@ def badge_style(
     *,
     font_size: int = 16,
     padding: str = "10px 14px",
+    soft: Optional[bool] = None,
 ) -> str:
-    """Estilo único de badge. Sin ``foreground`` elige el texto legible automáticamente."""
+    """Estilo único de badge.
+
+    Los avisos de estado (éxito, error, atención, información) usan un tinte
+    suave del color con una franja izquierda sólida y el texto primario: se
+    leen de un vistazo sin convertirse en un bloque de color que compita con
+    las matrices. ``soft=False`` (o un fondo neutro) da el badge sólido, con el
+    texto legible elegido automáticamente.
+    """
+    if soft is None:
+        soft = background in (
+            COLOR_FEEDBACK_SUCCESS,
+            COLOR_FEEDBACK_ERROR,
+            COLOR_ACCENT_WARNING,
+            COLOR_INTERACTIVE_IDLE,
+        )
+    if soft:
+        compact = font_size <= 13
+        stripe = f"1px solid {background}" if compact else f"4px solid {background}"
+        return (
+            f"background-color: {rgba(background, 0.20)}; color: {COLOR_TEXT_PRIMARY}; "
+            f"border: 1px solid {rgba(background, 0.75)}; border-left: {stripe}; "
+            f"font-weight: 600; font-size: {font_size}px; padding: {padding}; "
+            f"border-radius: {4 if compact else 8}px; font-family: {FONT_FAMILY_SANS};"
+        )
     fg = foreground if foreground is not None else readable_text_on(background)
     if contrast_ratio(fg, background) < 4.5:
         fg = readable_text_on(background)
     return (
         f"background-color: {background}; color: {fg}; font-weight: 600; "
-        f"font-size: {font_size}px; padding: {padding}; border-radius: 6px; "
+        f"font-size: {font_size}px; padding: {padding}; border-radius: 8px; "
         f"font-family: {FONT_FAMILY_SANS};"
     )
 
@@ -402,6 +426,9 @@ def apply_message_box_theme(box: Any) -> None:
     box.setPalette(pal)
     box.setStyleSheet(get_message_box_stylesheet())
     _status_icon_for(box)
+    from prettycalc.ui.platform_setup import apply_title_bar_theme
+
+    apply_title_bar_theme(box, dark=ACTIVE_THEME != "light")
     try:
         from PySide6.QtWidgets import QLabel
         for label in box.findChildren(QLabel):
@@ -459,8 +486,8 @@ def get_global_stylesheet() -> str:
 
     QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
         background-color: {COLOR_SURFACE_ELEVATED};
-        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.14)};
-        border-radius: 8px;
+        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+        border-radius: 12px;
         padding: 12px;
         color: {COLOR_TEXT_PRIMARY};
     }}
@@ -639,6 +666,29 @@ def get_global_stylesheet() -> str:
         border: 1px solid {COLOR_FEEDBACK_ERROR};
     }}
 
+    QPushButton#stepNav {{
+        background-color: transparent;
+        color: {COLOR_TEXT_PRIMARY};
+        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.50)};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-size: 14px;
+        font-weight: 600;
+    }}
+    QPushButton#stepNav:hover {{
+        background-color: {COLOR_INTERACTIVE_IDLE};
+        color: {COLOR_BG_BASE};
+        border-color: {COLOR_INTERACTIVE_IDLE};
+    }}
+    QPushButton#stepNav:focus {{
+        border: 2px solid {COLOR_TEXT_PRIMARY};
+    }}
+    QPushButton#stepNav:disabled {{
+        background-color: transparent;
+        color: {COLOR_TEXT_DISABLED};
+        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.16)};
+    }}
+
     QPushButton#modeToggle, QPushButton[class="modeToggle"] {{
         background-color: transparent;
         color: {COLOR_INTERACTIVE_IDLE};
@@ -670,54 +720,30 @@ def get_global_stylesheet() -> str:
         border: 1px dashed {COLOR_TEXT_DISABLED};
     }}
 
-    QWidget#modularNavigationBar {{
+    QFrame#sideNav {{
+        background-color: {COLOR_SURFACE_INNER};
+        border: none;
+        border-right: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+    }}
+    QFrame#sideNavRule {{
+        background-color: {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+        border: none;
+        margin: 0 8px;
+    }}
+    QPushButton#navItem {{
         background: transparent;
-    }}
-    QFrame#navSegmentBar {{
-        background-color: {COLOR_BG_BASE};
-        border: 1px solid {COLOR_INTERACTIVE_IDLE};
-        border-radius: 8px;
-    }}
-    QPushButton#navSegment {{
-        background-color: transparent;
-        color: {COLOR_INTERACTIVE_IDLE};
         border: none;
-        border-bottom: 2px solid transparent;
-        border-radius: 6px;
-        padding: 10px 14px;
-        font-size: 14px;
-        font-weight: 600;
+        padding: 0px;
         font-family: {FONT_FAMILY_SANS};
-    }}
-    QPushButton#navSegment:hover {{
-        background-color: {COLOR_INTERACTIVE_DISABLED};
-        color: {COLOR_TEXT_PRIMARY};
-        border: none;
-        border-bottom: 2px solid transparent;
-    }}
-    QPushButton#navSegment:checked {{
-        background-color: {COLOR_SURFACE_ELEVATED};
-        color: {COLOR_TEXT_PRIMARY};
-        border: none;
-        border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
-    }}
-    QPushButton#navSegment:checked:hover {{
-        background-color: {COLOR_SURFACE_ELEVATED};
-        color: {COLOR_TEXT_PRIMARY};
-    }}
-
-    QPushButton#headerTool {{
-        background-color: transparent;
-        color: {COLOR_INTERACTIVE_IDLE};
-        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.55)};
-        border-radius: 8px;
-        padding: 8px 12px;
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 500;
     }}
-    QPushButton#headerTool:hover {{
-        background-color: {COLOR_INTERACTIVE_IDLE};
-        color: {COLOR_BG_BASE};
+    QWidget#contentArea {{
+        background-color: {COLOR_BG_BASE};
+    }}
+    QLabel#pageHeader {{
+        background: transparent;
+        padding: 2px 2px 4px 2px;
     }}
 
     QMenu {{
@@ -824,6 +850,12 @@ def get_global_stylesheet() -> str:
         font-size: 15px;
         font-family: {FONT_FAMILY_SANS};
         min-height: 28px;
+    }}
+    QSpinBox {{
+        /* Fusion no aplica el padding al editor interno: centrar el número
+           evita que quede pegado al borde izquierdo. */
+        qproperty-alignment: AlignCenter;
+        font-weight: 600;
     }}
     QSpinBox:focus, QComboBox:focus {{
         border: 2px solid {COLOR_TEXT_PRIMARY};

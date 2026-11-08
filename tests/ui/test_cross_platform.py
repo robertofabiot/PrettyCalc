@@ -164,3 +164,49 @@ def test_layout_is_identical_without_any_system_font():
         isolated = _probe({"FONTCONFIG_FILE": str(config)})
     moved = {key: (base[key], isolated.get(key)) for key in base if base[key] != isolated.get(key)}
     assert moved == {}
+
+
+def test_windows_uses_freetype_and_its_own_taskbar_id(monkeypatch):
+    """Mismo motor de rasterizado que Linux; el icono propio en la barra de tareas."""
+    from prettycalc.ui.platform_setup import configure_platform_environment
+
+    monkeypatch.delenv("QT_QPA_PLATFORM", raising=False)
+    applied = configure_platform_environment(platform="win32")
+    assert os.environ["QT_QPA_PLATFORM"] == "windows:fontengine=freetype"
+    assert "fontengine=freetype" in applied
+
+
+def test_platform_environment_respects_the_user_and_skips_linux(monkeypatch):
+    from prettycalc.ui.platform_setup import configure_platform_environment
+
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    assert "fontengine=freetype" not in configure_platform_environment(platform="win32")
+    assert os.environ["QT_QPA_PLATFORM"] == "offscreen"
+    assert configure_platform_environment(platform="linux") == []
+
+
+def test_title_bar_theme_is_a_no_op_outside_windows(qtbot):
+    from prettycalc.ui.platform_setup import apply_title_bar_theme
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    assert apply_title_bar_theme(window, dark=True, platform="linux") is False
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="None es inmortal desde Python 3.12")
+def test_pyside_does_not_leak_none_references(qtbot):
+    """PySide6 6.12.0 restaba una referencia a None en cada setter y abortaba.
+
+    En lugar de un «none_dealloc» en una prueba cualquiera, esta falla con un
+    mensaje claro si se instala una versión afectada.
+    """
+    import PySide6
+    from PySide6.QtGui import QFont
+
+    font = QFont()
+    font.setPixelSize(15)
+    before = sys.getrefcount(None)
+    for _ in range(200):
+        font.setPixelSize(15)
+    lost = before - sys.getrefcount(None)
+    assert lost < 50, f"PySide6 {PySide6.__version__} pierde referencias a None: excluirla en requirements.txt"
