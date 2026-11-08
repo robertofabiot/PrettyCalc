@@ -54,7 +54,7 @@ from prettycalc.core.types import Matrix, format_scalar
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
-from prettycalc.ui.module_scroll import make_module_scroll
+from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
 from prettycalc.ui.responsive import ResponsiveRow
 from prettycalc.ui.sarrus_diagram import SarrusDiagram
 from prettycalc.ui.scalar_field import CANONICAL_SCALARS, ScalarField, ScalarInput
@@ -299,6 +299,7 @@ class DeterminantsView(QWidget):
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.NoFrame)
         left_scroll.setWidget(left_card)
+        track_content_width(left_scroll)
         return left_scroll
 
     def _build_steps_panel(self) -> QWidget:
@@ -386,6 +387,7 @@ class DeterminantsView(QWidget):
         right_scroll.setWidgetResizable(True)
         right_scroll.setFrameShape(QFrame.NoFrame)
         right_scroll.setWidget(right_card)
+        track_content_width(right_scroll)
         return right_scroll
 
     def _mode_button(self, text: str, method_id: int, tooltip: str, checked: bool = False) -> QPushButton:
