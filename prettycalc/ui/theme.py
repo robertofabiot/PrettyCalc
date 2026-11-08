@@ -693,54 +693,30 @@ def get_global_stylesheet() -> str:
         border: 1px dashed {COLOR_TEXT_DISABLED};
     }}
 
-    QWidget#modularNavigationBar {{
+    QFrame#sideNav {{
+        background-color: {COLOR_SURFACE_INNER};
+        border: none;
+        border-right: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+    }}
+    QFrame#sideNavRule {{
+        background-color: {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+        border: none;
+        margin: 0 8px;
+    }}
+    QPushButton#navItem {{
         background: transparent;
-    }}
-    QFrame#navSegmentBar {{
-        background-color: {COLOR_BG_BASE};
-        border: 1px solid {COLOR_INTERACTIVE_IDLE};
-        border-radius: 8px;
-    }}
-    QPushButton#navSegment {{
-        background-color: transparent;
-        color: {COLOR_INTERACTIVE_IDLE};
         border: none;
-        border-bottom: 2px solid transparent;
-        border-radius: 6px;
-        padding: 10px 14px;
-        font-size: 14px;
-        font-weight: 600;
+        padding: 0px;
         font-family: {FONT_FAMILY_SANS};
-    }}
-    QPushButton#navSegment:hover {{
-        background-color: {COLOR_INTERACTIVE_DISABLED};
-        color: {COLOR_TEXT_PRIMARY};
-        border: none;
-        border-bottom: 2px solid transparent;
-    }}
-    QPushButton#navSegment:checked {{
-        background-color: {COLOR_SURFACE_ELEVATED};
-        color: {COLOR_TEXT_PRIMARY};
-        border: none;
-        border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
-    }}
-    QPushButton#navSegment:checked:hover {{
-        background-color: {COLOR_SURFACE_ELEVATED};
-        color: {COLOR_TEXT_PRIMARY};
-    }}
-
-    QPushButton#headerTool {{
-        background-color: transparent;
-        color: {COLOR_INTERACTIVE_IDLE};
-        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.55)};
-        border-radius: 8px;
-        padding: 8px 12px;
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 500;
     }}
-    QPushButton#headerTool:hover {{
-        background-color: {COLOR_INTERACTIVE_IDLE};
-        color: {COLOR_BG_BASE};
+    QWidget#contentArea {{
+        background-color: {COLOR_BG_BASE};
+    }}
+    QLabel#pageHeader {{
+        background: transparent;
+        padding: 2px 2px 4px 2px;
     }}
 
     QMenu {{
