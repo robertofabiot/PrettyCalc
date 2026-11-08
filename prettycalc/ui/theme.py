@@ -2,13 +2,13 @@
 
 Tokens oficiales del tema oscuro (predeterminado):
 
-- color-bg-base: #1A181B (Shadow Grey)
-- color-surface-elevated: #4A4257 (Vintage Grape profundo, Sprint 10)
-- color-surface-inner: #242028
+- color-bg-base: #17151A (Shadow Grey)
+- color-surface-elevated: #2F2A37 (Graphite Grape: elevación sutil)
+- color-surface-inner: #1F1C24
 - color-text-primary: #E0FBFC (Light Cyan)
 - color-text-muted: #C9C3D6 (Lilac Grey, Sprint 10: ≥ 4.5:1 sobre tarjetas)
 - color-interactive-idle: #98C1D9 (Powder Blue)
-- color-interactive-disabled: #3A3642 (Dimmed Grape)
+- color-interactive-disabled: #3C3646 (Dimmed Grape)
 - color-feedback-error: #EE6C4D (Burnt Peach)
 - color-feedback-success: #81B29A (Muted Sage)
 - color-accent-warning: #E9C46A (Warm Ochre)
@@ -47,15 +47,15 @@ except ImportError:
 
 PALETTES: Dict[str, Dict[str, str]] = {
     "dark": {
-        "bg_base": "#1A181B",
-        "surface_elevated": "#4A4257",
-        "surface_inner": "#242028",
+        "bg_base": "#17151A",
+        "surface_elevated": "#2F2A37",
+        "surface_inner": "#1F1C24",
         "text_primary": "#E0FBFC",
         "text_muted": "#C9C3D6",
         "text_disabled": "#A8A3B2",
         "interactive_idle": "#98C1D9",
         "interactive_hover": "#B3D4E6",
-        "interactive_disabled": "#3A3642",
+        "interactive_disabled": "#3C3646",
         "feedback_error": "#EE6C4D",
         "feedback_success": "#81B29A",
         "success_hover": "#93C4AE",
@@ -459,8 +459,8 @@ def get_global_stylesheet() -> str:
 
     QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
         background-color: {COLOR_SURFACE_ELEVATED};
-        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.14)};
-        border-radius: 8px;
+        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+        border-radius: 12px;
         padding: 12px;
         color: {COLOR_TEXT_PRIMARY};
     }}
