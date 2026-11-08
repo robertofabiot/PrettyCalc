@@ -54,12 +54,13 @@ from prettycalc.core.matrix_inversion import (
 )
 from prettycalc.core.matrix_ops import (
     MultiplicationStepDetail,
-    matrix_add,
     matrix_multiply,
     matrix_multiply_with_details,
-    matrix_scale,
-    matrix_sub,
     matrix_transpose,
+    trace_matrix_product,
+    trace_matrix_scale,
+    trace_matrix_sum,
+    trace_matrix_transpose,
 )
 from prettycalc.core.matrix_properties import (
     PropertyCheck,
@@ -239,6 +240,7 @@ class MatrixOperationsView(QWidget):
         self.pages.addWidget(self._build_tmi_page())
         self.pages.addWidget(self._build_inverse_identities_page())
         root.addWidget(self.pages)
+        root.addWidget(self._build_ops_steps_card())
 
         root.addWidget(self._build_note_card(
             "Inspector de producto  Cᵢⱼ = Σ Aᵢₖ Bₖⱼ",
@@ -381,6 +383,40 @@ class MatrixOperationsView(QWidget):
         _layout.addWidget(row)
         _layout.addStretch(1)
         return page
+
+    def _build_ops_steps_card(self) -> QFrame:
+        """Procedimiento de A ± B, A·B, k·A y Aᵀ (las demás páginas tienen su propio carrusel)."""
+        card = QFrame()
+        apply_widget_class(card, "elevated-card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 12, 14, 12)
+        heading = QLabel("Procedimiento")
+        heading.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        layout.addWidget(heading)
+        self.ops_stepper = AlgorithmStepperCarousel(variable_headers=False)
+        self.ops_stepper.set_export_title("Álgebra matricial")
+        self.ops_stepper.set_empty_hint("Pulsa Calcular para ver el procedimiento entrada por entrada.")
+        self.ops_stepper.setMinimumHeight(380)
+        self.ops_stepper.stepChanged.connect(self._on_ops_step_changed)
+        layout.addWidget(self.ops_stepper)
+        self.ops_steps_card = card
+        return card
+
+    def _on_ops_step_changed(self, index: int) -> None:
+        """En A · B, cada paso cᵢⱼ resalta la fila i de A y la columna j de B (como el inspector)."""
+        if index < 2 or self._op != "mul" or self.pages.currentIndex() != PAGE_BINARY:
+            return
+        steps = self.ops_stepper.steps()
+        if index >= len(steps) or not steps[index].highlight_cells:
+            return
+        row, col = steps[index].highlight_cells[0]
+        self._on_result_cell_clicked(row, col)
+
+    def _sync_ops_steps_card(self) -> None:
+        if hasattr(self, "ops_steps_card"):
+            self.ops_steps_card.setVisible(
+                self.pages.currentIndex() in (PAGE_BINARY, PAGE_SCALAR, PAGE_TRANSPOSE)
+            )
 
     def _build_note_card(self, title: str, body: str, rich: bool, target: str) -> QFrame:
         """Tarjeta de texto. Guarda la etiqueta en el atributo `target`."""
@@ -741,9 +777,11 @@ class MatrixOperationsView(QWidget):
         if button is not None:
             button.setChecked(True)
         self.pages.setCurrentIndex(index)
+        self._sync_ops_steps_card()
 
     def _on_mode_changed(self, index: int) -> None:
         self.pages.setCurrentIndex(index)
+        self._sync_ops_steps_card()
         self._clear_result()
         self._refresh_compatibility()
 
@@ -1063,7 +1101,9 @@ class MatrixOperationsView(QWidget):
         """Calcula k·A y comprueba (k·A)ᵀ = k·Aᵀ."""
         k = parse_scalar(self.scalar_edit.text())
         primary = self.grid_scalar.get_matrix()
-        result = matrix_scale(primary, k)
+        traced = trace_matrix_scale(primary, k)
+        result = traced.matrix
+        self.ops_stepper.set_steps(traced.tracer.get_steps())
         self.scalar_result_view.set_matrix(result, split_col=None, clickable=False, show_headers=False)
         self._result = result
         self._details = []
@@ -1080,19 +1120,23 @@ class MatrixOperationsView(QWidget):
         primary = self.grid_a.get_matrix()
         other = self.grid_b.get_matrix()
         if self._op == "add":
-            result = matrix_add(primary, other)
+            traced = trace_matrix_sum(primary, other)
+            result = traced.matrix
             self._details = []
             self.inspector_label.setText("Suma elemento a elemento: Cᵢⱼ = (A + B)ᵢⱼ = Aᵢⱼ + Bᵢⱼ.")
         elif self._op == "sub":
-            result = matrix_sub(primary, other)
+            traced = trace_matrix_sum(primary, other, subtract=True)
+            result = traced.matrix
             self._details = []
             self.inspector_label.setText("Resta elemento a elemento: Cᵢⱼ = (A − B)ᵢⱼ = Aᵢⱼ − Bᵢⱼ.")
         else:
+            traced = trace_matrix_product(primary, other)
             result, self._details = matrix_multiply_with_details(primary, other)
             self.inspector_label.setText(
                 "Producto matricial C = AB (A · B) calculado con tres bucles anidados. "
                 "Pulsa una celda de C = AB para inspeccionar Cᵢⱼ = (AB)ᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ."
             )
+        self.ops_stepper.set_steps(traced.tracer.get_steps())
         self._result = result
         self._set_inspected(None)
         self.result_view.set_matrix(result, split_col=None, clickable=self._op == "mul", show_headers=False)
@@ -1204,7 +1248,9 @@ class MatrixOperationsView(QWidget):
     def _compute_transpose(self) -> None:
         """Calcula Aᵀ, comprueba (Aᵀ)ᵀ = A y publica las propiedades estructurales."""
         primary = self.grid_transpose.get_matrix()
-        result = matrix_transpose(primary)
+        traced = trace_matrix_transpose(primary)
+        result = traced.matrix
+        self.ops_stepper.set_steps(traced.tracer.get_steps())
         double_result = matrix_transpose(result)
         self.transpose_result_view.set_matrix(result, split_col=None, clickable=False, show_headers=False)
         self.double_transpose_result_view.set_matrix(double_result, split_col=None, clickable=False, show_headers=False)
@@ -1369,6 +1415,7 @@ class MatrixOperationsView(QWidget):
         self._update_result_title()
         self.dist_comparison_label.clear()
         self.dist_equals_lbl.setText("=")
+        self.ops_stepper.set_steps([])
         self.dist_stepper.set_steps([])
         self.reuse_inverse_btn.setEnabled(False)
         self.inverse_stepper.set_steps([])
