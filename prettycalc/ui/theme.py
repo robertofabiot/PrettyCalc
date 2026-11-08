@@ -848,6 +848,12 @@ def get_global_stylesheet() -> str:
         font-family: {FONT_FAMILY_SANS};
         min-height: 28px;
     }}
+    QSpinBox {{
+        /* Fusion no aplica el padding al editor interno: centrar el número
+           evita que quede pegado al borde izquierdo. */
+        qproperty-alignment: AlignCenter;
+        font-weight: 600;
+    }}
     QSpinBox:focus, QComboBox:focus {{
         border: 2px solid {COLOR_TEXT_PRIMARY};
     }}
