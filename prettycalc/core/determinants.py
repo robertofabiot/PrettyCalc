@@ -20,7 +20,7 @@ from prettycalc.core.operations import (
     swap_rows,
 )
 from prettycalc.core.tracer import StepTracer
-from prettycalc.core.types import Matrix, format_scalar, parse_scalar
+from prettycalc.core.types import Matrix, format_scalar, parse_scalar, subscript
 
 
 class DeterminantMethod(Enum):
@@ -120,6 +120,106 @@ def _record(
         highlight_cells=highlight_cells,
         alert_rows=alert_rows,
     )
+
+
+def _paren(value: Fraction) -> str:
+    return f"({format_scalar(value)})"
+
+
+def determinant_working(M: Matrix, symbol: str = "det(M)") -> Tuple[Fraction, str]:
+    """Valor de det(M) y la cuenta completa, para órdenes 1 a 3.
+
+    1×1: el propio elemento. 2×2: ad − bc. 3×3: Sarrus con sus seis
+    productos. ``symbol`` es el nombre con que se escribe el resultado
+    (``M₁₂``, ``det(A)``…).
+
+    Raises:
+        ValueError: Si M es mayor que 3×3 (se triangulariza paso a paso).
+    """
+    order = require_square_matrix(M, "calcular el determinante")
+    if order == 1:
+        value = M.get(0, 0)
+        return value, f"{symbol} = {format_scalar(value)} (el único elemento)"
+    if order == 2:
+        a, b, c, d = M.get(0, 0), M.get(0, 1), M.get(1, 0), M.get(1, 1)
+        value = a * d - b * c
+        return value, (
+            f"{symbol} = ad − bc = {_paren(a)}·{_paren(d)} − {_paren(b)}·{_paren(c)} "
+            f"= {format_scalar(a * d)} − {_paren(b * c)} = {format_scalar(value)}"
+        )
+    if order == 3:
+        entries = [[M.get(r, c) for c in range(3)] for r in range(3)]
+        groups = {1: [], -1: []}
+        for _label, cells, term, sign in _sarrus_diagonals(entries):
+            factors = "".join(_paren(entries[r][c]) for r, c in cells)
+            groups[sign].append((factors, term))
+        principal = sum((term for _f, term in groups[1]), Fraction(0, 1))
+        secondary = sum((term for _f, term in groups[-1]), Fraction(0, 1))
+        value = principal - secondary
+
+        def line(group) -> str:
+            products = " + ".join(factors for factors, _term in group)
+            terms = " + ".join(_paren(term) for _factors, term in group)
+            return f"{products} = {terms}"
+
+        return value, (
+            f"{symbol} por Sarrus. Diagonales principales: {line(groups[1])} = {format_scalar(principal)}. "
+            f"Secundarias: {line(groups[-1])} = {format_scalar(secondary)}. "
+            f"{symbol} = {format_scalar(principal)} − {_paren(secondary)} = {format_scalar(value)}"
+        )
+    raise ValueError(
+        f"La cuenta en una línea solo cubre órdenes 1 a 3; M es {order}×{order}."
+    )
+
+
+def record_determinant_working(
+    tracer: StepTracer,
+    M: Matrix,
+    symbol_latex: str,
+    symbol_text: str,
+    *,
+    intro: str = "",
+    highlight_cells: Optional[Tuple[Tuple[int, int], ...]] = None,
+) -> Fraction:
+    """Registra en ``tracer`` el cálculo completo de det(M) y devuelve su valor.
+
+    Hasta 3×3 basta un paso con la cuenta entera (ad − bc o Sarrus). A partir
+    de 4×4 se insertan todos los pasos de la triangulación de M, con el
+    nombre del determinante (``M₁₂``, ``det(A₁(b))``…) en lugar de det(A).
+    Así ningún procedimiento muestra un determinante sin su desarrollo.
+    """
+    order = require_square_matrix(M, "calcular el determinante")
+    if order <= 3:
+        value, working = determinant_working(M, symbol_text)
+        tracer.record_step(
+            M,
+            latex_formula=rf"{symbol_latex} = {format_scalar(value, mode='latex')}",
+            heuristic_text=f"{intro}{working}.",
+            highlight_cells=highlight_cells,
+        )
+        return value
+    result = determinant_triangulation(M)
+    tracer.record_step(
+        M,
+        latex_formula=rf"{symbol_latex}\text{{ por triangulación}}",
+        heuristic_text=(
+            f"{intro}{symbol_text} es de orden {order}: se triangulariza en los pasos siguientes "
+            "(intercambios y combinaciones de filas, sin escalar pivotes)."
+        ),
+        highlight_cells=highlight_cells,
+    )
+    for step in result.tracer.get_steps()[1:]:
+        tracer.record_step(
+            step.matrix,
+            latex_formula=step.latex_formula.replace(r"\det(A)", symbol_latex),
+            heuristic_text=f"{symbol_text}: " + step.heuristic_text.replace("det(A)", symbol_text),
+            pivot_pos=step.pivot_pos,
+            actor_row=step.actor_row,
+            affected_rows=step.affected_rows,
+            alert_rows=step.alert_rows,
+            highlight_cells=step.highlight_cells,
+        )
+    return result.value
 
 
 def delete_row_and_column(A: Matrix, drop_row: int, drop_col: int) -> Matrix:
@@ -490,7 +590,8 @@ def determinant_laplace_expansion(
         A,
         description=(
             f"Desarrollo por cofactores a lo largo de la {axis_name} {index + 1}. "
-            "Cada término es la entrada por su cofactor (−1)^(i+j) M_ij."
+            "Cada término es la entrada por su cofactor Cᵢⱼ = (−1)^(i+j)·Mᵢⱼ, donde el "
+            "menor Mᵢⱼ es el determinante que queda al tachar la fila i y la columna j."
         ),
         latex_title=rf"\det(A) = \sum a_{{ij}} C_{{ij}}\ \text{{({axis_name} {index + 1})}}",
     )
@@ -501,42 +602,65 @@ def determinant_laplace_expansion(
         A,
         latex_formula=rf"\text{{{axis_name} {index + 1}}}",
         heuristic_text=(
-            f"La {axis_name} {index + 1} resaltada aporta las entradas a_ij del desarrollo. "
+            f"La {axis_name} {index + 1} resaltada aporta las entradas aᵢⱼ del desarrollo. "
             "Las entradas nulas anulan su término y no exigen calcular el menor."
         ),
         highlight_cells=line_cells,
     )
     steps: List[str] = []
     total = Fraction(0, 1)
+    contributions: List[str] = []
     for offset in range(order):
         if along == "row":
             row_index, col_index = index, offset
         else:
             row_index, col_index = offset, index
+        i, j = row_index + 1, col_index + 1
+        ij = subscript(i, j)
         entry = A.get(row_index, col_index)
         sign = Fraction(1, 1) if (row_index + col_index) % 2 == 0 else Fraction(-1, 1)
+        if entry == 0:
+            # Una entrada nula anula su término: el menor no hace falta.
+            text = f"a{ij} = 0, así que a{ij}·C{ij} = 0 sin calcular el menor M{ij}."
+            _record(
+                tracer,
+                A,
+                rf"a_{{{i}{j}}} C_{{{i}{j}}} = 0",
+                text,
+                steps,
+                highlight_cells=((row_index, col_index),),
+            )
+            contributions.append("0")
+            continue
         if order == 1:
             minor_value = Fraction(1, 1)
             shown = A
-            minor_note = "el menor vacío vale 1 por convención"
+            minor_text = "El menor de una matriz 1×1 es vacío y vale 1 por convención."
+            tracer.record_step(A, latex_formula=rf"M_{{{i}{j}}} = 1", heuristic_text=minor_text)
         else:
             shown = delete_row_and_column(A, row_index, col_index)
-            minor_value = determinant_triangulation(shown).value
-            minor_note = f"det(menor) = {format_scalar(minor_value)}"
+            minor_value = record_determinant_working(
+                tracer,
+                shown,
+                rf"M_{{{i}{j}}}",
+                f"M{ij}",
+                intro=f"Se tachan la fila {i} y la columna {j} de A. ",
+            )
         cofactor = sign * minor_value
         term = entry * cofactor
         total += term
+        contributions.append(_paren(term))
         _record(
             tracer,
-            shown,
-            rf"a_{{{row_index + 1}{col_index + 1}}} C_{{{row_index + 1}{col_index + 1}}}",
+            A,
+            rf"a_{{{i}{j}}} C_{{{i}{j}}} = {format_scalar(term, mode='latex')}",
             (
-                f"Entrada a_{row_index + 1}{col_index + 1} = {format_scalar(entry)}. "
-                f"Signo (−1)^({row_index + 1}+{col_index + 1}) = {format_scalar(sign)}; "
-                f"{minor_note}. Cofactor = {format_scalar(cofactor)}. "
-                f"Aporte = {format_scalar(term)}."
+                f"C{ij} = (−1)^({i}+{j})·M{ij} = {_paren(sign)}·{_paren(minor_value)} "
+                f"= {format_scalar(cofactor)}. Aporte: a{ij}·C{ij} = "
+                f"{_paren(entry)}·{_paren(cofactor)} = {format_scalar(term)}."
             ),
             steps,
+            highlight_cells=((row_index, col_index),),
         )
     _record(
         tracer,
@@ -544,7 +668,8 @@ def determinant_laplace_expansion(
         r"\det(A)",
         (
             f"Suma de los aportes por la {axis_name} {index + 1}: "
-            f"det(A) = {format_scalar(total)}. {singularity_diagnosis(total, order)}"
+            f"det(A) = {' + '.join(contributions)} = {format_scalar(total)}. "
+            f"{singularity_diagnosis(total, order)}"
         ),
         steps,
     )
