@@ -237,14 +237,38 @@ def badge_style(
     *,
     font_size: int = 16,
     padding: str = "10px 14px",
+    soft: Optional[bool] = None,
 ) -> str:
-    """Estilo único de badge. Sin ``foreground`` elige el texto legible automáticamente."""
+    """Estilo único de badge.
+
+    Los avisos de estado (éxito, error, atención, información) usan un tinte
+    suave del color con una franja izquierda sólida y el texto primario: se
+    leen de un vistazo sin convertirse en un bloque de color que compita con
+    las matrices. ``soft=False`` (o un fondo neutro) da el badge sólido, con el
+    texto legible elegido automáticamente.
+    """
+    if soft is None:
+        soft = background in (
+            COLOR_FEEDBACK_SUCCESS,
+            COLOR_FEEDBACK_ERROR,
+            COLOR_ACCENT_WARNING,
+            COLOR_INTERACTIVE_IDLE,
+        )
+    if soft:
+        compact = font_size <= 13
+        stripe = f"1px solid {background}" if compact else f"4px solid {background}"
+        return (
+            f"background-color: {rgba(background, 0.20)}; color: {COLOR_TEXT_PRIMARY}; "
+            f"border: 1px solid {rgba(background, 0.75)}; border-left: {stripe}; "
+            f"font-weight: 600; font-size: {font_size}px; padding: {padding}; "
+            f"border-radius: {4 if compact else 8}px; font-family: {FONT_FAMILY_SANS};"
+        )
     fg = foreground if foreground is not None else readable_text_on(background)
     if contrast_ratio(fg, background) < 4.5:
         fg = readable_text_on(background)
     return (
         f"background-color: {background}; color: {fg}; font-weight: 600; "
-        f"font-size: {font_size}px; padding: {padding}; border-radius: 6px; "
+        f"font-size: {font_size}px; padding: {padding}; border-radius: 8px; "
         f"font-family: {FONT_FAMILY_SANS};"
     )
 
