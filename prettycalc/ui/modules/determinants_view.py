@@ -742,7 +742,10 @@ class DeterminantsView(QWidget):
         sarrus = determinant.method is DeterminantMethod.SARRUS_3X3
         self.sarrus_diagram.set_matrix(determinant.matrix if sarrus else None)
         self.sarrus_diagram.setVisible(sarrus)
-        self.stepper.set_steps(determinant.tracer.get_steps())
+        # En el modo adjunta el procedimiento es el de la adjunta (cada menor con
+        # su cuenta, signos, transpuesta, det(A) por cofactores e inversa).
+        source = adjugate.tracer if adjugate is not None else determinant.tracer
+        self.stepper.set_steps(source.get_steps())
         if determinant.is_singular:
             self.badge.setText(f"det(A) = {shown}. Matriz singular.")
             self.badge.setStyleSheet(badge_style(COLOR_FEEDBACK_ERROR))
