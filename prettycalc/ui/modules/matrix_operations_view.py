@@ -24,6 +24,7 @@ Sprint 10 (auditoría UI/UX, Módulo 2):
 from __future__ import annotations
 
 import html
+import re
 from typing import Any, List, Optional, Sequence, Tuple
 
 try:
@@ -85,6 +86,7 @@ from prettycalc.ui.theme import (
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
     apply_message_box_theme,
     apply_widget_class,
     badge_style,
@@ -128,6 +130,19 @@ def _checks_to_html(checks: Sequence[PropertyCheck]) -> str:
             f'{marks[check.status]}&nbsp;&nbsp;{text}</div>'
         )
     return "".join(rows)
+
+
+def _sub(*indices: int) -> str:
+    """Subíndice de libro: A₁₂ se escribe A<sub>1,2</sub> para no confundir 1,12 con 11,2."""
+    return f"<sub>{','.join(str(index) for index in indices)}</sub>"
+
+
+_ASCII_SUBSCRIPT = re.compile(r"_([0-9A-Za-z]+(?:,[0-9A-Za-z]+)?)")
+
+
+def _inspector_formula_html(formula: str) -> str:
+    """``C_1,2 = Σ_k A_1k · B_k2 = …`` en notación de libro (subíndices reales)."""
+    return _ASCII_SUBSCRIPT.sub(r"<sub>\1</sub>", html.escape(formula))
 
 
 def _sample_button(text: str, tooltip: str, slot) -> QPushButton:
@@ -383,8 +398,10 @@ class MatrixOperationsView(QWidget):
         label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         if rich:
             label.setTextFormat(Qt.RichText)
+        # Texto de interfaz, no de código: las filas de comprobación fijan su
+        # propio tamaño grande y las fórmulas llegan ya con notación de libro.
         label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO};"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 17px; font-family: {FONT_FAMILY_SANS};"
         )
         layout.addWidget(label)
         setattr(self, target, label)
@@ -1319,15 +1336,19 @@ class MatrixOperationsView(QWidget):
             highlight_col=col,
         )
         self._set_inspected((row, col))
+        i, j = row + 1, col + 1
         terms = []
-        for k, (a_ik, b_kj, prod) in enumerate(detail.products):
+        for k, (a_ik, b_kj, prod) in enumerate(detail.products, start=1):
             terms.append(
-                f"(AB)_{row + 1}{col + 1} término {k + 1}: "
-                f"A_{row + 1}{k + 1}·B_{k + 1}{col + 1} = "
-                f"({format_scalar(a_ik)})·({format_scalar(b_kj)}) = {format_scalar(prod)}"
+                f"<tr><td style='color:{COLOR_TEXT_MUTED}; padding-right:14px;'>término {k}</td>"
+                f"<td>A{_sub(i, k)} · B{_sub(k, j)} = "
+                f"({format_scalar(a_ik)}) · ({format_scalar(b_kj)}) = <b>{format_scalar(prod)}</b></td></tr>"
             )
-        self.inspector_label.setTextFormat(Qt.PlainText)
-        self.inspector_label.setText(f"{detail.formula}\n\n" + "\n".join(terms))
+        self.inspector_label.setTextFormat(Qt.RichText)
+        self.inspector_label.setText(
+            f"<div style='font-size:19px; margin-bottom:8px;'>{_inspector_formula_html(detail.formula)}</div>"
+            f"<table cellspacing='0' cellpadding='2' style='font-size:16px;'>{''.join(terms)}</table>"
+        )
 
     def _clear_highlights(self) -> None:
         self.grid_a.clear_highlight()

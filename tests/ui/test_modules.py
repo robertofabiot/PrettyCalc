@@ -103,7 +103,7 @@ def test_matrix_operations_compatible_badge_and_inspector(qtbot):
     assert view._result == Matrix([[58, 64], [139, 154]])
 
     view._on_result_cell_clicked(0, 0)
-    assert "C_1,1" in view.inspector_label.text()
+    assert "C<sub>1,1</sub>" in view.inspector_label.text()
     assert view.grid_a._highlight_rows == {0}
     assert view.grid_b._highlight_cols == {0}
 
@@ -412,7 +412,7 @@ def test_matrix_operations_descriptive_result_syntax(qtbot):
 
     # Inspeccionar celda (0, 0)
     view._on_result_cell_clicked(0, 0)
-    assert "C_1,1 = (AB)_1,1" in view.inspector_label.text()
+    assert "C<sub>1,1</sub> = (AB)<sub>1,1</sub>" in view.inspector_label.text()
     assert "(AB)" in view.inspector_label.text()
     assert "C₁,₁ = (AB)₁,₁" in view.inspect_badge.toolTip()
 
