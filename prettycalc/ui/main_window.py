@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("PrettyCalc — Álgebra lineal")
         self.setWindowIcon(brand_icon())
-        self.setMinimumSize(1180, 680)
+        self.setMinimumSize(1080, 680)
         self.resize(1380, 800)
         app = QApplication.instance()
         if app is not None:
