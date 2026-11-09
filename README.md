@@ -1,325 +1,153 @@
-# PrettyCalc
+<p align="center">
+  <img src="Docs/logo.svg" alt="Logo de PrettyCalc" width="180">
+</p>
 
-[![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#instalación--getting-started)
-[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](#instalación--getting-started)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/robertofabiot/PrettyCalc)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+<h1 align="center">PrettyCalc</h1>
 
-Calculadora de escritorio para sistemas de ecuaciones lineales. Resuelve por eliminación de Gauss y Gauss-Jordan, muestra cada transformación de fila y comprueba la solución por sustitución.
+<p align="center">
+  Calculadora de escritorio de álgebra lineal que muestra cada procedimiento paso a paso, con aritmética exacta.
+</p>
+
+<p align="center">
+  <a href="https://github.com/robertofabiot/PrettyCalc/actions/workflows/tests.yml"><img src="https://github.com/robertofabiot/PrettyCalc/actions/workflows/tests.yml/badge.svg" alt="Pruebas"></a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/PySide6-Qt%206-41CD52?logo=qt&logoColor=white" alt="PySide6 / Qt 6">
+  <img src="https://img.shields.io/badge/Windows%20%7C%20Linux-misma%20apariencia-555555" alt="Windows y Linux">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-MIT-yellow" alt="Licencia MIT"></a>
+</p>
+
+---
 
 ## Descripción
 
-PrettyCalc está pensada para estudiantes de álgebra lineal que necesitan ver *cómo* se obtiene el resultado, no solo el vector final. Abre una matriz aumentada $[A \mid b]$ lista para escribir, crece con celdas fantasma `+` y recorre el procedimiento paso a paso con el pivote y las filas involucradas resaltados. El motor matemático (`prettycalc.core`) usa `fractions.Fraction` y no depende de NumPy, SciPy ni SymPy: la aritmética es exacta y el mismo código se puede probar o reutilizar fuera de la interfaz.
+PrettyCalc es una aplicación de escritorio en PySide6 para estudiantes de álgebra lineal que necesitan ver *cómo* se llega al resultado, no solo el resultado. Cada cálculo llena un carrusel con sus pasos: la matriz de ese momento, la operación en notación de libro (F₂ → F₂ − 3F₁, A⁻¹, ‖v‖²) y una explicación en lenguaje natural, con el pivote y las filas involucradas resaltados.
 
-## Tabla de contenidos
+El motor matemático (`prettycalc.core`) trabaja con `fractions.Fraction` y no depende de NumPy, SciPy ni SymPy: no hay redondeos y el mismo código se prueba y se reutiliza sin la interfaz. Nació como proyecto del curso Álgebra Lineal (MTM0120) de la Universidad Americana (UAM).
 
-- [Descripción](#descripción)
-- [Instalación / Getting Started](#instalación--getting-started)
-- [Uso](#uso)
-- [Licencia](#licencia)
+## Módulos
 
-## Instalación / Getting Started
+| Módulo | Atajo | Qué resuelve |
+| --- | --- | --- |
+| Sistemas lineales | Ctrl+1 | Gauss-Jordan sobre [A \| b], clasificación (SCD, SCI, SI), forma vectorial paramétrica, Regla de Cramer y aplicaciones: balanceo químico, Leontief, dieta y flujo en redes. |
+| Álgebra matricial | Ctrl+2 | A ± B, k·A, A·B con inspector celda a celda, Aᵀ, A⁻¹ por Gauss-Jordan, propiedades distributivas y asociativas, Teorema de la Matriz Invertible e identidades de la inversa. |
+| Vectores en ℝⁿ | Ctrl+3 | u ± v, k·v, norma exacta (con radical simplificado), distancia, producto exterior, combinación lineal e independencia lineal. |
+| Ecuaciones matriciales | Ctrl+4 | A x = b con comprobación componente a componente y propiedades de A·x. |
+| Determinantes | Ctrl+5 | Triangulación, Sarrus, cofactores de Laplace por cualquier fila o columna, matriz adjunta, inversa analítica y propiedades del determinante. |
+| Factorización LU | Ctrl+6 | PA = LU con permutación cuando hace falta, y Ly = Pb, Ux = y reutilizando los factores. |
+| Transformaciones lineales | Ctrl+7 | T(v) = A·v, núcleo, imagen, rango, nulidad y Teorema de la Dimensión. |
+| Espacios vectoriales | Ctrl+8 | Conjuntos generadores de ℝᵐ, y base y dimensión de Ker A. |
 
-**Requisitos previos**
+## Arquitectura
 
-- Python 3.10 o superior
-- pip
-- Entorno gráfico de escritorio (la interfaz usa PySide6 / Qt 6)
+```
+prettycalc.ui  (PySide6, vistas y componentes)  ──►  prettycalc.core  (Fraction, sin dependencias)
+   carrusel de pasos · cuadrículas · tablero        cálculo + StepTracer: cada operación
+   de resultados · barra lateral · temas            registra la matriz y su explicación
+```
 
-**Clonar e instalar**
+El núcleo no importa Qt. Cada cálculo devuelve su resultado y un `StepTracer` con los pasos; la interfaz solo los muestra.
+
+| Paquete | Responsabilidad |
+| --- | --- |
+| `core.types` | `Matrix`, `Vector`, lectura y formato de escalares exactos (enteros, fracciones, decimales). |
+| `core.elimination`, `classifier`, `verifier` | Gauss y Gauss-Jordan, clasificación de Rouché-Frobenius y comprobación por sustitución. |
+| `core.determinants`, `adjugate`, `cramer` | Determinantes por cada método, adjunta e inversa analítica, Regla de Cramer. |
+| `core.matrix_ops`, `matrix_inversion`, `matrix_properties`, `theorems` | Operaciones matriciales con su trazado, inversa, propiedades y TMI. |
+| `core.lu_decomposition` | Factorización LU / PLU y las dos sustituciones. |
+| `core.vector_ops`, `linear_combination`, `linear_independence` | Operaciones y métricas de vectores, combinación e independencia lineal. |
+| `core.linear_transformations`, `vector_spaces`, `basis_steps` | Núcleo, imagen, conjuntos generadores, bases y los pasos que se leen de la RREF. |
+| `core.applied_models` | Aplicaciones de la sesión 8 (química, Leontief, dieta, tráfico). |
+| `core.tracer` | Registro de pasos: matriz, fórmula, explicación, pivote y celdas resaltadas. |
+| `ui.modules` | Una vista por módulo. |
+| `ui.stepper_carousel`, `matrix_grid`, `results_dashboard`, `navigation_bar` | Carrusel de pasos, cuadrícula editable, tablero de resultados y barra lateral. |
+| `ui.theme`, `platform_setup` | Paleta, hojas de estilo, fuentes empaquetadas y ajustes por plataforma. |
+
+El detalle está en [Arquitectura del sistema](Docs/architecture.md).
+
+## Características técnicas
+
+- **Paso a paso en todo:** ningún procedimiento muestra un resultado intermedio sin su desarrollo. Hasta 3×3 cada determinante lleva su cuenta completa (ad − bc o Sarrus); desde 4×4, todos los pasos de su triangulación. Eso incluye los menores de Laplace y de la adjunta, Cramer y las propiedades del determinante.
+- **Aritmética exacta:** todo se calcula con `Fraction`. El interruptor Fracciones / Decimales solo cambia cómo se muestra.
+- **Notación de libro:** las fórmulas de los pasos se convierten de LaTeX a HTML (subíndices, exponentes, fracciones) en lugar de mostrar código. El contrato está en la [especificación de renderizado](Docs/latex-rendering-spec.md).
+- **Entrada sin fricción:** las cuadrículas crecen con celdas fantasma `+`, aceptan enteros, fracciones (`3/4`) y decimales, y explican en línea cada error («A, fila 2, columna 3: divide entre cero»). Pegar, reiniciar o cargar un ejemplo se puede deshacer.
+- **Exportación del procedimiento:** PDF, HTML, LaTeX o texto, desde el carrusel.
+- **Interfaz adaptable:** de 1080 × 680 a 1920 px sin desplazamiento horizontal. La barra lateral se pliega a un riel en portátiles y las vistas de tres columnas bajan los resultados cuando no caben.
+- **Accesibilidad:** temas oscuro, claro y de alto contraste con contraste WCAG AA, escala de la interfaz y navegación completa por teclado.
+- **Misma apariencia en Windows y Linux:** estilo Fusion, fuentes empaquetadas (Inter, Fira Code y DejaVu Sans), tamaños en píxeles y, en Windows, rasterizado con FreeType, barra de título oscura e icono propio en la barra de tareas.
+
+## Integración continua
+
+| Flujo | Función |
+| --- | --- |
+| `tests.yml` | En cada push y PR corre la suite completa en Ubuntu y Windows, con Python 3.10 y 3.13. |
+
+Las pruebas de `tests/ui/test_cross_platform.py` comprueban que la geometría de la ventana es idéntica con 96 y 144 ppp y sin ninguna fuente del sistema. `tests/ui/test_responsive_layout.py` recorre los ocho módulos con sus ejemplos cargados y exige que ninguno se desplace en horizontal.
+
+## Ejecución local
+
+Requisitos: Python 3.10 o superior y un entorno gráfico de escritorio.
 
 ```bash
 git clone https://github.com/robertofabiot/PrettyCalc.git
 cd PrettyCalc
-
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-pip install -e .
 pip install -r requirements.txt
+pip install -e .
+python run.py                      # o, tras la instalación, simplemente: prettycalc
 ```
 
-`pip install -e .` instala la aplicación y PySide6. `requirements.txt` añade `pytest`, `pytest-qt` y `pytest-cov` para las pruebas.
+`requirements.txt` instala PySide6 y las herramientas de prueba. Con Python 3.10 y 3.11 se excluye PySide6 6.12.0, que en esas versiones aborta con `none_dealloc`.
 
-**Levantar el proyecto**
-
-```bash
-python run.py
-```
-
-Tras la instalación editable también puedes usar:
-
-```bash
-prettycalc
-```
-
-**Comprobar que las pruebas pasan**
-
-```bash
-pytest
-```
-
-En un entorno sin pantalla (CI o SSH):
-
-```bash
-QT_QPA_PLATFORM=offscreen pytest
-```
-
-## Uso
-
-### Interfaz gráfica
-
-1. La ventana abre en $2 \times 2$ con la columna $b$ visible: transcribe el sistema como matriz aumentada.
-2. Pulsa `+` para añadir filas o variables. Clic derecho en una celda para eliminar fila o columna (el mínimo es $1 \times 1$).
-3. Se admiten enteros, fracciones (`3/4`) y decimales. Una celda inválida se marca en el momento.
-4. **Resolver sistema** ejecuta Gauss-Jordan, llena el carrusel de pasos y el panel de Resultados.
-5. En **Procedimiento**, avanza con Anterior / Siguiente. La fórmula del paso se ve en notación de libro (F₁, A⁻¹, ‖v‖²), no como código LaTeX. **Fracciones** es un interruptor entre vista racional y decimal.
-6. **Resultados** clasifica el sistema (solución única, infinitas soluciones o inconsistente) y, si hay solución única, muestra la comprobación por sustitución. Si el sistema es indeterminado, el panel escribe la forma vectorial paramétrica $x = p + t_1 v_1 + \dots$ con el vector particular y una base del núcleo.
-7. En **Álgebra Matricial**, el modo **A⁻¹ (Inversa)** reduce $[A \mid I_n]$ por Gauss-Jordan, muestra $A^{-1}$ y comprueba $A \cdot A^{-1} = I_n$. Si $A$ no es cuadrada, el cálculo queda deshabilitado. Si $A$ es singular, el panel explica que no existe inversa.
-8. En **Determinantes**, el orden n va de 1 a 8. Se puede calcular por triangulación, por Sarrus (solo 3×3), por cofactores de Laplace o pedir la matriz de cofactores, la adjunta y la inversa \(A^{-1} = \frac{1}{\det A}\operatorname{adj}(A)\).
-9. En **Sistemas Lineales**, el selector de método incluye la **Regla de Cramer** para sistemas n×n con determinante distinto de cero. El panel muestra det(A), cada matriz columna reemplazada y \(x_i = \det(A_i(b)) / \det(A)\).
-10. En **Vectores**, **Norma y producto exterior** calcula \(\|u\|\), \(\|v\|\), la distancia \(d(u, v)\) y la matriz \(u v^T\). La norma se muestra como cuadrado racional y como radical simplificado.
-11. En **Álgebra Matricial**, **TMI** revisa las caracterizaciones de invertibilidad (\*c, \*e, \*h y \(\det(A) \neq 0\)). **Identidades A⁻¹** contrasta \((A^{-1})^{-1} = A\), \((AB)^{-1} = B^{-1}A^{-1}\) y \((A^T)^{-1} = (A^{-1})^T\).
-12. En **Determinantes**, **Propiedades** contrasta \(\det(AB) = \det(A)\det(B)\), \(\det(A^T) = \det(A)\), \(\det(A^{-1}) = 1/\det(A)\) y \(\det(kA) = k^n \det(A)\).
-13. En **Factorización LU**, **Descomponer A = LU** calcula \(PA = LU\). Si no hubo intercambio, \(P = I\) y se comprueba \(L \cdot U = A\). Si un pivote es cero, se muestra la matriz de permutación \(P\) y **Resolver** hace \(Ly = Pb\) y después \(Ux = y\). Si cambia \(b\), se reutilizan los mismos factores.
-14. En **Sistemas Lineales**, **V · Aplicaciones** abre el asistente de la sesión 8. No hace falta armar la matriz aumentada a mano:
-    - **Química** escribe reactivos y productos (`C3H8 + O2` y `CO2 + H2O`) y devuelve los enteros mínimos, con esos coeficientes resaltados.
-    - **Leontief** lee la matriz de consumo \(C\) y resuelve \((I - C)p = 0\). El ejemplo de carbón, electricidad y acero normaliza el precio del acero en 1.
-    - **Dieta** carga la tabla Cambridge y muestra las unidades exactas y los gramos.
-    - **Tráfico** carga la red de Baltimore y las cotas \(x_i \ge 0\).
-15. En **Transformaciones Lineales** (Módulo 7, Ctrl+7):
-    - **T(v) = A · v**: ingresa una matriz de transformación \(A\) (\(m \times n\)) y un vector \(v \in \mathbb{R}^n\) para obtener la imagen \(T(v) \in \mathbb{R}^m\), con el desglose del producto fila a fila.
-    - **Propiedades**: reduce \(A\) a su forma escalonada reducida (RREF) por Gauss-Jordan, calcula el **rango** y la **nulidad**, y halla bases exactas del **núcleo** \(\operatorname{nu}(T)\) y de la **imagen** \(\operatorname{im}(T)\), verificando el **Teorema de la Dimensión** (\(\dim(\text{dominio}) = \text{nulidad} + \text{rango}\)).
-16. En **Espacios Vectoriales** (Módulo 8, Ctrl+8):
-    - **Conjunto Generador**: ingresa un conjunto de vectores como columnas de una matriz \(A\) (\(m \times k\)) y determina si generan el espacio \(\mathbb{R}^m\) verificando si \(\operatorname{rango}(A) = m\).
-    - **Base · Dimensión**: ingresa los coeficientes de un sistema homogéneo \(Ax = 0\) (cada fila es una ecuación) para obtener la base y dimensión (nulidad) del subespacio solución (\(\operatorname{Ker} A\)) a partir de las variables libres en la RREF, validando que \(\dim(\operatorname{Ker} A) + \operatorname{rango}(A) = n\).
-
-Hay casos de prueba en la columna izquierda: solución única, infinitas soluciones, sin solución, Cramer, aplicaciones, transformaciones lineales y espacios vectoriales.
-
-**Atajos y ayudas comunes a todos los módulos** (F1 abre la hoja completa):
+**Atajos comunes** (F1 abre la hoja completa)
 
 | Acción | Atajo |
-| :--- | :--- |
-| Calcular / Resolver / Verificar desde cualquier celda | Ctrl+Intro |
-| Deshacer / rehacer un cambio de la cuadrícula (pegar, reiniciar, ejemplo) | Ctrl+Z / Ctrl+Y |
+| --- | --- |
+| Calcular / resolver desde cualquier celda | Ctrl+Intro |
+| Deshacer / rehacer un cambio de la cuadrícula | Ctrl+Z / Ctrl+Y |
 | Eliminar la fila / la columna de la celda activa | Ctrl+Supr / Ctrl+Mayús+Supr |
 | Copiar / pegar la matriz completa (TSV, Excel, LaTeX) | Ctrl+C / Ctrl+V |
-| Ir al módulo 1 … 8 | Ctrl+1 … Ctrl+8 |
-| Apariencia (tema oscuro, alto contraste o claro; escala) | Ctrl+, |
-| Navegar el procedimiento | ← / → dentro del carrusel |
+| Ir a un módulo | Ctrl+1 … Ctrl+8 |
+| Recorrer el procedimiento | ← / → (con el carrusel enfocado) |
+| Apariencia: tema y escala | Ctrl+, |
 
-Los errores se explican en línea («A, fila 2, columna 3: divide entre cero»), los cambios masivos muestran un aviso con **Deshacer** y la app se ve igual en Windows y en Linux porque trae sus propias fuentes (Inter, Fira Code y DejaVu Sans).
-
-### Motor matemático (Python)
-
-El núcleo no necesita Qt. Ejemplo con el caso de solución única $x=2$, $y=1$, $z=1$:
+## Uso del motor sin interfaz
 
 ```python
-from prettycalc.core import (
-    Matrix,
-    gauss_jordan_elimination,
-    classify_system,
-    SolutionVerifier,
-)
+from prettycalc.core import Matrix, classify_system, gauss_jordan_elimination, matrix_determinant, DeterminantMethod
 
-aumentada = Matrix([
-    [1,  1,  1, 4],
-    [2, -1,  1, 4],
-    [1,  2, -1, 3],
-])
-
+aumentada = Matrix([[1, 1, 1, 4], [2, -1, 1, 4], [1, 2, -1, 3]])
 rref, tracer = gauss_jordan_elimination(aumentada, split_col=3)
-analisis = classify_system(aumentada, split_col=3)
-
-print(analisis.system_type.value)
-# Consistente Determinado
-print(analisis.unique_solution)
-# [Fraction(2, 1), Fraction(1, 1), Fraction(1, 1)]
+print(classify_system(aumentada, split_col=3).unique_solution)   # [2, 1, 1] como Fraction
 
 for paso in tracer:
     print(paso.step_number, paso.heuristic_text)
 
-comprobacion = SolutionVerifier.verify(
-    aumentada, analisis.unique_solution, split_col=3
-)
-assert all(eq.is_valid for eq in comprobacion)
-```
-
-`gaussian_elimination` deja la forma escalonada (REF). `gauss_jordan_elimination` reduce hasta RREF. `split_col` es el índice donde empieza $b$ en $[A \mid b]$.
-
-La inversa y la resolución por inversa viven en `prettycalc.core.matrix_inversion` (también reexportadas desde `matrix_ops` y `prettycalc.core`):
-
-```python
-from prettycalc.core import Matrix, Vector, classify_system, matrix_inverse, solve_via_inverse
-
-A = Matrix([[2, 3], [-1, 1]])
-inversa = matrix_inverse(A)
-assert inversa.identity_check_passed
-x, _ = solve_via_inverse(A, Vector([8, 1]))
-
-analisis = classify_system(Matrix([
-    [3, 5, -4, 0],
-    [-3, -2, 4, 0],
-    [6, 1, -8, 0],
-]))
-print(analisis.parametric_vector_solution.to_plain_equation())
-# x = [0, 0, 0] + x3*[4/3, 0, 1]
-```
-
-El determinante, la adjunta y Cramer están en `prettycalc.core.determinants`, `adjugate` y `cramer`:
-
-```python
-from prettycalc.core import (
-    Matrix,
-    Vector,
-    DeterminantMethod,
-    matrix_determinant,
-    calculate_adjugate_and_inverse,
-    solve_cramer,
-)
-
 A = Matrix([[1, 3, -3], [2, 0, 1], [-1, 4, -2]])
-assert matrix_determinant(A, DeterminantMethod.SARRUS_3X3).value == -19
-adjunta = calculate_adjugate_and_inverse(A)
-assert adjunta.det_A == -19
-
-solucion = solve_cramer(Matrix([[3, -2], [2, 5]]), Vector([7, 11]))
-assert solucion.solution == [3, 1]
+laplace = matrix_determinant(A, DeterminantMethod.LAPLACE_ROW, expansion_index=1)
+print(laplace.value)                                              # -19, con cada menor desarrollado en laplace.tracer
 ```
 
-La norma, la distancia y el producto exterior están en `prettycalc.core.vector_ops`. El Teorema de la Matriz Invertible está en `prettycalc.core.theorems`. Las propiedades del determinante están en `prettycalc.core.determinants`:
+## Pruebas
 
-```python
-from prettycalc.core import (
-    Matrix,
-    Vector,
-    evaluate_invertible_matrix_theorem,
-    plu_decompose,
-    solve_via_plu,
-    vector_norm_exact,
-    vector_outer_product,
-    verify_determinant_properties,
-)
-
-assert vector_norm_exact(Vector([3, 4])) == (5, 1, 1)
-assert vector_outer_product(Vector([1, -2, 3]), Vector([1, -2, 3])).shape == (3, 3)
-
-invertible = Matrix([[1, 0, -2], [3, 1, -2], [-5, -1, 9]])
-assert evaluate_invertible_matrix_theorem(invertible).is_invertible
-
-props = verify_determinant_properties(
-    Matrix([[6, 1], [3, 2]]),
-    Matrix([[4, 3], [1, 2]]),
-    2,
-)
-assert props.det_AB == 45
-
-permutada = Matrix([[0, 1, 2], [1, 0, 3], [4, -3, 8]])
-factores = plu_decompose(permutada)
-assert factores.is_valid and factores.permutation_count == 1
-assert solve_via_plu(permutada, Vector([3, 4, 9])).x_solution == Vector([1, 1, 1])
+```bash
+pytest                              # con pantalla
+QT_QPA_PLATFORM=offscreen pytest    # sin pantalla (CI, SSH)
 ```
 
-La factorización LU sin permutar filas y las dos sustituciones están en `prettycalc.core.lu_decomposition`:
+## Documentación
 
-```python
-from prettycalc.core import Matrix, Vector, lu_decompose, solve_many_via_lu
-
-A = Matrix([[3, -7, -2], [-3, 5, 1], [6, -4, 0]])
-factores = lu_decompose(A)
-assert factores.is_valid
-
-primero, segundo = solve_many_via_lu(A, [Vector([-7, 5, 2]), Vector([0, 0, 0])])
-assert primero.factorization is segundo.factorization
-assert primero.x_solution == Vector([3, 4, -6])
-```
-
-Las aplicaciones de la sesión 8 están en `prettycalc.core.applied_models`:
-
-```python
-from prettycalc.core import (
-    balance_chemical_equation,
-    solve_leontief_exchange,
-    solve_nutrition_mix,
-    analyze_network_flow,
-    coal_electric_steel_consumption,
-    cambridge_diet,
-    baltimore_traffic_network,
-)
-
-propano = balance_chemical_equation("C3H8 + O2 → CO2 + H2O")
-assert propano.stoichiometric_coefficients == [1, 5, 3, 4]
-
-precios = solve_leontief_exchange(coal_electric_steel_consumption())
-assert precios.degrees_of_freedom == 1
-
-composicion, requerimiento = cambridge_diet()
-dieta = solve_nutrition_mix(composicion, requerimiento)
-assert dieta.is_feasible
-
-red = analyze_network_flow(baltimore_traffic_network())
-assert red.parameter_range == (0, 500)
-```
-
-Las transformaciones lineales están en `prettycalc.core.linear_transformations`:
-
-```python
-from prettycalc.core import (
-    Matrix,
-    Vector,
-    evaluate_transform,
-    compute_kernel_and_image,
-)
-
-A = Matrix([
-    [1, 0, -1],
-    [0, 1,  1],
-    [0, 0,  0],
-])
-v = Vector([2, -1, 1])
-
-# Evaluación T(v) = A · v con desglose pedagógico
-Tv, pasos = evaluate_transform(A, v)
-assert Tv == Vector([1, 0, 0])
-
-# Análisis de núcleo, imagen, rango y nulidad
-res = compute_kernel_and_image(A)
-assert res.rank == 2
-assert res.nullity == 1
-assert res.theorem_holds  # dim(dominio) = nulidad + rango (3 = 1 + 2)
-assert len(res.kernel_basis) == 1
-assert len(res.image_basis) == 2
-```
-
-Los espacios vectoriales (conjuntos generadores, base y dimensión) están en `prettycalc.core.vector_spaces`:
-
-```python
-from prettycalc.core import (
-    Matrix,
-    check_generating_set,
-    compute_subspace_basis,
-)
-
-# 1. Determinar si 3 vectores en ℝ³ generan ℝ³ (vectores como columnas)
-generadores = Matrix([
-    [1, 0, 2],
-    [0, 1, -1],
-    [0, 0, 1],
-])
-res_gen = check_generating_set(generadores)
-assert res_gen.generates and res_gen.rank == 3
-
-# 2. Base y dimensión de un subespacio homogéneo Ax = 0 en ℝ⁴
-ecuaciones = Matrix([
-    [1, -2, 1, 0],
-    [2, -4, 0, 2],
-])
-res_base = compute_subspace_basis(ecuaciones)
-assert res_base.dimension == 2  # Nulidad = 2
-assert len(res_base.basis) == 2  # Dos vectores en la base de Ker(A)
-```
+| Documento | Contenido |
+| --- | --- |
+| [Definición del problema](Docs/problem-definition.md) | Qué resuelve PrettyCalc y para quién. |
+| [Especificación matemática](Docs/mathematical-spec.md) | Algoritmos, invariantes y casos límite del motor. |
+| [Arquitectura del sistema](Docs/architecture.md) | Capas, módulos y flujo de datos. |
+| [Reglas de diseño](Docs/design-rules.md) | Paleta, tipografía, navegación y patrones de interacción. |
+| [Renderizado de fórmulas](Docs/latex-rendering-spec.md) | Conversión de LaTeX a notación de libro. |
+| [Estrategia de pruebas](Docs/testing-strategy.md) | Qué se prueba y cómo. |
+| [Estándares de código](Docs/coding-standards.md) | Convenciones del proyecto. |
+| [Hoja de ruta](Docs/roadmap.md) y [sprints](Docs/Sprints/README.md) | Planificación y registro de cada iteración. |
 
 ## Licencia
 
-PrettyCalc se distribuye bajo la [licencia MIT](LICENSE). Puedes usar, copiar, modificar y redistribuir el código, con o sin fines comerciales, siempre que conserves el aviso de copyright y la licencia.
+PrettyCalc se distribuye bajo la [licencia MIT](LICENSE).
