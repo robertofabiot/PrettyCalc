@@ -29,6 +29,12 @@ from fractions import Fraction
 from typing import Dict, List
 
 from prettycalc.core.elimination import gauss_jordan_elimination
+from prettycalc.core.basis_steps import (
+    record_dimension_theorem,
+    record_generating_conclusion,
+    record_kernel_basis,
+    record_pivot_analysis,
+)
 from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import Matrix, Vector, format_scalar
 
@@ -186,6 +192,8 @@ def check_generating_set(A: Matrix) -> GeneratingSetResult:
     pivot_cols = _find_pivot_cols(rref)
     rank = len(pivot_cols)
     generates = (rank == A.rows)
+    record_pivot_analysis(tracer, rref, pivot_cols, [c for c in range(A.cols) if c not in pivot_cols])
+    record_generating_conclusion(tracer, rref, rank, A.rows)
 
     return GeneratingSetResult(
         rref=rref,
@@ -235,6 +243,9 @@ def compute_subspace_basis(A: Matrix) -> SubspaceBasisResult:
     free_cols = [c for c in range(A.cols) if c not in pivot_cols]
     basis = _build_null_basis(rref, pivot_cols, free_cols)
     dimension = len(free_cols)
+    record_pivot_analysis(tracer, rref, pivot_cols, free_cols)
+    record_kernel_basis(tracer, rref, pivot_cols, free_cols, basis, "b", "Ker(A)")
+    record_dimension_theorem(tracer, rref, A.cols, len(pivot_cols), dimension)
 
     return SubspaceBasisResult(
         rref=rref,

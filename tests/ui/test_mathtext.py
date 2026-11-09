@@ -346,3 +346,10 @@ def test_carousel_formula_label_uses_rich_text(qtbot):
     assert "{" not in html and "}" not in html
     assert "_" not in html and "^" not in html
 
+
+
+def test_step_text_gets_book_subscripts_without_touching_coefficients():
+    from prettycalc.ui.mathtext import prettify_step_text
+
+    assert prettify_step_text("[A | I_n] se reduce a [I_n | A^{-1}]") == "[A | Iₙ] se reduce a [Iₙ | A⁻¹]"
+    assert prettify_step_text("Fila 1 (x): 1(2) * 3, a_12") == "Fila 1 (x): 1(2) * 3, a₁₂"

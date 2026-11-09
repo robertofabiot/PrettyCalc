@@ -157,10 +157,15 @@ class DeterminantsView(QWidget):
         self.size_control.sizeChanged.connect(self._on_order_changed)
         action_row.addWidget(self.size_control)
 
+        # Controles de Laplace en su propia fila: junto a los ejemplos y Calcular
+        # desbordaban a 1366 px de ancho.
         self.laplace_box = QWidget()
         laplace_row = QHBoxLayout(self.laplace_box)
-        laplace_row.setContentsMargins(12, 0, 0, 0)
+        laplace_row.setContentsMargins(0, 0, 0, 0)
         laplace_row.setSpacing(6)
+        expand_caption = QLabel("Expandir por")
+        expand_caption.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 15px; font-weight: 600;")
+        laplace_row.addWidget(expand_caption)
         axis_group = QButtonGroup(self)
         axis_group.setExclusive(True)
         self.laplace_row_btn = QPushButton("Fila")
@@ -191,8 +196,8 @@ class DeterminantsView(QWidget):
         )
         self.laplace_suggest_btn.clicked.connect(self.apply_expansion_suggestion)
         laplace_row.addWidget(self.laplace_suggest_btn)
+        laplace_row.addStretch(1)
         self.laplace_box.setVisible(False)
-        action_row.addWidget(self.laplace_box)
         action_row.addStretch(1)
 
         for text, tip, slot in (
@@ -213,6 +218,7 @@ class DeterminantsView(QWidget):
         self.compute_btn.clicked.connect(self.compute)
         action_row.addWidget(self.compute_btn)
         root.addLayout(action_row)
+        root.addWidget(self.laplace_box)
 
         badge_row = QHBoxLayout()
         self.badge = QLabel("")
@@ -742,7 +748,10 @@ class DeterminantsView(QWidget):
         sarrus = determinant.method is DeterminantMethod.SARRUS_3X3
         self.sarrus_diagram.set_matrix(determinant.matrix if sarrus else None)
         self.sarrus_diagram.setVisible(sarrus)
-        self.stepper.set_steps(determinant.tracer.get_steps())
+        # En el modo adjunta el procedimiento es el de la adjunta (cada menor con
+        # su cuenta, signos, transpuesta, det(A) por cofactores e inversa).
+        source = adjugate.tracer if adjugate is not None else determinant.tracer
+        self.stepper.set_steps(source.get_steps())
         if determinant.is_singular:
             self.badge.setText(f"det(A) = {shown}. Matriz singular.")
             self.badge.setStyleSheet(badge_style(COLOR_FEEDBACK_ERROR))

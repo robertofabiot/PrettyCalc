@@ -34,10 +34,9 @@ except ImportError:
     QWidget = object  # type: ignore
 
 from prettycalc.core.classifier import classify_system
-from prettycalc.core.cramer import format_cramer_component, solve_cramer
+from prettycalc.core.cramer import solve_cramer
 from prettycalc.core.elimination import gauss_jordan_elimination
 from prettycalc.core.matrix_inversion import NonSquareMatrixError, SingularMatrixError
-from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
 from prettycalc.ui.feedback import busy, show_toast
@@ -497,25 +496,7 @@ class LinearSystemsView(QWidget):
             )
             return
 
-        tracer = StepTracer()
-        tracer.record_initial(
-            coefficients,
-            description=(
-                f"Matriz de coeficientes A. det(A) = {format_scalar(result.det_A)}. "
-                "Como el determinante no es cero, existe una única solución."
-            ),
-            latex_title=r"\det(A)",
-        )
-        for index, replaced, column_det in result.column_determinants:
-            tracer.record_step(
-                matrix=replaced,
-                latex_formula=rf"\det(A_{{{index + 1}}}(b))",
-                heuristic_text=format_cramer_component(
-                    index, column_det, result.det_A, result.solution[index]
-                ),
-                highlight_cells=tuple((row, index) for row in range(replaced.rows)),
-            )
-        self.stepper_carousel.set_steps(tracer.get_steps())
+        self.stepper_carousel.set_steps(result.tracer.get_steps())
         verifications = SolutionVerifier.verify(
             augmented, result.solution, split_col=split_col
         )

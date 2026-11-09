@@ -20,7 +20,7 @@ from prettycalc.core.operations import (
     swap_rows,
 )
 from prettycalc.core.tracer import StepTracer
-from prettycalc.core.types import Matrix, format_scalar, parse_scalar
+from prettycalc.core.types import Matrix, format_scalar, parse_scalar, subscript
 
 
 class DeterminantMethod(Enum):
@@ -120,6 +120,106 @@ def _record(
         highlight_cells=highlight_cells,
         alert_rows=alert_rows,
     )
+
+
+def _paren(value: Fraction) -> str:
+    return f"({format_scalar(value)})"
+
+
+def determinant_working(M: Matrix, symbol: str = "det(M)") -> Tuple[Fraction, str]:
+    """Valor de det(M) y la cuenta completa, para órdenes 1 a 3.
+
+    1×1: el propio elemento. 2×2: ad − bc. 3×3: Sarrus con sus seis
+    productos. ``symbol`` es el nombre con que se escribe el resultado
+    (``M₁₂``, ``det(A)``…).
+
+    Raises:
+        ValueError: Si M es mayor que 3×3 (se triangulariza paso a paso).
+    """
+    order = require_square_matrix(M, "calcular el determinante")
+    if order == 1:
+        value = M.get(0, 0)
+        return value, f"{symbol} = {format_scalar(value)} (el único elemento)"
+    if order == 2:
+        a, b, c, d = M.get(0, 0), M.get(0, 1), M.get(1, 0), M.get(1, 1)
+        value = a * d - b * c
+        return value, (
+            f"{symbol} = ad − bc = {_paren(a)}·{_paren(d)} − {_paren(b)}·{_paren(c)} "
+            f"= {format_scalar(a * d)} − {_paren(b * c)} = {format_scalar(value)}"
+        )
+    if order == 3:
+        entries = [[M.get(r, c) for c in range(3)] for r in range(3)]
+        groups = {1: [], -1: []}
+        for _label, cells, term, sign in _sarrus_diagonals(entries):
+            factors = "".join(_paren(entries[r][c]) for r, c in cells)
+            groups[sign].append((factors, term))
+        principal = sum((term for _f, term in groups[1]), Fraction(0, 1))
+        secondary = sum((term for _f, term in groups[-1]), Fraction(0, 1))
+        value = principal - secondary
+
+        def line(group) -> str:
+            products = " + ".join(factors for factors, _term in group)
+            terms = " + ".join(_paren(term) for _factors, term in group)
+            return f"{products} = {terms}"
+
+        return value, (
+            f"{symbol} por Sarrus. Diagonales principales: {line(groups[1])} = {format_scalar(principal)}. "
+            f"Secundarias: {line(groups[-1])} = {format_scalar(secondary)}. "
+            f"{symbol} = {format_scalar(principal)} − {_paren(secondary)} = {format_scalar(value)}"
+        )
+    raise ValueError(
+        f"La cuenta en una línea solo cubre órdenes 1 a 3; M es {order}×{order}."
+    )
+
+
+def record_determinant_working(
+    tracer: StepTracer,
+    M: Matrix,
+    symbol_latex: str,
+    symbol_text: str,
+    *,
+    intro: str = "",
+    highlight_cells: Optional[Tuple[Tuple[int, int], ...]] = None,
+) -> Fraction:
+    """Registra en ``tracer`` el cálculo completo de det(M) y devuelve su valor.
+
+    Hasta 3×3 basta un paso con la cuenta entera (ad − bc o Sarrus). A partir
+    de 4×4 se insertan todos los pasos de la triangulación de M, con el
+    nombre del determinante (``M₁₂``, ``det(A₁(b))``…) en lugar de det(A).
+    Así ningún procedimiento muestra un determinante sin su desarrollo.
+    """
+    order = require_square_matrix(M, "calcular el determinante")
+    if order <= 3:
+        value, working = determinant_working(M, symbol_text)
+        tracer.record_step(
+            M,
+            latex_formula=rf"{symbol_latex} = {format_scalar(value, mode='latex')}",
+            heuristic_text=f"{intro}{working}.",
+            highlight_cells=highlight_cells,
+        )
+        return value
+    result = determinant_triangulation(M)
+    tracer.record_step(
+        M,
+        latex_formula=rf"{symbol_latex}\text{{ por triangulación}}",
+        heuristic_text=(
+            f"{intro}{symbol_text} es de orden {order}: se triangulariza en los pasos siguientes "
+            "(intercambios y combinaciones de filas, sin escalar pivotes)."
+        ),
+        highlight_cells=highlight_cells,
+    )
+    for step in result.tracer.get_steps()[1:]:
+        tracer.record_step(
+            step.matrix,
+            latex_formula=step.latex_formula.replace(r"\det(A)", symbol_latex),
+            heuristic_text=f"{symbol_text}: " + step.heuristic_text.replace("det(A)", symbol_text),
+            pivot_pos=step.pivot_pos,
+            actor_row=step.actor_row,
+            affected_rows=step.affected_rows,
+            alert_rows=step.alert_rows,
+            highlight_cells=step.highlight_cells,
+        )
+    return result.value
 
 
 def delete_row_and_column(A: Matrix, drop_row: int, drop_col: int) -> Matrix:
@@ -490,7 +590,8 @@ def determinant_laplace_expansion(
         A,
         description=(
             f"Desarrollo por cofactores a lo largo de la {axis_name} {index + 1}. "
-            "Cada término es la entrada por su cofactor (−1)^(i+j) M_ij."
+            "Cada término es la entrada por su cofactor Cᵢⱼ = (−1)^(i+j)·Mᵢⱼ, donde el "
+            "menor Mᵢⱼ es el determinante que queda al tachar la fila i y la columna j."
         ),
         latex_title=rf"\det(A) = \sum a_{{ij}} C_{{ij}}\ \text{{({axis_name} {index + 1})}}",
     )
@@ -501,42 +602,65 @@ def determinant_laplace_expansion(
         A,
         latex_formula=rf"\text{{{axis_name} {index + 1}}}",
         heuristic_text=(
-            f"La {axis_name} {index + 1} resaltada aporta las entradas a_ij del desarrollo. "
+            f"La {axis_name} {index + 1} resaltada aporta las entradas aᵢⱼ del desarrollo. "
             "Las entradas nulas anulan su término y no exigen calcular el menor."
         ),
         highlight_cells=line_cells,
     )
     steps: List[str] = []
     total = Fraction(0, 1)
+    contributions: List[str] = []
     for offset in range(order):
         if along == "row":
             row_index, col_index = index, offset
         else:
             row_index, col_index = offset, index
+        i, j = row_index + 1, col_index + 1
+        ij = subscript(i, j)
         entry = A.get(row_index, col_index)
         sign = Fraction(1, 1) if (row_index + col_index) % 2 == 0 else Fraction(-1, 1)
+        if entry == 0:
+            # Una entrada nula anula su término: el menor no hace falta.
+            text = f"a{ij} = 0, así que a{ij}·C{ij} = 0 sin calcular el menor M{ij}."
+            _record(
+                tracer,
+                A,
+                rf"a_{{{i}{j}}} C_{{{i}{j}}} = 0",
+                text,
+                steps,
+                highlight_cells=((row_index, col_index),),
+            )
+            contributions.append("0")
+            continue
         if order == 1:
             minor_value = Fraction(1, 1)
             shown = A
-            minor_note = "el menor vacío vale 1 por convención"
+            minor_text = "El menor de una matriz 1×1 es vacío y vale 1 por convención."
+            tracer.record_step(A, latex_formula=rf"M_{{{i}{j}}} = 1", heuristic_text=minor_text)
         else:
             shown = delete_row_and_column(A, row_index, col_index)
-            minor_value = determinant_triangulation(shown).value
-            minor_note = f"det(menor) = {format_scalar(minor_value)}"
+            minor_value = record_determinant_working(
+                tracer,
+                shown,
+                rf"M_{{{i}{j}}}",
+                f"M{ij}",
+                intro=f"Se tachan la fila {i} y la columna {j} de A. ",
+            )
         cofactor = sign * minor_value
         term = entry * cofactor
         total += term
+        contributions.append(_paren(term))
         _record(
             tracer,
-            shown,
-            rf"a_{{{row_index + 1}{col_index + 1}}} C_{{{row_index + 1}{col_index + 1}}}",
+            A,
+            rf"a_{{{i}{j}}} C_{{{i}{j}}} = {format_scalar(term, mode='latex')}",
             (
-                f"Entrada a_{row_index + 1}{col_index + 1} = {format_scalar(entry)}. "
-                f"Signo (−1)^({row_index + 1}+{col_index + 1}) = {format_scalar(sign)}; "
-                f"{minor_note}. Cofactor = {format_scalar(cofactor)}. "
-                f"Aporte = {format_scalar(term)}."
+                f"C{ij} = (−1)^({i}+{j})·M{ij} = {_paren(sign)}·{_paren(minor_value)} "
+                f"= {format_scalar(cofactor)}. Aporte: a{ij}·C{ij} = "
+                f"{_paren(entry)}·{_paren(cofactor)} = {format_scalar(term)}."
             ),
             steps,
+            highlight_cells=((row_index, col_index),),
         )
     _record(
         tracer,
@@ -544,7 +668,8 @@ def determinant_laplace_expansion(
         r"\det(A)",
         (
             f"Suma de los aportes por la {axis_name} {index + 1}: "
-            f"det(A) = {format_scalar(total)}. {singularity_diagnosis(total, order)}"
+            f"det(A) = {' + '.join(contributions)} = {format_scalar(total)}. "
+            f"{singularity_diagnosis(total, order)}"
         ),
         steps,
     )
@@ -622,61 +747,132 @@ def _same_square_order(A: Matrix, B: Matrix, operation: str) -> int:
     return order
 
 
+def _verdict(holds: bool) -> str:
+    return "La igualdad se cumple." if holds else "La igualdad no se cumple."
+
+
+def _trace_multiplicative(tracer: StepTracer, A: Matrix, B: Matrix, det_a: Fraction):
+    """B, det(B), el producto AB entrada a entrada, det(AB) y la comparación."""
+    from prettycalc.core.matrix_ops import trace_matrix_product
+
+    tracer.record_step(B, latex_formula=r"B", heuristic_text="Segunda matriz B.")
+    det_b = record_determinant_working(tracer, B, r"\det(B)", "det(B)")
+    product = trace_matrix_product(A, B)
+    # Sin el paso 0 ni el que vuelve a mostrar B: ya se vio arriba.
+    tracer.extend(product.tracer.get_steps()[2:], prefix="AB: ")
+    det_ab = record_determinant_working(tracer, product.matrix, r"\det(AB)", "det(AB)")
+    expected = det_a * det_b
+    holds = det_ab == expected
+    tracer.record_step(
+        product.matrix,
+        latex_formula=r"\det(AB) = \det(A)\det(B)",
+        heuristic_text=(
+            f"det(A)·det(B) = {_paren(det_a)}·{_paren(det_b)} = {format_scalar(expected)} y "
+            f"det(AB) = {format_scalar(det_ab)}. {_verdict(holds)}"
+        ),
+    )
+    return det_b, det_ab, holds
+
+
+def _trace_transpose(tracer: StepTracer, A: Matrix, det_a: Fraction):
+    """Aᵀ fila por fila, det(Aᵀ) y la comparación con det(A)."""
+    from prettycalc.core.matrix_ops import trace_matrix_transpose
+
+    transposed = trace_matrix_transpose(A)
+    tracer.extend(transposed.tracer.get_steps(), prefix="Aᵀ: ")
+    det_transpose = record_determinant_working(
+        tracer, transposed.matrix, r"\det(A^{T})", "det(Aᵀ)"
+    )
+    holds = det_transpose == det_a
+    tracer.record_step(
+        transposed.matrix,
+        latex_formula=r"\det(A^{T}) = \det(A)",
+        heuristic_text=(
+            f"det(Aᵀ) = {format_scalar(det_transpose)} y det(A) = {format_scalar(det_a)}. "
+            + ("Coinciden." if holds else "No coinciden.")
+        ),
+    )
+    return det_transpose, holds
+
+
+def _trace_inverse(tracer: StepTracer, A: Matrix, det_a: Fraction):
+    """A⁻¹ por Gauss-Jordan sobre [A | I], det(A⁻¹) y la comparación con 1/det(A)."""
+    from prettycalc.core.matrix_inversion import matrix_inverse
+
+    inversion = matrix_inverse(A)
+    tracer.extend(inversion.tracer.get_steps(), prefix="A⁻¹: ", include_initial=True)
+    det_inverse = record_determinant_working(
+        tracer, inversion.inverse, r"\det(A^{-1})", "det(A⁻¹)"
+    )
+    reciprocal = Fraction(1, 1) / det_a
+    holds = det_inverse == reciprocal
+    tracer.record_step(
+        inversion.inverse,
+        latex_formula=r"\det(A^{-1}) = \frac{1}{\det(A)}",
+        heuristic_text=(
+            f"1/det(A) = 1/{_paren(det_a)} = {format_scalar(reciprocal)} y "
+            f"det(A⁻¹) = {format_scalar(det_inverse)}. {_verdict(holds)}"
+        ),
+    )
+    return det_inverse, reciprocal, holds
+
+
+def _trace_scaling(tracer: StepTracer, A: Matrix, scalar: Fraction, det_a: Fraction):
+    """kA fila por fila, det(kA) y la comparación con kⁿ·det(A)."""
+    from prettycalc.core.matrix_ops import trace_matrix_scale
+
+    order = A.rows
+    scaled = trace_matrix_scale(A, scalar)
+    tracer.extend(scaled.tracer.get_steps(), prefix="kA: ")
+    det_scaled = record_determinant_working(tracer, scaled.matrix, r"\det(kA)", "det(kA)")
+    expected = (scalar ** order) * det_a
+    holds = det_scaled == expected
+    tracer.record_step(
+        scaled.matrix,
+        latex_formula=(
+            rf"\det\left({format_scalar(scalar, mode='latex')} A\right) = "
+            rf"{format_scalar(scalar, mode='latex')}^{{{order}}}\det(A)"
+        ),
+        heuristic_text=(
+            f"{scaling_breakdown(scalar, order, det_a)}. det(kA) = {format_scalar(det_scaled)}. "
+            f"{_verdict(holds)}"
+        ),
+    )
+    return det_scaled, expected, holds
+
+
+def _start(A: Matrix, description: str, latex_title: str) -> Tuple[StepTracer, Fraction]:
+    """Paso 0 con A y, enseguida, det(A) con su cuenta completa."""
+    tracer = StepTracer()
+    tracer.record_initial(A, description=description, latex_title=latex_title)
+    det_a = record_determinant_working(tracer, A, r"\det(A)", "det(A)")
+    return tracer, det_a
+
+
 def verify_determinant_multiplicative(
     A: Matrix,
     B: Matrix,
 ) -> Tuple[Fraction, Fraction, Fraction, bool, StepTracer]:
     """Verifica det(AB) = det(A) · det(B) con StepTracer."""
     _same_square_order(A, B, "comprobar det(AB) = det(A) det(B)")
-    det_a = matrix_determinant(A).value
-    det_b = matrix_determinant(B).value
-    product = matrix_multiply(A, B)
-    det_ab = matrix_determinant(product).value
-    expected = det_a * det_b
-    holds = det_ab == expected
-    tracer = StepTracer()
-    tracer.record_initial(
+    tracer, det_a = _start(
         A,
-        description=f"det(A) = {format_scalar(det_a)}.",
-        latex_title=r"\det(A)",
+        "Se calculan det(A), det(B) y det(AB) y se compara det(AB) con det(A)·det(B).",
+        r"\det(AB) = \det(A)\det(B)",
     )
-    tracer.record_step(
-        B,
-        latex_formula=r"\det(B)",
-        heuristic_text=f"det(B) = {format_scalar(det_b)}.",
-    )
-    tracer.record_step(
-        product,
-        latex_formula=r"\det(AB) = \det(A)\det(B)",
-        heuristic_text=(
-            f"det(AB) = {format_scalar(det_ab)} y det(A)·det(B) = {format_scalar(expected)}. "
-            + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
-        ),
-    )
+    det_b, det_ab, holds = _trace_multiplicative(tracer, A, B, det_a)
     return det_a, det_b, det_ab, holds, tracer
 
 
 def verify_determinant_transpose(A: Matrix) -> Tuple[Fraction, Fraction, bool, StepTracer]:
     """Verifica det(Aᵀ) = det(A)."""
     require_square_matrix(A, "comprobar det(Aᵀ) = det(A)")
-    det_a = matrix_determinant(A).value
-    transposed = matrix_transpose(A)
-    det_transpose = matrix_determinant(transposed).value
-    holds = det_transpose == det_a
-    tracer = StepTracer()
-    tracer.record_initial(
+    tracer, det_a = _start(
         A,
-        description=f"det(A) = {format_scalar(det_a)}.",
-        latex_title=r"\det(A)",
+        "Se calcula det(A), se transpone A y se calcula det(Aᵀ).",
+        r"\det(A^{T}) = \det(A)",
     )
-    tracer.record_step(
-        transposed,
-        latex_formula=r"\det(A^{T}) = \det(A)",
-        heuristic_text=(
-            f"det(Aᵀ) = {format_scalar(det_transpose)}. "
-            + ("Coincide con det(A)." if holds else "No coincide con det(A).")
-        ),
-    )
+    det_transpose, holds = _trace_transpose(tracer, A, det_a)
     return det_a, det_transpose, holds, tracer
 
 
@@ -693,26 +889,12 @@ def verify_determinant_inverse(A: Matrix) -> Tuple[Fraction, Fraction, bool, Ste
         raise SingularMatrixError(
             "No se puede comprobar det(A⁻¹) = 1/det(A): det(A) = 0 y A no es invertible."
         )
-    from prettycalc.core.matrix_inversion import matrix_inverse
-
-    inverse = matrix_inverse(A).inverse
-    det_inverse = matrix_determinant(inverse).value
-    reciprocal = Fraction(1, 1) / det_a
-    holds = det_inverse == reciprocal
-    tracer = StepTracer()
-    tracer.record_initial(
+    tracer, det_a = _start(
         A,
-        description=f"det(A) = {format_scalar(det_a)} ≠ 0, así que existe A⁻¹.",
-        latex_title=r"\det(A^{-1}) = 1/\det(A)",
+        "Se calcula det(A); si no es cero existe A⁻¹, que se obtiene por Gauss-Jordan.",
+        r"\det(A^{-1}) = 1/\det(A)",
     )
-    tracer.record_step(
-        inverse,
-        latex_formula=r"\det(A^{-1}) = \frac{1}{\det(A)}",
-        heuristic_text=(
-            f"det(A⁻¹) = {format_scalar(det_inverse)} y 1/det(A) = {format_scalar(reciprocal)}. "
-            + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
-        ),
-    )
+    det_inverse, _reciprocal, holds = _trace_inverse(tracer, A, det_a)
     return det_a, det_inverse, holds, tracer
 
 
@@ -723,25 +905,12 @@ def verify_determinant_scalar_scaling(
     """Verifica det(kA) = kⁿ det(A). Devuelve (det(kA), kⁿ det(A), ¿iguales?, traza)."""
     order = require_square_matrix(A, "comprobar det(kA) = kⁿ det(A)")
     scalar = parse_scalar(k)
-    det_a = matrix_determinant(A).value
-    scaled = matrix_scale(A, scalar)
-    det_scaled = matrix_determinant(scaled).value
-    expected = (scalar ** order) * det_a
-    holds = det_scaled == expected
-    tracer = StepTracer()
-    tracer.record_initial(
+    tracer, det_a = _start(
         A,
-        description=f"det(A) = {format_scalar(det_a)} y el orden es n = {order}.",
-        latex_title=r"\det(kA) = k^{n}\det(A)",
+        f"Se calcula det(A) (orden n = {order}), se forma kA y se calcula det(kA).",
+        r"\det(kA) = k^{n}\det(A)",
     )
-    tracer.record_step(
-        scaled,
-        latex_formula=rf"\det\left({format_scalar(scalar, mode='latex')} A\right) = {format_scalar(scalar, mode='latex')}^{{{order}}}\det(A)",
-        heuristic_text=(
-            f"{scaling_breakdown(scalar, order, det_a)}. det(kA) = {format_scalar(det_scaled)}. "
-            + ("La igualdad se cumple." if holds else "La igualdad no se cumple.")
-        ),
-    )
+    det_scaled, expected, holds = _trace_scaling(tracer, A, scalar, det_a)
     return det_scaled, expected, holds, tracer
 
 
@@ -763,74 +932,53 @@ def verify_determinant_properties(
     k: Optional[Fraction] = None,
 ) -> DeterminantPropertiesResult:
     """Contrasta las propiedades multiplicativas, de transpuesta, inversa y escala."""
-    det_a, det_transpose, transpose_ok, transpose_tracer = verify_determinant_transpose(A)
-    tracer = StepTracer()
-    tracer.record_initial(
+    require_square_matrix(A, "comprobar las propiedades del determinante")
+    if B is not None:
+        _same_square_order(A, B, "comprobar det(AB) = det(A) det(B)")
+    tracer, det_a = _start(
         A,
-        description="Comprobación de las propiedades del determinante.",
-        latex_title=r"\text{Propiedades de } \det(A)",
+        (
+            "Comprobación de las propiedades del determinante. Primero det(A); luego, para "
+            "cada propiedad, la matriz que interviene, su determinante y la comparación."
+        ),
+        r"\text{Propiedades de } \det(A)",
     )
-    for step in transpose_tracer.get_steps():
-        if step.step_number == 0:
-            continue
-        tracer.record_step(
-            step.matrix,
-            latex_formula=step.latex_formula,
-            heuristic_text=step.heuristic_text,
-            pivot_pos=step.pivot_pos,
-        )
+
+    def heading(text: str, latex: str) -> None:
+        tracer.record_step(A, latex_formula=latex, heuristic_text=text)
+
+    heading("Propiedad: det(Aᵀ) = det(A).", r"\det(A^{T}) = \det(A)")
+    det_transpose, transpose_ok = _trace_transpose(tracer, A, det_a)
 
     det_b: Optional[Fraction] = None
     det_ab: Optional[Fraction] = None
     multiplicative_ok: Optional[bool] = None
     if B is not None:
-        det_a, det_b, det_ab, multiplicative_ok, product_tracer = verify_determinant_multiplicative(A, B)
-        for step in product_tracer.get_steps():
-            tracer.record_step(
-                step.matrix,
-                latex_formula=step.latex_formula,
-                heuristic_text=step.heuristic_text,
-                pivot_pos=step.pivot_pos,
-            )
+        heading("Propiedad: det(AB) = det(A)·det(B).", r"\det(AB) = \det(A)\det(B)")
+        det_b, det_ab, multiplicative_ok = _trace_multiplicative(tracer, A, B, det_a)
 
     det_inverse: Optional[Fraction] = None
     reciprocal: Optional[Fraction] = None
     inverse_ok: Optional[bool] = None
-    try:
-        _, det_inverse, inverse_ok, inverse_tracer = verify_determinant_inverse(A)
-    except SingularMatrixError as exc:
+    if det_a == 0:
         tracer.record_step(
             A,
             latex_formula=r"\det(A) = 0",
-            heuristic_text=str(exc),
+            heuristic_text=(
+                "No se puede comprobar det(A⁻¹) = 1/det(A): det(A) = 0 y A no es invertible."
+            ),
         )
     else:
-        reciprocal = Fraction(1, 1) / det_a
-        for step in inverse_tracer.get_steps():
-            if step.step_number == 0:
-                continue
-            tracer.record_step(
-                step.matrix,
-                latex_formula=step.latex_formula,
-                heuristic_text=step.heuristic_text,
-                pivot_pos=step.pivot_pos,
-            )
+        heading("Propiedad: det(A⁻¹) = 1/det(A).", r"\det(A^{-1}) = 1/\det(A)")
+        det_inverse, reciprocal, inverse_ok = _trace_inverse(tracer, A, det_a)
 
     det_scaled: Optional[Fraction] = None
     scaling_ok: Optional[bool] = None
     scalar: Optional[Fraction] = None
     if k is not None:
         scalar = parse_scalar(k)
-        det_scaled, _expected, scaling_ok, scale_tracer = verify_determinant_scalar_scaling(A, scalar)
-        for step in scale_tracer.get_steps():
-            if step.step_number == 0:
-                continue
-            tracer.record_step(
-                step.matrix,
-                latex_formula=step.latex_formula,
-                heuristic_text=step.heuristic_text,
-                pivot_pos=step.pivot_pos,
-            )
+        heading("Propiedad: det(kA) = kⁿ·det(A).", r"\det(kA) = k^{n}\det(A)")
+        det_scaled, _expected, scaling_ok = _trace_scaling(tracer, A, scalar, det_a)
 
     return DeterminantPropertiesResult(
         A=A.copy(),
