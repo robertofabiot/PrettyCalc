@@ -12,7 +12,6 @@
   <a href="https://github.com/robertofabiot/PrettyCalc/actions/workflows/tests.yml"><img src="https://github.com/robertofabiot/PrettyCalc/actions/workflows/tests.yml/badge.svg" alt="Pruebas"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/PySide6-Qt%206-41CD52?logo=qt&logoColor=white" alt="PySide6 / Qt 6">
-  <img src="https://img.shields.io/badge/Windows%20%7C%20Linux-misma%20apariencia-555555" alt="Windows y Linux">
   <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-MIT-yellow" alt="Licencia MIT"></a>
 </p>
 
