@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#282430" />
+      <stop offset="100%" stop-color="#17141D" />
+    </linearGradient>
+    <linearGradient id="pivotGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="40%" stop-color="#80F5F5" />
+      <stop offset="100%" stop-color="#38B6FF" />
+    </linearGradient>
+  </defs>
+
+  <!-- Contenedor Squircle -->
+  <rect width="480" height="480" x="16" y="16" rx="108" fill="url(#bgGradB)" stroke="#393446" stroke-width="4" />
+
+  <!-- Matriz Aumentada [ A | b ] -->
+  <g transform="translate(0, -22)">
+    <!-- Corchete Izquierdo [ -->
+    <path d="M 136 116 L 96 116 C 84 116 80 120 80 132 L 80 348 C 80 360 84 364 96 364 L 136 364" fill="none" stroke="#D8F8F8" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Corchete Derecho ] -->
+    <path d="M 376 116 L 416 116 C 428 116 432 120 432 132 L 432 348 C 432 360 428 364 416 364 L 376 364" fill="none" stroke="#D8F8F8" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Línea divisoria de Matriz Aumentada (A | b) -->
+    <line x1="330" y1="130" x2="330" y2="350" stroke="#D8F8F8" stroke-width="8" stroke-dasharray="14 14" stroke-linecap="round" stroke-opacity="0.35" />
+
+    <!-- Trazo conector de la diagonal principal (Pivotes) -->
+    <line x1="150" y1="165" x2="278" y2="315" stroke="url(#pivotGlow)" stroke-width="10" stroke-linecap="round" opacity="0.45" />
+
+    <!-- FILA 1 -->
+    <!-- Pivote (1,1) -->
+    <rect x="128" y="143" width="44" height="44" rx="12" fill="url(#pivotGlow)" />
+    <!-- Elementos Superiores (Activos) -->
+    <circle cx="214" cy="165" r="16" fill="#D8F8F8" fill-opacity="0.75" />
+    <circle cx="278" cy="165" r="16" fill="#D8F8F8" fill-opacity="0.75" />
+    <!-- Vector b1 -->
+    <rect x="358" y="149" width="32" height="32" rx="8" fill="#7CE8E8" fill-opacity="0.85" />
+
+    <!-- FILA 2 -->
+    <!-- Cero debajo del pivote (Atenuado) -->
+    <circle cx="150" cy="240" r="14" fill="#D8F8F8" fill-opacity="0.18" />
+    <!-- Pivote (2,2) -->
+    <rect x="192" y="218" width="44" height="44" rx="12" fill="url(#pivotGlow)" />
+    <!-- Elemento Superior -->
+    <circle cx="278" cy="240" r="16" fill="#D8F8F8" fill-opacity="0.75" />
+    <!-- Vector b2 -->
+    <rect x="358" y="224" width="32" height="32" rx="8" fill="#7CE8E8" fill-opacity="0.85" />
+
+    <!-- FILA 3 -->
+    <!-- Ceros debajo de la diagonal (Atenuados) -->
+    <circle cx="150" cy="315" r="14" fill="#D8F8F8" fill-opacity="0.18" />
+    <circle cx="214" cy="315" r="14" fill="#D8F8F8" fill-opacity="0.18" />
+    <!-- Pivote (3,3) -->
+    <rect x="256" y="293" width="44" height="44" rx="12" fill="url(#pivotGlow)" />
+    <!-- Vector b3 -->
+    <rect x="358" y="299" width="32" height="32" rx="8" fill="#7CE8E8" fill-opacity="0.85" />
+  </g>
+
+  <!-- Wordmark Estilo Notación de Libro -->
+  <text x="256" y="432" text-anchor="middle" font-family="'Inter', 'Segoe UI', sans-serif" font-size="42" letter-spacing="-0.5">
+    <tspan fill="#D8F8F8" font-weight="500">Pretty</tspan><tspan fill="#6CE5E8" font-family="'Fira Code', monospace" font-weight="700">[Calc]</tspan>
+  </text>
+</svg>

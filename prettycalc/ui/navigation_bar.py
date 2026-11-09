@@ -13,6 +13,7 @@ ven idénticos en Windows y en Linux.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 try:
@@ -27,7 +28,8 @@ try:
         QWidget,
     )
     from PySide6.QtCore import QRectF, QSize, Qt, Signal
-    from PySide6.QtGui import QColor, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
+    from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPen, QPixmap
+    from PySide6.QtSvg import QSvgRenderer
 except ImportError:
     QWidget = object  # type: ignore
     QPushButton = object  # type: ignore
@@ -35,10 +37,11 @@ except ImportError:
 
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
-    COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
+    FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
     ui_font,
 )
 
@@ -218,8 +221,27 @@ def rgba_to_qcolor(hex_color: str, alpha: float) -> "QColor":
     return color
 
 
+#: Logotipo sin el texto (para iconos y la barra lateral). El logotipo
+#: completo, con «Pretty[Calc]», está en ``Docs/logo.svg``.
+LOGO_MARK_PATH = Path(__file__).resolve().parent / "assets" / "logo-mark.svg"
+
+_logo_renderer: Optional["QSvgRenderer"] = None
+
+
+def _renderer() -> "QSvgRenderer":
+    global _logo_renderer
+    if _logo_renderer is None:
+        _logo_renderer = QSvgRenderer(str(LOGO_MARK_PATH))
+    return _logo_renderer
+
+
+def paint_brand_mark(painter: "QPainter", rect: "QRectF") -> None:
+    """Dibuja el logotipo en ``rect`` (barra lateral e icono de la ventana)."""
+    _renderer().render(painter, rect)
+
+
 class BrandMark(QWidget):
-    """Logotipo: corchetes de matriz sobre un degradado de los dos acentos."""
+    """Logotipo de PrettyCalc: la matriz aumentada [A | b] con sus pivotes."""
 
     def __init__(self, size: int = 34, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -234,43 +256,6 @@ class BrandMark(QWidget):
         painter.end()
 
 
-def paint_brand_mark(painter: "QPainter", rect: "QRectF") -> None:
-    """Dibuja el logotipo en ``rect`` (también se usa para el icono de la ventana)."""
-    s = rect.width()
-    gradient = QLinearGradient(rect.topLeft(), rect.bottomRight())
-    gradient.setColorAt(0.0, QColor(COLOR_INTERACTIVE_IDLE))
-    gradient.setColorAt(1.0, QColor(COLOR_FEEDBACK_SUCCESS))
-    painter.setPen(Qt.NoPen)
-    painter.setBrush(gradient)
-    painter.drawRoundedRect(rect, s * 0.26, s * 0.26)
-
-    pen = QPen(QColor(COLOR_BG_BASE), max(1.6, s * 0.075))
-    pen.setCapStyle(Qt.RoundCap)
-    pen.setJoinStyle(Qt.RoundJoin)
-    painter.setPen(pen)
-    painter.setBrush(Qt.NoBrush)
-    x0, y0 = rect.left(), rect.top()
-    top, bottom = y0 + s * 0.27, y0 + s * 0.73
-    arm = s * 0.10
-    left, right = x0 + s * 0.27, x0 + s * 0.73
-    bracket = QPainterPath()
-    bracket.moveTo(left + arm, top)
-    bracket.lineTo(left, top)
-    bracket.lineTo(left, bottom)
-    bracket.lineTo(left + arm, bottom)
-    bracket.moveTo(right - arm, top)
-    bracket.lineTo(right, top)
-    bracket.lineTo(right, bottom)
-    bracket.lineTo(right - arm, bottom)
-    painter.drawPath(bracket)
-    # Dos entradas de la diagonal: la «identidad» del logotipo.
-    painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor(COLOR_BG_BASE))
-    dot = s * 0.085
-    for cx, cy in ((0.42, 0.40), (0.58, 0.60)):
-        painter.drawEllipse(QRectF(x0 + s * cx - dot, y0 + s * cy - dot, dot * 2, dot * 2))
-
-
 def brand_icon() -> "QIcon":
     """Icono de la ventana y de la barra de tareas: el mismo logotipo, en varios tamaños."""
     icon = QIcon()
@@ -283,6 +268,14 @@ def brand_icon() -> "QIcon":
         painter.end()
         icon.addPixmap(pixmap)
     return icon
+
+
+def wordmark_html() -> str:
+    """«Pretty[Calc]» como en el logotipo: Inter y, entre corchetes, Fira Code."""
+    return (
+        f"<span style='font-family:{FONT_FAMILY_SANS}; font-weight:600; color:{COLOR_TEXT_PRIMARY};'>Pretty</span>"
+        f"<span style='font-family:{FONT_FAMILY_MONO}; font-weight:700; color:{COLOR_INTERACTIVE_IDLE};'>[Calc]</span>"
+    )
 
 
 class ModularNavigationBar(QFrame):
@@ -320,17 +313,17 @@ class ModularNavigationBar(QFrame):
         brand_row = QHBoxLayout(brand)
         brand_row.setContentsMargins(10, 0, 6, 0)
         brand_row.setSpacing(12)
-        self.brand_mark = BrandMark(34)
+        self.brand_mark = BrandMark(40)
         brand_row.addWidget(self.brand_mark, 0, Qt.AlignVCenter)
         self._brand_text = QWidget()
         text_box = QVBoxLayout(self._brand_text)
         text_box.setContentsMargins(0, 0, 0, 0)
         text_box.setSpacing(0)
-        self.title_label = QLabel("PrettyCalc")
+        self.title_label = QLabel(wordmark_html())
         self.title_label.setObjectName("appTitle")
-        self.title_label.setStyleSheet(
-            f"font-size: 19px; font-weight: 700; color: {COLOR_TEXT_PRIMARY}; letter-spacing: 0.01em;"
-        )
+        self.title_label.setTextFormat(Qt.RichText)
+        self.title_label.setAccessibleName("PrettyCalc")
+        self.title_label.setStyleSheet("font-size: 19px; letter-spacing: -0.01em; background: transparent;")
         caption = QLabel("Álgebra lineal")
         caption.setStyleSheet(f"font-size: 12px; color: {COLOR_TEXT_MUTED};")
         text_box.addWidget(self.title_label)

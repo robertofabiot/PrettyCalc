@@ -433,3 +433,17 @@ def test_window_has_the_brand_icon(qtbot):
     icon = window.windowIcon()
     assert not icon.isNull()
     assert any(size.width() >= 64 for size in icon.availableSizes())
+
+
+def test_logo_is_bundled_and_valid():
+    """El logotipo vive en el paquete (para el wheel) y QtSvg lo puede dibujar."""
+    from pathlib import Path
+
+    from PySide6.QtSvg import QSvgRenderer
+
+    from prettycalc.ui.navigation_bar import LOGO_MARK_PATH
+
+    assert LOGO_MARK_PATH.is_file()
+    assert QSvgRenderer(str(LOGO_MARK_PATH)).isValid()
+    full = Path(__file__).resolve().parents[2] / "Docs" / "logo.svg"
+    assert QSvgRenderer(str(full)).isValid()
