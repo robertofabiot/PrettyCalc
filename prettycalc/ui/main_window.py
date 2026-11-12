@@ -28,6 +28,7 @@ from prettycalc.ui.modules.determinants_view import DeterminantsView
 from prettycalc.ui.modules.lu_factorization_view import LUFactorizationView
 from prettycalc.ui.modules.linear_transformations_view import LinearTransformationsView
 from prettycalc.ui.modules.vector_spaces_view import VectorSpacesView
+from prettycalc.ui.modules.numerical_methods_view import NumericalMethodsView
 from prettycalc.ui.navigation_bar import ModularNavigationBar
 from prettycalc.ui.platform_setup import configure_high_dpi, prepare_application
 from prettycalc.ui.preferences_dialog import (
@@ -54,6 +55,7 @@ _MODULE_SUBTITLES = (
     "Factorización LU  ·  A = LU, Ly = b y Ux = y",
     "Transformaciones Lineales  ·  T(v) = A·v, nu T, im T y rango",
     "Espacios Vectoriales  ·  Conjuntos Generadores, Bases y Dimensión",
+    "Métodos Numéricos  ·  Bisección, Graficador, Posicional y Errores",
 )
 
 
@@ -143,6 +145,8 @@ class MainWindow(QMainWindow):
         self.module_stack.addWidget(self.linear_transformations_view)
         self.vector_spaces_view = VectorSpacesView()
         self.module_stack.addWidget(self.vector_spaces_view)
+        self.numerical_methods_view = NumericalMethodsView()
+        self.module_stack.addWidget(self.numerical_methods_view)
         main_layout.addWidget(self.module_stack, stretch=1)
         self.determinants_view.inverseExported.connect(self._send_inverse_to_matrices)
 
@@ -152,7 +156,7 @@ class MainWindow(QMainWindow):
         self.matrix_operations_view.receive_inverse(matrix)
 
     def _setup_shortcuts(self) -> None:
-        for index in range(8):  # Ctrl+1 … Ctrl+8 (incluyendo Espacios Vectoriales)
+        for index in range(9):  # Ctrl+1 … Ctrl+9 (incluyendo Métodos Numéricos)
             action = QAction(self)
             action.setShortcut(QKeySequence(f"Ctrl+{index + 1}"))
             action.triggered.connect(lambda _checked=False, i=index: self.set_module(i))
