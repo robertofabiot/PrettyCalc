@@ -1,17 +1,20 @@
 """Métodos Numéricos — Lógica pura del módulo 9 de PrettyCalc.
 
-Asignatura: Álgebra Lineal / Métodos Numéricos, Universidad Americana (UAM).
-Autores / Grupo: Grupo 4.
 
-Contenido:
-  A. Bisección: raíces de f(x) con historial iterativo y contraste contra SciPy.
-  B. Graficador: arrays NumPy X/Y para f(x) con manejo de discontinuidades.
-  C. Notación Posicional: descomposición de enteros en base 10 y base 2.
-  D. Errores Numéricos: propagación de error y cálculo de error absoluto/relativo.
+RESUMEN — qué hace este archivo (lógica pura, devuelve dataclasses):
+  A. Bisección: busca raíces de f(x) y devuelve el historial iterativo
+     (a, b, xr, f(·), Eβ, εₐ), iteraciones teóricas y contraste con SciPy.
+  B. Graficador: genera arrays NumPy (X, Y) de ≥1000 puntos; pone NaN en
+     asíntotas, infinitos y valores fuera del dominio real.
+  C. Notación Posicional: descompone un entero en base 10 y base 2.
+  D. Errores Numéricos: propagación de error para f(x) = sin(x) + x² y
+     error absoluto / relativo / porcentual.
 
-Restricciones:
-  - PROHIBIDO usar eval() de Python. Parseo vía sympy.sympify + lambdify.
-  - Sin importaciones de prettycalc.ui.
+RESTRICCIONES:
+  - PROHIBIDO eval(): las funciones se parsean con sympy (parse_expr) y se
+    convierten con lambdify usando solo funciones permitidas (sin, cos, exp...).
+  - Sin importaciones de prettycalc.ui (separación estricta core/ui).
+  - Validaciones: a < b, E > 0, max_iter ≥ 1 y cambio de signo f(a)·f(b) < 0.
 """
 
 from __future__ import annotations

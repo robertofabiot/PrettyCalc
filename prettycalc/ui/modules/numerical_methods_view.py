@@ -1,13 +1,18 @@
 """Módulo 9: Métodos Numéricos — vista PySide6.
 
-Asignatura: Álgebra Lineal / Métodos Numéricos, Universidad Americana (UAM).
-Autores / Grupo: Grupo 4.
 
-Pestañas:
-  1. Bisección         — raíces de f(x) = 0 con historial iterativo.
-  2. Graficador        — visualización inline de f(x) con matplotlib.
-  3. Notación Posicional — descomposición de enteros en base 10 y base 2.
-  4. Errores Numéricos  — propagación de error y error abs/rel/porcentual.
+
+RESUMEN — qué hace este archivo (solo interfaz; QTabWidget de 4 pestañas):
+  1. Bisección           — captura f(x), a, b, E, max_iter; llena la tabla
+                           de iteraciones y muestra teórico vs SciPy.
+  2. Graficador          — grafica f(x) dentro de la app (matplotlib).
+  3. Notación Posicional — muestra la descomposición en base 10 y base 2.
+  4. Errores Numéricos   — teoría, propagación de error y error abs/rel/%.
+
+RESTRICCIONES:
+  - No contiene lógica matemática: toda ella vive en core/numerical_methods.py.
+  - No usa eval(); el texto de f(x) se entrega al core, que lo parsea con sympy.
+  - Solo formatea y presenta los resultados (p. ej. Eβ y εₐ con 6 decimales).
 """
 
 from __future__ import annotations
