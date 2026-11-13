@@ -237,6 +237,14 @@ class _BisectionTab(QWidget):
         splitter.setSizes([360, 700])
         root.addWidget(splitter, stretch=1)
 
+    @staticmethod
+    def _format_ea(ea: str) -> str:
+        """Muestra εₐ como decimal fijo (6 decimales); respeta «—» y «No definido»."""
+        try:
+            return f"{float(ea):.6f}"
+        except ValueError:
+            return ea
+
     def _calculate(self) -> None:
         # Leer parámetros
         fx_str = self._fx_edit.text().strip()
@@ -273,8 +281,8 @@ class _BisectionTab(QWidget):
                 f"{row.a:.8g}", f"{row.b:.8g}",
                 f"{row.xr:.10g}",
                 f"{row.fa:.6g}", f"{row.fb:.6g}", f"{row.fxr:.6g}",
-                f"{row.eb:.6e}",
-                row.ea,
+                f"{row.eb:.6f}",
+                self._format_ea(row.ea),
             ]
             for c, v in enumerate(vals):
                 item = QTableWidgetItem(v)
