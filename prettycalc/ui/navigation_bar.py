@@ -57,11 +57,11 @@ MODULE_TABS: Sequence[Tuple[str, str]] = (
     ("LU", "Factorización LU"),
     ("T(v)", "Transformaciones Lineales"),
     ("EV", "Espacios Vectoriales"),
+    ("Num", "Métodos Numéricos"),
 )
 
-
-#: Rótulos cortos: se muestran debajo de la marca en el riel plegado.
-SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU", "Transform.", "Espacios")
+#: Rótulos cortos para ventanas angostas (el rótulo completo queda en el tooltip).
+SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU", "Transform.", "Espacios", "Numéricos")
 
 #: Ancho de la barra desplegada y del riel plegado (px).
 EXPANDED_WIDTH = 276
