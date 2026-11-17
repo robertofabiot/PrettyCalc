@@ -9,9 +9,10 @@ from __future__ import annotations
 
 try:
     from PySide6.QtWidgets import QFrame, QLayout, QScrollArea, QSizePolicy, QWidget
-    from PySide6.QtCore import QEvent, QTimer, Qt
+    from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 except ImportError:
     QScrollArea = object  # type: ignore
+    QObject = object  # type: ignore
     QWidget = object  # type: ignore
     QEvent = None  # type: ignore
 
@@ -88,3 +89,44 @@ class ModuleScroll(QScrollArea):
 def make_module_scroll(content: QWidget) -> ModuleScroll:
     """Envuelve el contenido de un módulo. Devuelve el área que se desplaza."""
     return ModuleScroll(content)
+
+
+class _ContentWidthTracker(QObject):
+    """Mantiene el ancho mínimo de un panel desplazable igual al que pide su contenido."""
+
+    def __init__(self, scroll: QScrollArea, extra: int) -> None:
+        super().__init__(scroll)
+        self._scroll = scroll
+        self._extra = extra
+        content = scroll.widget()
+        if content is not None:
+            content.installEventFilter(self)
+        self.sync()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if event.type() in (QEvent.Type.LayoutRequest, QEvent.Type.Show):
+            QTimer.singleShot(0, self, self.sync)
+        return False
+
+    def sync(self) -> None:
+        try:
+            content = self._scroll.widget()
+        except RuntimeError:
+            return
+        if content is None:
+            return
+        need = content.minimumSizeHint().width() + self._extra
+        if need != self._scroll.minimumWidth():
+            self._scroll.setMinimumWidth(need)
+
+
+def track_content_width(scroll: QScrollArea, extra: int = 18) -> None:
+    """El panel nunca queda más angosto que su contenido.
+
+    Un ``QScrollArea`` dentro de un ``QSplitter`` se encogía por debajo de lo
+    que su tarjeta necesitaba (por ejemplo, al cargar una matriz 3×3) y
+    aparecía un desplazamiento horizontal dentro del panel. Con el mínimo al
+    día, el divisor le quita el ancho a la columna flexible (el procedimiento).
+    ``extra`` reserva el ancho de la barra vertical.
+    """
+    _ContentWidthTracker(scroll, extra)

@@ -34,10 +34,9 @@ except ImportError:
     QWidget = object  # type: ignore
 
 from prettycalc.core.classifier import classify_system
-from prettycalc.core.cramer import format_cramer_component, solve_cramer
+from prettycalc.core.cramer import solve_cramer
 from prettycalc.core.elimination import gauss_jordan_elimination
 from prettycalc.core.matrix_inversion import NonSquareMatrixError, SingularMatrixError
-from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
 from prettycalc.ui.feedback import busy, show_toast
@@ -46,7 +45,8 @@ from prettycalc.ui.modules.applied_models_panel import AppliedModelsPanel
 from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.stepper_carousel import ALERT_SYSTEM, AlgorithmStepperCarousel
 from prettycalc.ui.results_dashboard import ResultsDashboardCard
-from prettycalc.ui.module_scroll import make_module_scroll
+from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
+from prettycalc.ui.responsive import StackingSplitterHost
 from prettycalc.ui.theme import (
     apply_message_box_theme,
     COLOR_ACCENT_WARNING,
@@ -247,7 +247,7 @@ class LinearSystemsView(QWidget):
         left_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         left_scroll.setWidget(left_pane)
         left_pane.setAutoFillBackground(False)
-        left_scroll.setMinimumWidth(left_pane.minimumSizeHint().width() + 18)
+        track_content_width(left_scroll)
         body_splitter.addWidget(left_scroll)
 
         center_pane = QWidget()
@@ -275,13 +275,15 @@ class LinearSystemsView(QWidget):
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         right_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         right_scroll.setWidget(self.dashboard_card)
+        track_content_width(right_scroll)
         body_splitter.addWidget(right_scroll)
 
         body_splitter.setSizes([400, 520, 390])
         body_splitter.setStretchFactor(0, 2)
         body_splitter.setStretchFactor(1, 4)
         body_splitter.setStretchFactor(2, 2)
-        main_layout.addWidget(body_splitter, stretch=1)
+        self.body_host = StackingSplitterHost(body_splitter)
+        main_layout.addWidget(self.body_host, stretch=1)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(make_module_scroll(content))
@@ -494,25 +496,7 @@ class LinearSystemsView(QWidget):
             )
             return
 
-        tracer = StepTracer()
-        tracer.record_initial(
-            coefficients,
-            description=(
-                f"Matriz de coeficientes A. det(A) = {format_scalar(result.det_A)}. "
-                "Como el determinante no es cero, existe una única solución."
-            ),
-            latex_title=r"\det(A)",
-        )
-        for index, replaced, column_det in result.column_determinants:
-            tracer.record_step(
-                matrix=replaced,
-                latex_formula=rf"\det(A_{{{index + 1}}}(b))",
-                heuristic_text=format_cramer_component(
-                    index, column_det, result.det_A, result.solution[index]
-                ),
-                highlight_cells=tuple((row, index) for row in range(replaced.rows)),
-            )
-        self.stepper_carousel.set_steps(tracer.get_steps())
+        self.stepper_carousel.set_steps(result.tracer.get_steps())
         verifications = SolutionVerifier.verify(
             augmented, result.solution, split_col=split_col
         )

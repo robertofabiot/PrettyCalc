@@ -169,6 +169,22 @@ def _card(content_layout: QVBoxLayout) -> QFrame:
     return card
 
 
+def _operand_caption(text: str) -> QLabel:
+    """Rótulo pequeño sobre cada operando (A, v)."""
+    lbl = QLabel(text)
+    lbl.setAlignment(Qt.AlignCenter)
+    lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px; font-weight: 600;")
+    return lbl
+
+
+def _action_row(primary: QPushButton) -> QHBoxLayout:
+    """Acción principal alineada a la derecha, con su ancho natural."""
+    row = QHBoxLayout()
+    row.addStretch(1)
+    row.addWidget(primary)
+    return row
+
+
 # ---------------------------------------------------------------------------
 # Panel de resultados de T(v)
 # ---------------------------------------------------------------------------
@@ -418,29 +434,35 @@ class LinearTransformationsView(QWidget):
         self.reset_btn.setCursor(Qt.PointingHandCursor)
         self.reset_btn.clicked.connect(self.reset)
 
-        self.ex1_btn = QPushButton("Ejemplo 1")
+        examples_caption = QLabel("Ejemplos")
+        examples_caption.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px; font-weight: 600;")
+
+        self.ex1_btn = QPushButton("ℝ³ → ℝ³  ·  núcleo no trivial")
         self.ex1_btn.setObjectName("secondaryAction")
         self.ex1_btn.setToolTip(_EXAMPLE1_LABEL)
         self.ex1_btn.setCursor(Qt.PointingHandCursor)
         self.ex1_btn.clicked.connect(self.load_example_1)
 
-        self.ex2_btn = QPushButton("Ejemplo 2")
+        self.ex2_btn = QPushButton("ℝ⁴ → ℝ³  ·  rectangular")
         self.ex2_btn.setObjectName("secondaryAction")
         self.ex2_btn.setToolTip(_EXAMPLE2_LABEL)
         self.ex2_btn.setCursor(Qt.PointingHandCursor)
         self.ex2_btn.clicked.connect(self.load_example_2)
 
-        self.ex3_btn = QPushButton("Ejemplo 3")
+        self.ex3_btn = QPushButton("ℝ² → ℝ³  ·  inyectiva")
         self.ex3_btn.setObjectName("secondaryAction")
         self.ex3_btn.setToolTip(_EXAMPLE3_LABEL)
         self.ex3_btn.setCursor(Qt.PointingHandCursor)
         self.ex3_btn.clicked.connect(self.load_example_3)
 
-        controls_row.addWidget(self.reset_btn)
-        controls_row.addStretch(1)
+        # Mismo patrón que los demás módulos: ejemplos a la izquierda con su
+        # rótulo descriptivo y el reinicio a la derecha.
+        controls_row.addWidget(examples_caption)
         controls_row.addWidget(self.ex1_btn)
         controls_row.addWidget(self.ex2_btn)
         controls_row.addWidget(self.ex3_btn)
+        controls_row.addStretch(1)
+        controls_row.addWidget(self.reset_btn)
         root.addLayout(controls_row)
 
         # ── Pestañas ────────────────────────────────────────────────────
@@ -479,15 +501,14 @@ class LinearTransformationsView(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(12)
 
-        # Panel izquierdo: entradas A y v
-        left = QWidget()
-        left.setMaximumWidth(540)
-        left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(0, 0, 0, 0)
+        # Panel izquierdo: entradas A y v, lado a lado como en el papel (A · v)
+        left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(16, 14, 16, 14)
         left_layout.setSpacing(10)
+        left = _card(left_layout)
+        left.setMaximumWidth(560)
 
-        # Controles de tamaño de A
-        left_layout.addWidget(_section_title("Matriz de transformación  A  (m × n)"))
+        left_layout.addWidget(_section_title("Evaluar  T(v) = A · v"))
         self.grid_A = DynamicMatrixGrid(
             initial_rows=3,
             initial_cols=3,
@@ -505,9 +526,16 @@ class LinearTransformationsView(QWidget):
         )
         self.size_control_tv.sizeChanged.connect(self._sync_v_size)
         left_layout.addWidget(self.size_control_tv)
-        left_layout.addWidget(self.grid_A)
 
-        left_layout.addWidget(_section_title("Vector de entrada  v  (n × 1)"))
+        operands = QHBoxLayout()
+        operands.setSpacing(10)
+        a_box = QVBoxLayout()
+        a_box.addWidget(_operand_caption("Matriz  A  (m × n)"))
+        a_box.addWidget(self.grid_A, 1)
+        operands.addLayout(a_box, 3)
+        dot = QLabel("·")
+        dot.setStyleSheet(f"font-size: 28px; font-weight: 700; color: {COLOR_INTERACTIVE_IDLE}; padding: 0 4px;")
+        operands.addWidget(dot, 0, Qt.AlignCenter)
         self.grid_v = DynamicMatrixGrid(
             initial_rows=3,
             initial_cols=1,
@@ -516,20 +544,23 @@ class LinearTransformationsView(QWidget):
             col_expandable=False,
             show_headers=False,
         )
-        left_layout.addWidget(self.grid_v)
+        v_box = QVBoxLayout()
+        v_box.addWidget(_operand_caption("Vector  v"))
+        v_box.addWidget(self.grid_v, 1)
+        operands.addLayout(v_box, 1)
+        left_layout.addLayout(operands, 1)
 
         self.compute_tv_btn = QPushButton("Calcular  T(v)")
         self.compute_tv_btn.setObjectName("primaryAction")
         self.compute_tv_btn.setToolTip("Calcula T(v) = A · v  (Ctrl+Intro)")
         self.compute_tv_btn.setCursor(Qt.PointingHandCursor)
         self.compute_tv_btn.clicked.connect(self.compute_tv)
-        left_layout.addWidget(self.compute_tv_btn)
-        left_layout.addStretch(1)
+        left_layout.addLayout(_action_row(self.compute_tv_btn))
 
         # Panel derecho: resultado T(v)
         self._tv_result = _TVResultPanel()
 
-        layout.addWidget(left)
+        layout.addWidget(left, 0, Qt.AlignTop)
         layout.addWidget(self._tv_result, stretch=1)
 
     # ── Pestaña 2: Propiedades ───────────────────────────────────────────
@@ -540,11 +571,11 @@ class LinearTransformationsView(QWidget):
         layout.setSpacing(12)
 
         # Panel izquierdo: entrada A
-        left = QWidget()
-        left.setMaximumWidth(480)
-        left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(16, 14, 16, 14)
         left_layout.setSpacing(10)
+        left = _card(left_layout)
+        left.setMaximumWidth(480)
 
         left_layout.addWidget(_section_title("Matriz de transformación  A  (m × n)"))
         self.grid_props_A = DynamicMatrixGrid(
@@ -570,8 +601,8 @@ class LinearTransformationsView(QWidget):
         self.compute_props_btn.setToolTip("Aplica Gauss-Jordan y determina las propiedades de T  (Ctrl+Intro)")
         self.compute_props_btn.setCursor(Qt.PointingHandCursor)
         self.compute_props_btn.clicked.connect(self.compute_properties)
-        left_layout.addWidget(self.compute_props_btn)
         left_layout.addStretch(1)
+        left_layout.addLayout(_action_row(self.compute_props_btn))
 
         # Panel derecho: propiedades + carrusel
         right = QWidget()
@@ -598,7 +629,7 @@ class LinearTransformationsView(QWidget):
         right_layout.addWidget(self.stepper)
         right_layout.addStretch(1)
 
-        layout.addWidget(left)
+        layout.addWidget(left, 0, Qt.AlignTop)
         layout.addWidget(right, stretch=1)
 
     # ------------------------------------------------------------------

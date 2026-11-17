@@ -87,6 +87,15 @@ def parse_scalar(value: Any) -> Fraction:
     raise TypeError(f"Tipo de dato no soportado para escalar: {type(value).__name__}")
 
 
+_SUBSCRIPT_DIGITS = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+
+
+def subscript(*indices: int) -> str:
+    """Subíndice Unicode de libro: ``subscript(1, 2)`` → ``₁₂`` (con coma si algún índice ≥ 10)."""
+    joiner = "," if any(index >= 10 for index in indices) else ""
+    return joiner.join(str(index) for index in indices).translate(_SUBSCRIPT_DIGITS)
+
+
 def format_scalar(val: Fraction, mode: str = "fraction") -> str:
     """Formatea un escalar exacto según el modo solicitado.
 

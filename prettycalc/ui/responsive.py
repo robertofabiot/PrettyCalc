@@ -11,8 +11,8 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 try:
-    from PySide6.QtWidgets import QBoxLayout, QLabel, QLayout, QVBoxLayout, QWidget
-    from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+    from PySide6.QtWidgets import QBoxLayout, QLabel, QLayout, QSplitter, QVBoxLayout, QWidget
+    from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer, Signal
 except ImportError:  # pragma: no cover
     QWidget = object  # type: ignore
     QLayout = object  # type: ignore
@@ -58,6 +58,116 @@ class ResponsiveRow(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         self.set_vertical(self.width() < self._breakpoint)
+
+
+class StackingSplitterHost(QWidget):
+    """Divisor horizontal cuyo último panel baja debajo de los demás si no cabe.
+
+    Con la barra lateral y en ventanas de 1080 a 1300 px, las tres columnas
+    de Sistemas, Determinantes o LU (entrada · procedimiento · resultados)
+    pedían más ancho del que había y aparecía un desplazamiento horizontal.
+    Cuando la suma de los mínimos de los paneles supera el ancho disponible,
+    el último panel pasa a ocupar todo el ancho debajo del divisor; al volver
+    a caber (con un margen para no oscilar) regresa a su columna.
+    """
+
+    stackedChanged = Signal(bool)
+
+    #: Margen extra antes de devolver el panel a su columna (evita oscilar).
+    HYSTERESIS = 24
+
+    def __init__(
+        self,
+        splitter: "QSplitter",
+        *,
+        below_min_height: int = 420,
+        spacing: int = 12,
+        parent: Optional[QWidget] = None,
+    ) -> None:
+        super().__init__(parent)
+        self.splitter = splitter
+        self._below_min_height = below_min_height
+        self._moved: Optional[QWidget] = None
+        self._moved_min_height = 0
+        self._last_sizes: List[int] = []
+        self._pending = False
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(spacing)
+        layout.addWidget(splitter, 1)
+        self._below = QWidget()
+        below_layout = QVBoxLayout(self._below)
+        below_layout.setContentsMargins(0, 0, 0, 0)
+        self._below.setVisible(False)
+        layout.addWidget(self._below)
+        # Un panel que crece (p. ej. una matriz más grande) también reacomoda.
+        splitter.installEventFilter(self)
+
+    def is_stacked(self) -> bool:
+        return self._moved is not None
+
+    @staticmethod
+    def _pane_min(widget: QWidget) -> int:
+        return max(widget.minimumWidth(), widget.minimumSizeHint().width())
+
+    def _needed(self, extra: Optional[QWidget] = None) -> int:
+        panes = [self.splitter.widget(i) for i in range(self.splitter.count())]
+        if extra is not None:
+            panes.append(extra)
+        handles = self.splitter.handleWidth() * max(0, len(panes) - 1)
+        return sum(self._pane_min(pane) for pane in panes) + handles
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """Mínimo de la versión apilada.
+
+        Si el host pidiera el mínimo de las tres columnas, el layout padre lo
+        estiraría hasta ahí y nunca «vería» que le falta ancho: el
+        desplazamiento horizontal aparecería afuera, en el área del módulo.
+        """
+        hint = super().minimumSizeHint()
+        count = self.splitter.count()
+        if self._moved is not None or count < 3:
+            return hint
+        panes = [self.splitter.widget(i) for i in range(count)]
+        columns = sum(self._pane_min(p) for p in panes[:-1]) + self.splitter.handleWidth() * (count - 2)
+        return QSize(max(columns, self._pane_min(panes[-1])), hint.height())
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        if watched is self.splitter and event.type() == QEvent.Type.LayoutRequest:
+            self._schedule()
+        return False
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._schedule()
+
+    def _schedule(self) -> None:
+        if not self._pending:
+            self._pending = True
+            QTimer.singleShot(0, self, self._reflow)
+
+    def _reflow(self) -> None:
+        self._pending = False
+        width = self.width()
+        if self._moved is None:
+            if self.splitter.count() >= 3 and width < self._needed():
+                self._last_sizes = self.splitter.sizes()
+                pane = self.splitter.widget(self.splitter.count() - 1)
+                self._moved = pane
+                self._moved_min_height = pane.minimumHeight()
+                self._below.layout().addWidget(pane)
+                pane.setMinimumHeight(max(self._moved_min_height, self._below_min_height))
+                self._below.setVisible(True)
+                self.stackedChanged.emit(True)
+        elif width >= self._needed(self._moved) + self.HYSTERESIS:
+            pane = self._moved
+            self._moved = None
+            pane.setMinimumHeight(self._moved_min_height)
+            self.splitter.addWidget(pane)
+            self._below.setVisible(False)
+            if len(self._last_sizes) == self.splitter.count():
+                self.splitter.setSizes(self._last_sizes)
+            self.stackedChanged.emit(False)
 
 
 class CurrentPageStack(QWidget):

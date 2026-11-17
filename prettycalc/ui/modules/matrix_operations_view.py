@@ -24,6 +24,7 @@ Sprint 10 (auditoría UI/UX, Módulo 2):
 from __future__ import annotations
 
 import html
+import re
 from typing import Any, List, Optional, Sequence, Tuple
 
 try:
@@ -53,12 +54,13 @@ from prettycalc.core.matrix_inversion import (
 )
 from prettycalc.core.matrix_ops import (
     MultiplicationStepDetail,
-    matrix_add,
     matrix_multiply,
     matrix_multiply_with_details,
-    matrix_scale,
-    matrix_sub,
     matrix_transpose,
+    trace_matrix_product,
+    trace_matrix_scale,
+    trace_matrix_sum,
+    trace_matrix_transpose,
 )
 from prettycalc.core.matrix_properties import (
     PropertyCheck,
@@ -85,6 +87,7 @@ from prettycalc.ui.theme import (
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     FONT_FAMILY_MONO,
+    FONT_FAMILY_SANS,
     apply_message_box_theme,
     apply_widget_class,
     badge_style,
@@ -128,6 +131,19 @@ def _checks_to_html(checks: Sequence[PropertyCheck]) -> str:
             f'{marks[check.status]}&nbsp;&nbsp;{text}</div>'
         )
     return "".join(rows)
+
+
+def _sub(*indices: int) -> str:
+    """Subíndice de libro: A₁₂ se escribe A<sub>1,2</sub> para no confundir 1,12 con 11,2."""
+    return f"<sub>{','.join(str(index) for index in indices)}</sub>"
+
+
+_ASCII_SUBSCRIPT = re.compile(r"_([0-9A-Za-z]+(?:,[0-9A-Za-z]+)?)")
+
+
+def _inspector_formula_html(formula: str) -> str:
+    """``C_1,2 = Σ_k A_1k · B_k2 = …`` en notación de libro (subíndices reales)."""
+    return _ASCII_SUBSCRIPT.sub(r"<sub>\1</sub>", html.escape(formula))
 
 
 def _sample_button(text: str, tooltip: str, slot) -> QPushButton:
@@ -224,6 +240,7 @@ class MatrixOperationsView(QWidget):
         self.pages.addWidget(self._build_tmi_page())
         self.pages.addWidget(self._build_inverse_identities_page())
         root.addWidget(self.pages)
+        root.addWidget(self._build_ops_steps_card())
 
         root.addWidget(self._build_note_card(
             "Inspector de producto  Cᵢⱼ = Σ Aᵢₖ Bₖⱼ",
@@ -367,6 +384,40 @@ class MatrixOperationsView(QWidget):
         _layout.addStretch(1)
         return page
 
+    def _build_ops_steps_card(self) -> QFrame:
+        """Procedimiento de A ± B, A·B, k·A y Aᵀ (las demás páginas tienen su propio carrusel)."""
+        card = QFrame()
+        apply_widget_class(card, "elevated-card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 12, 14, 12)
+        heading = QLabel("Procedimiento")
+        heading.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {COLOR_TEXT_PRIMARY};")
+        layout.addWidget(heading)
+        self.ops_stepper = AlgorithmStepperCarousel(variable_headers=False)
+        self.ops_stepper.set_export_title("Álgebra matricial")
+        self.ops_stepper.set_empty_hint("Pulsa Calcular para ver el procedimiento entrada por entrada.")
+        self.ops_stepper.setMinimumHeight(380)
+        self.ops_stepper.stepChanged.connect(self._on_ops_step_changed)
+        layout.addWidget(self.ops_stepper)
+        self.ops_steps_card = card
+        return card
+
+    def _on_ops_step_changed(self, index: int) -> None:
+        """En A · B, cada paso cᵢⱼ resalta la fila i de A y la columna j de B (como el inspector)."""
+        if index < 2 or self._op != "mul" or self.pages.currentIndex() != PAGE_BINARY:
+            return
+        steps = self.ops_stepper.steps()
+        if index >= len(steps) or not steps[index].highlight_cells:
+            return
+        row, col = steps[index].highlight_cells[0]
+        self._on_result_cell_clicked(row, col)
+
+    def _sync_ops_steps_card(self) -> None:
+        if hasattr(self, "ops_steps_card"):
+            self.ops_steps_card.setVisible(
+                self.pages.currentIndex() in (PAGE_BINARY, PAGE_SCALAR, PAGE_TRANSPOSE)
+            )
+
     def _build_note_card(self, title: str, body: str, rich: bool, target: str) -> QFrame:
         """Tarjeta de texto. Guarda la etiqueta en el atributo `target`."""
         card = QFrame()
@@ -383,8 +434,10 @@ class MatrixOperationsView(QWidget):
         label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         if rich:
             label.setTextFormat(Qt.RichText)
+        # Texto de interfaz, no de código: las filas de comprobación fijan su
+        # propio tamaño grande y las fórmulas llegan ya con notación de libro.
         label.setStyleSheet(
-            f"color: {COLOR_TEXT_PRIMARY}; font-size: 22px; font-family: {FONT_FAMILY_MONO};"
+            f"color: {COLOR_TEXT_PRIMARY}; font-size: 17px; font-family: {FONT_FAMILY_SANS};"
         )
         layout.addWidget(label)
         setattr(self, target, label)
@@ -724,9 +777,11 @@ class MatrixOperationsView(QWidget):
         if button is not None:
             button.setChecked(True)
         self.pages.setCurrentIndex(index)
+        self._sync_ops_steps_card()
 
     def _on_mode_changed(self, index: int) -> None:
         self.pages.setCurrentIndex(index)
+        self._sync_ops_steps_card()
         self._clear_result()
         self._refresh_compatibility()
 
@@ -1046,7 +1101,9 @@ class MatrixOperationsView(QWidget):
         """Calcula k·A y comprueba (k·A)ᵀ = k·Aᵀ."""
         k = parse_scalar(self.scalar_edit.text())
         primary = self.grid_scalar.get_matrix()
-        result = matrix_scale(primary, k)
+        traced = trace_matrix_scale(primary, k)
+        result = traced.matrix
+        self.ops_stepper.set_steps(traced.tracer.get_steps())
         self.scalar_result_view.set_matrix(result, split_col=None, clickable=False, show_headers=False)
         self._result = result
         self._details = []
@@ -1063,19 +1120,23 @@ class MatrixOperationsView(QWidget):
         primary = self.grid_a.get_matrix()
         other = self.grid_b.get_matrix()
         if self._op == "add":
-            result = matrix_add(primary, other)
+            traced = trace_matrix_sum(primary, other)
+            result = traced.matrix
             self._details = []
             self.inspector_label.setText("Suma elemento a elemento: Cᵢⱼ = (A + B)ᵢⱼ = Aᵢⱼ + Bᵢⱼ.")
         elif self._op == "sub":
-            result = matrix_sub(primary, other)
+            traced = trace_matrix_sum(primary, other, subtract=True)
+            result = traced.matrix
             self._details = []
             self.inspector_label.setText("Resta elemento a elemento: Cᵢⱼ = (A − B)ᵢⱼ = Aᵢⱼ − Bᵢⱼ.")
         else:
+            traced = trace_matrix_product(primary, other)
             result, self._details = matrix_multiply_with_details(primary, other)
             self.inspector_label.setText(
                 "Producto matricial C = AB (A · B) calculado con tres bucles anidados. "
                 "Pulsa una celda de C = AB para inspeccionar Cᵢⱼ = (AB)ᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ."
             )
+        self.ops_stepper.set_steps(traced.tracer.get_steps())
         self._result = result
         self._set_inspected(None)
         self.result_view.set_matrix(result, split_col=None, clickable=self._op == "mul", show_headers=False)
@@ -1187,7 +1248,9 @@ class MatrixOperationsView(QWidget):
     def _compute_transpose(self) -> None:
         """Calcula Aᵀ, comprueba (Aᵀ)ᵀ = A y publica las propiedades estructurales."""
         primary = self.grid_transpose.get_matrix()
-        result = matrix_transpose(primary)
+        traced = trace_matrix_transpose(primary)
+        result = traced.matrix
+        self.ops_stepper.set_steps(traced.tracer.get_steps())
         double_result = matrix_transpose(result)
         self.transpose_result_view.set_matrix(result, split_col=None, clickable=False, show_headers=False)
         self.double_transpose_result_view.set_matrix(double_result, split_col=None, clickable=False, show_headers=False)
@@ -1319,15 +1382,19 @@ class MatrixOperationsView(QWidget):
             highlight_col=col,
         )
         self._set_inspected((row, col))
+        i, j = row + 1, col + 1
         terms = []
-        for k, (a_ik, b_kj, prod) in enumerate(detail.products):
+        for k, (a_ik, b_kj, prod) in enumerate(detail.products, start=1):
             terms.append(
-                f"(AB)_{row + 1}{col + 1} término {k + 1}: "
-                f"A_{row + 1}{k + 1}·B_{k + 1}{col + 1} = "
-                f"({format_scalar(a_ik)})·({format_scalar(b_kj)}) = {format_scalar(prod)}"
+                f"<tr><td style='color:{COLOR_TEXT_MUTED}; padding-right:14px;'>término {k}</td>"
+                f"<td>A{_sub(i, k)} · B{_sub(k, j)} = "
+                f"({format_scalar(a_ik)}) · ({format_scalar(b_kj)}) = <b>{format_scalar(prod)}</b></td></tr>"
             )
-        self.inspector_label.setTextFormat(Qt.PlainText)
-        self.inspector_label.setText(f"{detail.formula}\n\n" + "\n".join(terms))
+        self.inspector_label.setTextFormat(Qt.RichText)
+        self.inspector_label.setText(
+            f"<div style='font-size:19px; margin-bottom:8px;'>{_inspector_formula_html(detail.formula)}</div>"
+            f"<table cellspacing='0' cellpadding='2' style='font-size:16px;'>{''.join(terms)}</table>"
+        )
 
     def _clear_highlights(self) -> None:
         self.grid_a.clear_highlight()
@@ -1348,6 +1415,7 @@ class MatrixOperationsView(QWidget):
         self._update_result_title()
         self.dist_comparison_label.clear()
         self.dist_equals_lbl.setText("=")
+        self.ops_stepper.set_steps([])
         self.dist_stepper.set_steps([])
         self.reuse_inverse_btn.setEnabled(False)
         self.inverse_stepper.set_steps([])

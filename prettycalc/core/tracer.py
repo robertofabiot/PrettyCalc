@@ -104,6 +104,34 @@ class StepTracer:
         self._steps.append(step)
         return step
 
+    def extend(
+        self,
+        steps: List[CalculationStep],
+        *,
+        prefix: str = "",
+        include_initial: bool = False,
+    ) -> None:
+        """Inserta los pasos de otro procedimiento (un menor, A⁻¹, AB…).
+
+        ``prefix`` antecede al texto de cada paso para que se sepa a qué
+        sub-cálculo pertenece. El paso 0 del otro procedimiento se omite salvo
+        que ``include_initial`` sea verdadero.
+        """
+        for step in steps:
+            if step.step_number == 0 and not include_initial:
+                continue
+            self.record_step(
+                step.matrix,
+                latex_formula=step.latex_formula,
+                heuristic_text=f"{prefix}{step.heuristic_text}",
+                pivot_pos=step.pivot_pos,
+                split_col=step.split_col,
+                actor_row=step.actor_row,
+                affected_rows=step.affected_rows,
+                alert_rows=step.alert_rows,
+                highlight_cells=step.highlight_cells,
+            )
+
     def get_steps(self) -> List[CalculationStep]:
         """Retorna la lista inmutable/copia de pasos registrados."""
         return list(self._steps)

@@ -1,4 +1,8 @@
 pytest>=8.0.0
 pytest-cov>=4.1.0
 pytest-qt>=4.4.0
-PySide6>=6.6.0
+# PySide6 6.12.0 con Python < 3.12 resta una referencia a None en cada llamada
+# sin valor de retorno (setPixelSize, setText...) y el proceso aborta con
+# «none_dealloc». En 3.12+ None es inmortal y no ocurre.
+PySide6>=6.6.0,!=6.12.0; python_version < "3.12"
+PySide6>=6.6.0; python_version >= "3.12"

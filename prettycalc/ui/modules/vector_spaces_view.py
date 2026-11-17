@@ -399,6 +399,46 @@ class _SubspaceBasisPanel(QFrame):
                 w.deleteLater()
 
 
+def _example_button(text: str, tooltip: str, slot) -> QPushButton:
+    button = QPushButton(text)
+    button.setObjectName("secondaryAction")
+    button.setToolTip(tooltip)
+    button.setCursor(Qt.PointingHandCursor)
+    button.clicked.connect(slot)
+    return button
+
+
+def _examples_row(*buttons: QPushButton) -> QHBoxLayout:
+    row = QHBoxLayout()
+    row.setSpacing(8)
+    caption = QLabel("Ejemplos")
+    caption.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px; font-weight: 600;")
+    row.addWidget(caption)
+    for button in buttons:
+        row.addWidget(button)
+    row.addStretch(1)
+    return row
+
+
+def _reset_button(slot) -> QPushButton:
+    button = QPushButton("Reiniciar")
+    button.setObjectName("secondaryAction")
+    button.setToolTip("Limpia todas las entradas (ambas pestañas)")
+    button.setCursor(Qt.PointingHandCursor)
+    button.clicked.connect(slot)
+    return button
+
+
+def _action_row(secondary: QPushButton, primary: QPushButton) -> QHBoxLayout:
+    """Reiniciar y la acción principal a la derecha, como en los demás módulos."""
+    row = QHBoxLayout()
+    row.setSpacing(8)
+    row.addStretch(1)
+    row.addWidget(secondary)
+    row.addWidget(primary)
+    return row
+
+
 # ---------------------------------------------------------------------------
 # Vista principal del módulo
 # ---------------------------------------------------------------------------
@@ -435,50 +475,6 @@ class VectorSpacesView(QWidget):
         left_vbox = QVBoxLayout(left_container)
         left_vbox.setContentsMargins(0, 0, 0, 0)
         left_vbox.setSpacing(8)
-
-        # Barra de botones superiores
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(6)
-
-        self.reset_btn = QPushButton("Reiniciar")
-        self.reset_btn.setObjectName("secondaryAction")
-        self.reset_btn.setToolTip("Limpia todas las entradas")
-        self.reset_btn.setCursor(Qt.PointingHandCursor)
-        self.reset_btn.clicked.connect(self.reset)
-        btn_row.addWidget(self.reset_btn)
-        btn_row.addStretch(1)
-
-        # Botones de ejemplos — Generador
-        self.ex_gen1_btn = QPushButton("Ej Gen 1")
-        self.ex_gen1_btn.setObjectName("secondaryAction")
-        self.ex_gen1_btn.setToolTip(_EX1_GEN_LABEL)
-        self.ex_gen1_btn.setCursor(Qt.PointingHandCursor)
-        self.ex_gen1_btn.clicked.connect(self.load_example_gen1)
-        btn_row.addWidget(self.ex_gen1_btn)
-
-        self.ex_gen2_btn = QPushButton("Ej Gen 2")
-        self.ex_gen2_btn.setObjectName("secondaryAction")
-        self.ex_gen2_btn.setToolTip(_EX2_GEN_LABEL)
-        self.ex_gen2_btn.setCursor(Qt.PointingHandCursor)
-        self.ex_gen2_btn.clicked.connect(self.load_example_gen2)
-        btn_row.addWidget(self.ex_gen2_btn)
-
-        # Botones de ejemplos — Subespacio
-        self.ex_sub1_btn = QPushButton("Ej Base 1")
-        self.ex_sub1_btn.setObjectName("secondaryAction")
-        self.ex_sub1_btn.setToolTip(_EX1_SUB_LABEL)
-        self.ex_sub1_btn.setCursor(Qt.PointingHandCursor)
-        self.ex_sub1_btn.clicked.connect(self.load_example_sub1)
-        btn_row.addWidget(self.ex_sub1_btn)
-
-        self.ex_sub2_btn = QPushButton("Ej Base 2")
-        self.ex_sub2_btn.setObjectName("secondaryAction")
-        self.ex_sub2_btn.setToolTip(_EX2_SUB_LABEL)
-        self.ex_sub2_btn.setCursor(Qt.PointingHandCursor)
-        self.ex_sub2_btn.clicked.connect(self.load_example_sub2)
-        btn_row.addWidget(self.ex_sub2_btn)
-
-        left_vbox.addLayout(btn_row)
 
         # ── Pestañas ────────────────────────────────────────────────────
         self._tabs = QTabWidget()
@@ -580,12 +576,18 @@ class VectorSpacesView(QWidget):
         hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px;")
         layout.addWidget(hint)
 
-        self.compute_gen_btn = QPushButton("Calcular  —  ¿Genera ℝᵐ?")
+        # Ejemplos de esta pestaña, con un rótulo que dice qué muestran.
+        self.ex_gen1_btn = _example_button("Genera ℝ³", _EX1_GEN_LABEL, self.load_example_gen1)
+        self.ex_gen2_btn = _example_button("No genera ℝ³", _EX2_GEN_LABEL, self.load_example_gen2)
+        layout.addLayout(_examples_row(self.ex_gen1_btn, self.ex_gen2_btn))
+
+        self.reset_btn = _reset_button(self.reset)
+        self.compute_gen_btn = QPushButton("Comprobar si genera ℝᵐ")
         self.compute_gen_btn.setObjectName("primaryAction")
         self.compute_gen_btn.setToolTip("Aplica Gauss-Jordan y verifica si rango = m  (Ctrl+Intro)")
         self.compute_gen_btn.setCursor(Qt.PointingHandCursor)
         self.compute_gen_btn.clicked.connect(self.compute_generating_set)
-        layout.addWidget(self.compute_gen_btn)
+        layout.addLayout(_action_row(self.reset_btn, self.compute_gen_btn))
         layout.addStretch(1)
 
     # ── Pestaña 2: Base y Dimensión ─────────────────────────────────────
@@ -627,12 +629,17 @@ class VectorSpacesView(QWidget):
         hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 14px;")
         layout.addWidget(hint)
 
-        self.compute_sub_btn = QPushButton("Calcular  —  Base del Subespacio")
+        self.ex_sub1_btn = _example_button("Subespacio de ℝ⁴", _EX1_SUB_LABEL, self.load_example_sub1)
+        self.ex_sub2_btn = _example_button("Solo el vector 0", _EX2_SUB_LABEL, self.load_example_sub2)
+        layout.addLayout(_examples_row(self.ex_sub1_btn, self.ex_sub2_btn))
+
+        self.reset_sub_btn = _reset_button(self.reset)
+        self.compute_sub_btn = QPushButton("Calcular la base de Ker A")
         self.compute_sub_btn.setObjectName("primaryAction")
         self.compute_sub_btn.setToolTip("Aplica Gauss-Jordan y extrae la base de Ker(A)  (Ctrl+Intro)")
         self.compute_sub_btn.setCursor(Qt.PointingHandCursor)
         self.compute_sub_btn.clicked.connect(self.compute_subspace_basis)
-        layout.addWidget(self.compute_sub_btn)
+        layout.addLayout(_action_row(self.reset_sub_btn, self.compute_sub_btn))
         layout.addStretch(1)
 
     # ------------------------------------------------------------------
