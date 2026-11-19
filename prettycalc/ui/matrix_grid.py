@@ -255,8 +255,12 @@ class DynamicMatrixGrid(QFrame):
         row_expandable: bool = True,
         col_expandable: bool = True,
         show_hint: bool = True,
+        variable_headers: bool = False,
     ):
         super().__init__(parent)
+        # Sin columna b, las cabeceras numeran columnas (1, 2, …) salvo que la
+        # fila represente un vector de incógnitas (x₁, x₂, …), como x⁽⁰⁾.
+        self.variable_headers = variable_headers
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet("DynamicMatrixGrid { background: transparent; }")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -357,8 +361,8 @@ class DynamicMatrixGrid(QFrame):
 
         if self.show_headers:
             for c in range(total_cols):
-                if self.augmented:
-                    if c == self.num_vars:
+                if self.augmented or self.variable_headers:
+                    if self.augmented and c == self.num_vars:
                         lbl = QLabel("b")
                         lbl.setStyleSheet(
                             f"color: {COLOR_INTERACTIVE_IDLE}; font-style: italic; font-size: 15px; background: transparent;"
