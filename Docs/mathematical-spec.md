@@ -149,3 +149,34 @@ Cada elemento es una ecuación homogénea: átomos en los reactivos menos átomo
 
 ### 8.4. Redes de flujo
 Cada nodo conserva el flujo. En una calle de un solo sentido, \(x_i \ge 0\). Con una variable libre, esas desigualdades recortan un intervalo. En la red de Baltimore la libre es \(x_5\) y el intervalo es \([0, 500]\): \(x_4 = 500 - x_5\) no puede ser negativa, y el resto de las calles queda dentro de un rango cerrado. Con más de una variable libre se escribe la solución general y no se cierran las cotas por símplex.
+
+---
+
+## 9. Métodos iterativos: Jacobi y Gauss-Seidel
+
+Para \(A\) cuadrada de orden \(n\) con \(a_{ii} \neq 0\) se escribe \(A = D + L + U\): diagonal, parte estrictamente inferior y parte estrictamente superior. Cada ecuación \(i\) se usa para despejar \(x_i\):
+
+* **Jacobi:** \(x_i^{(k+1)} = \dfrac{b_i - \sum_{j \neq i} a_{ij} x_j^{(k)}}{a_{ii}}\). Todas las componentes nuevas salen de \(x^{(k)}\). Matricialmente, \(T_J = -D^{-1}(L + U)\) y \(c_J = D^{-1} b\).
+* **Gauss-Seidel:** \(x_i^{(k+1)} = \dfrac{b_i - \sum_{j < i} a_{ij} x_j^{(k+1)} - \sum_{j > i} a_{ij} x_j^{(k)}}{a_{ii}}\). Cada componente nueva se usa de inmediato. \(T_{GS} = -(D + L)^{-1} U\) y \(c_{GS} = (D + L)^{-1} b\).
+
+Ambos son \(x^{(k+1)} = T x^{(k)} + c\).
+
+### 9.1. Convergencia
+
+1. **Condición necesaria y suficiente:** la sucesión converge para todo \(x^{(0)}\) si y solo si \(\rho(T) < 1\). `iterative_methods.py` obtiene \(\det(\lambda I - T)\) en fracciones exactas (Faddeev-LeVerrier), quita las raíces repetidas con \(p / \gcd(p, p')\) y aproxima las raíces con Durand-Kerner en complejos.
+2. **Condiciones suficientes:** si \(A\) es estrictamente diagonal dominante por filas (\(|a_{ii}| > \sum_{j \neq i} |a_{ij}|\) en cada fila), convergen los dos métodos. Si \(A\) es simétrica definida positiva (todos sus menores principales positivos), converge Gauss-Seidel.
+3. Ninguno domina al otro: en \(\begin{bmatrix} 1 & 2 & -2 \\ 1 & 1 & 1 \\ 2 & 2 & 1 \end{bmatrix}\), \(\rho(T_J) = 0\) y \(\rho(T_{GS}) = 2\); en \(\begin{bmatrix} 2 & -1 & 1 \\ 2 & 2 & 2 \\ -1 & -1 & 2 \end{bmatrix}\), \(\rho(T_J) = \sqrt{5}/2\) y \(\rho(T_{GS}) = 1/2\).
+4. Si un \(a_{ii} = 0\), el método no se puede empezar (`ZeroDiagonalError`). `reorder_for_dominance` permuta las ecuaciones: si existe un orden estrictamente dominante es único (una fila solo puede ir a la columna \(j\) si \(2|a_{ij}|\) supera la suma de su fila); si no, elige el orden con diagonal sin ceros que más filas dominantes deja.
+
+### 9.2. Criterio de paro y estados
+
+* Absoluto: \(\|x^{(k)} - x^{(k-1)}\|_\infty < \varepsilon\). Relativo: \(\|x^{(k)} - x^{(k-1)}\|_\infty / \|x^{(k)}\|_\infty < \varepsilon\).
+* **Converge** si se cumple el criterio antes del máximo de iteraciones (de 1 a 200).
+* **Diverge** si \(\|x^{(k)}\|_\infty\) supera \(10^8\) veces la escala inicial, o si se agota el máximo con \(\rho(T) \ge 1\).
+* **Sin converger aún** si se agota el máximo con \(\rho(T) < 1\): converge, pero necesita más iteraciones.
+
+Los iterados se calculan con `Fraction`: el error que se ve es solo el del método, sin redondeo de punto flotante. El error real \(\|x^{(k)} - x^*\|_\infty\) se mide contra la solución exacta de Gauss-Jordan y el residuo es \(\|b - Ax^{(k)}\|_\infty\).
+
+### 9.3. Pasos registrados
+
+Sistema con la diagonal resaltada, criterio de dominancia fila por fila, despeje de cada \(x_i\) con \([T \mid c]\), polinomio característico y \(\rho(T)\), \(x^{(0)}\), una entrada por iteración (cada componente sustituida y \(\|\Delta x\|_\infty\) frente a \(\varepsilon\)) y la comparación final con \(x^*\).
