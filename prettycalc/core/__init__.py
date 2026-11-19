@@ -208,6 +208,22 @@ from prettycalc.core.vector_spaces import (
     subspace_summary,
 )
 
+from prettycalc.core.iterative_methods import (
+    ConvergenceAnalysis,
+    IterationStatus,
+    IterativeMethod,
+    IterativeResult,
+    MethodComparison,
+    StopCriterion,
+    ZeroDiagonalError,
+    analyze_convergence,
+    compare_methods,
+    gauss_seidel,
+    jacobi,
+    reorder_for_dominance,
+    solve_iterative,
+)
+
 __all__ = [
     "Matrix",
     "Vector",
@@ -375,5 +391,17 @@ __all__ = [
     "format_basis_vectors",
     "generating_summary",
     "subspace_summary",
+    "ConvergenceAnalysis",
+    "IterationStatus",
+    "IterativeMethod",
+    "IterativeResult",
+    "MethodComparison",
+    "StopCriterion",
+    "ZeroDiagonalError",
+    "analyze_convergence",
+    "compare_methods",
+    "gauss_seidel",
+    "jacobi",
+    "reorder_for_dominance",
+    "solve_iterative",
 ]
-
