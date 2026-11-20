@@ -392,7 +392,7 @@ class _PlotterTab(QWidget):
             self._draw_empty()
         else:
             lbl = QLabel(
-                "⚠ matplotlib no está instalado. Instálalo con: pip install matplotlib"
+                "matplotlib no está instalado. Instálalo con: pip install matplotlib"
             )
             lbl.setStyleSheet(f"color: {COLOR_FEEDBACK_ERROR}; font-size: 15px;")
             lbl.setAlignment(Qt.AlignCenter)
