@@ -73,6 +73,9 @@ SIGNATURE = 680
 STAGGER = 50
 #: Tope del escalonado completo: con muchos elementos el paso se acorta.
 STAGGER_TOTAL = 300
+#: Un ciclo de pulso repetido. 400 ms = 2.5 por segundo, bajo el límite
+#: de 3 destellos por segundo (WCAG 2.3.1).
+PULSE_CYCLE = 400
 
 #: Curvas: entrar, salir, desplazarse y viajar.
 CURVE_ENTER = "OutCubic"
