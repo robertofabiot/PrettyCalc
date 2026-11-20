@@ -51,6 +51,28 @@ def mostrar_teoremas_factorizacion() -> None:
     print(text_factorization())
 
 
+def mostrar_teoremas_iterativos() -> None:
+    """Muestra los teoremas y propiedades clave del Módulo 5 (Métodos Iterativos)."""
+    import importlib
+    try:
+        p8 = importlib.import_module("Programa 8_Grupo4")
+        p8.mostrar_teoremas_iterativos()
+    except Exception:
+        print("""
+==============================================================================
+TEOREMAS CLAVE — MÉTODOS ITERATIVOS (JACOBI Y GAUSS-SEIDEL)
+==============================================================================
+1. Descomposición A = D + L + U.
+2. Jacobi: x^(k+1) = T_J x^(k) + c_J con T_J = -D^(-1)(L+U).
+3. Gauss-Seidel: x^(k+1) = T_GS x^(k) + c_GS con T_GS = -(D+L)^(-1) U.
+4. Dominancia Diagonal Estricta (|a_ii| > sum_{j!=i} |a_ij|): Condición SUFICIENTE.
+5. Radio Espectral rho(T) < 1: Condición NECESARIA Y SUFICIENTE para convergencia.
+6. Matrices Simétricas Definidas Positivas: Gauss-Seidel siempre converge.
+7. Teorema de Stein-Rosenberg: Si a_ij <= 0 (i!=j) y a_ii > 0, GS converge más rápido.
+==============================================================================
+""")
+
+
 def mostrar_todos_los_teoremas() -> None:
     """Muestra el compendio completo de teoremas de la asignatura."""
     blocks = (
@@ -60,6 +82,7 @@ def mostrar_todos_los_teoremas() -> None:
         mostrar_teoremas_determinantes,
         mostrar_teoremas_aplicaciones,
         mostrar_teoremas_factorizacion,
+        mostrar_teoremas_iterativos,
     )
     for index, show in enumerate(blocks):
         show()

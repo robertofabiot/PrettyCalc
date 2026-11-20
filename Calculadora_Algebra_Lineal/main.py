@@ -31,12 +31,14 @@ try:
     from Calculadora_Algebra_Lineal.modulos.modulo_vectores import menu_vectores
     from Calculadora_Algebra_Lineal.modulos.modulo_matrices import menu_matrices
     from Calculadora_Algebra_Lineal.modulos.modulo_determinantes import menu_determinantes
+    from Calculadora_Algebra_Lineal.modulos.modulo_iterativos import menu_iterativos
     from Calculadora_Algebra_Lineal.teoremas.resumen_teoremas import mostrar_todos_los_teoremas
 except ImportError:
     from modulos.modulo_sistemas import menu_sistemas
     from modulos.modulo_vectores import menu_vectores
     from modulos.modulo_matrices import menu_matrices
     from modulos.modulo_determinantes import menu_determinantes
+    from modulos.modulo_iterativos import menu_iterativos
     from teoremas.resumen_teoremas import mostrar_todos_los_teoremas
 
 
@@ -64,11 +66,12 @@ def menu_principal() -> None:
         print("   2. [   v ∈ ℝⁿ  ] MÓDULO 2: Vectores e Independencia Lineal (L.I. / L.D.)")
         print("   3. [  [A] [B]  ] MÓDULO 3: Álgebra de Matrices e Inversa")
         print("   4. [  det(A)   ] MÓDULO 4: Determinantes y Propiedades")
-        print("   5. [ 📖 Teorema ] Ver Compendio Completo de Teoremas de la Asignatura")
+        print("   5. [ 🔄 T_J T_GS ] MÓDULO 5: Métodos Iterativos (Jacobi y Gauss-Seidel)")
+        print("   6. [ 📖 Teorema ] Ver Compendio Completo de Teoremas de la Asignatura")
         print("   0. Salir de la Calculadora")
         print("=" * 70)
 
-        opcion = input("Seleccione el módulo o acción (0-5): ").strip()
+        opcion = input("Seleccione el módulo o acción (0-6): ").strip()
 
         if opcion == "1":
             menu_sistemas()
@@ -79,6 +82,8 @@ def menu_principal() -> None:
         elif opcion == "4":
             menu_determinantes()
         elif opcion == "5":
+            menu_iterativos()
+        elif opcion == "6":
             mostrar_todos_los_teoremas()
             input("\nPresione ENTER para regresar al Menú Principal...")
         elif opcion == "0":
@@ -88,7 +93,7 @@ def menu_principal() -> None:
             print("=" * 70 + "\n")
             break
         else:
-            print("\n⚠️  Opción no válida. Por favor, seleccione un número entre 0 y 5.")
+            print("\n⚠️  Opción no válida. Por favor, seleccione un número entre 0 y 6.")
             input("Presione ENTER para continuar...")
 
 
