@@ -1177,3 +1177,52 @@ def reveals(badge_path: str, sections_path: Optional[str] = None):
         return wrapper
 
     return decorate
+
+
+# ---------------------------------------------------------------------------
+# Paneles que aparecen y páginas que cambian
+# ---------------------------------------------------------------------------
+
+
+class _RevealOnShow(QObject):
+    """Un panel que se muestra (``setVisible(True)``) entra con un fundido.
+
+    Solo reacciona a ``ShowToParent``: el panel mismo pasó de oculto a
+    visible. Mostrar la ventana o cambiar de módulo no lo dispara. El
+    layout ya es el final; al ocultarse, el panel desaparece sin más.
+    """
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.ShowToParent and isinstance(watched, QWidget):
+            window = watched.window()
+            if window is not None and window.isVisible():
+                defer(watched, lambda w=watched: fade_in(w, BASE))
+        return False
+
+
+_REVEAL_FILTER: Dict[str, object] = {}
+
+
+def fade_when_shown(*widgets: Optional["QWidget"]) -> None:
+    """Registra paneles que entran con un fundido cada vez que aparecen."""
+    app = QApplication.instance()
+    if app is None:
+        return
+    reveal = _REVEAL_FILTER.get("filter")
+    if reveal is None or not is_alive(reveal):
+        reveal = _RevealOnShow(app)
+        _REVEAL_FILTER["filter"] = reveal
+    for widget in widgets:
+        if widget is not None and is_alive(widget):
+            widget.installEventFilter(reveal)
+
+
+def fade_page_changes(tabs) -> None:
+    """Al cambiar de pestaña, el contenido nuevo entra con un fundido corto."""
+
+    def changed(_index: int) -> None:
+        page = tabs.currentWidget()
+        if page is not None:
+            defer(page, lambda: fade_in(page, FAST))
+
+    tabs.currentChanged.connect(changed)

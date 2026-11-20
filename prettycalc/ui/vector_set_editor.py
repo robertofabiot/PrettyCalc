@@ -35,6 +35,7 @@ except ImportError:  # pragma: no cover
     Signal = lambda *args: None  # type: ignore
 
 from prettycalc.core.types import Matrix, Vector
+from prettycalc.ui import motion
 from prettycalc.ui.clipboard import get_matrix_from_clipboard
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.mathtext import to_subscript, to_superscript
@@ -337,6 +338,8 @@ class VectorSetEditor(QFrame):
         self._refresh()
         if record:
             self.changed.emit()
+            # La tarjeta nueva entra con un fundido cuando el layout ya la ubicó.
+            motion.defer(editor, lambda: motion.fade_in(editor, motion.BASE))
         return editor
 
     def _drop(self, editor: VectorColumnEditor) -> None:
@@ -351,6 +354,8 @@ class VectorSetEditor(QFrame):
             return
         before = self.snapshot()
         title = editor.title()
+        # La tarjeta ya salió del modelo; su instantánea se desvanece en su lugar.
+        motion.crossfade_out(editor, motion.FAST)
         self._drop(editor)
         self._refresh()
         self.changed.emit()

@@ -221,6 +221,13 @@ class CurrentPageStack(QWidget):
         self._current = index
         self.updateGeometry()
         self.currentChanged.emit(index)
+        # El contenido nuevo entra con un fundido corto. No hay fundido cruzado
+        # por instantánea: la pila cambia de alto con cada página.
+        from prettycalc.ui import motion
+
+        page = self._pages[index]
+        if self.window() is not None and self.window().isVisible():
+            motion.defer(page, lambda: motion.fade_in(page, motion.FAST))
 
 
 class FlowLayout(QLayout):

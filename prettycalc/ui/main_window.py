@@ -14,6 +14,7 @@ try:
         QApplication,
         QStackedWidget,
         QPushButton,
+        QTabWidget,
     )
     from PySide6.QtGui import QAction, QKeySequence, QColor, QPalette
     from PySide6.QtCore import Qt
@@ -68,6 +69,33 @@ _MODULE_SUBTITLES = (
     "Métodos Iterativos  ·  Jacobi, Gauss-Seidel y convergencia",
 )
 
+#: Paneles y avisos que aparecen y desaparecen dentro de los módulos: la pista
+#: de Cramer, «Mostrar pasos», la tarjeta de B, la caja de Laplace, el esquema
+#: de Sarrus, la adjunta, la leyenda de permutación y los arreglos rápidos.
+_REVEALED_PANELS = (
+    "method_hint",
+    "combo_stepper",
+    "indep_stepper",
+    "transpose_b_card",
+    "laplace_box",
+    "sarrus_diagram",
+    "adjugate_section",
+    "swap_legend",
+    "tmi_key_card",
+    "properties_checklist",
+    "identity_compare_row",
+    "zero_note",
+    "c_zero_note",
+    "compare_summary",
+    "fix_dims_btn",
+    "fix_b_btn",
+    "sarrus_fix_btn",
+    "metric_fix_dims_btn",
+    "laplace_suggest_btn",
+    "make_square_btn",
+    "combo_contradiction_btn",
+)
+
 #: Por debajo de este ancho de ventana la barra lateral se pliega a un riel
 #: (en una pantalla de 1366 px el contenido conserva así casi todo el ancho).
 _COMPACT_NAV_BELOW = 1600
@@ -120,6 +148,8 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         # Windows pinta la barra de título blanca aunque el tema sea oscuro.
         apply_title_bar_theme(self, dark=ACTIVE_THEME != "light")
+        # El logotipo se dibuja una vez al abrir; no se repite al cambiar de módulo.
+        self.nav_bar.brand_mark.play_intro()
 
     def _setup_ui(self) -> None:
         root_widget = QWidget()
@@ -179,6 +209,15 @@ class MainWindow(QMainWindow):
         self.module_stack.addWidget(self.iterative_view)
         main_layout.addWidget(self.module_stack, stretch=1)
         self.determinants_view.inverseExported.connect(self._send_inverse_to_matrices)
+        self._register_reveals()
+
+    def _register_reveals(self) -> None:
+        """Paneles, avisos y pestañas que entran con un fundido al aparecer."""
+        for index in range(self.module_stack.count()):
+            view = self.module_stack.widget(index)
+            motion.fade_when_shown(*(getattr(view, name, None) for name in _REVEALED_PANELS))
+            for tabs in view.findChildren(QTabWidget):
+                motion.fade_page_changes(tabs)
 
     def _send_inverse_to_matrices(self, matrix) -> None:
         """Determinantes → Matrices: abre el Módulo 2 con A⁻¹ en la página de la inversa."""
