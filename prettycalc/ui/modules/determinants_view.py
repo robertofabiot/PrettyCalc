@@ -51,6 +51,7 @@ from prettycalc.core.determinants import (
 )
 from prettycalc.core.matrix_inversion import NonSquareMatrixError
 from prettycalc.core.types import Matrix, format_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
@@ -620,6 +621,7 @@ class DeterminantsView(QWidget):
     # ======================================================================
     # Cálculo
     # ======================================================================
+    @motion.reveals("badge")
     def compute(self) -> None:
         """Evalúa el método activo y publica el determinante o la adjunta."""
         reason = self._blocking_reason()
@@ -662,7 +664,9 @@ class DeterminantsView(QWidget):
         """En Sarrus, el esquema resalta la diagonal del paso visible (pasos 1–6)."""
         if not self.sarrus_diagram.isVisibleTo(self) or self.sarrus_diagram.matrix() is None:
             return
-        self.sarrus_diagram.set_active_diagonal(index - 1 if 1 <= index <= 6 else None)
+        kind = self.stepper.last_transition()
+        animate = "stroke" if kind == "forward" else "" if kind in ("short", "reset") else "fade"
+        self.sarrus_diagram.set_active_diagonal(index - 1 if 1 <= index <= 6 else None, animate=animate)
 
     def _publish_properties(self, result: DeterminantPropertiesResult) -> None:
         self.last_properties = result

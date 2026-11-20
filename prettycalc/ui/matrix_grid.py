@@ -9,6 +9,12 @@ Sprint 10 (auditoría UI/UX, Módulo 7):
 - ``Ctrl+Supr`` elimina la fila activa y ``Ctrl+Mayús+Supr`` la columna.
 - ``Ctrl+Intro`` emite ``submitRequested`` para calcular sin tocar el ratón.
 - Pegar una matriz muestra un aviso con «Deshacer» y un destello en las celdas.
+
+Sprint 11 (movimiento): al agregar o quitar filas y columnas, los corchetes y
+la barra [A | b] se estiran o contraen desde su tamaño anterior y las celdas
+nuevas llegan con un tinte que se desvanece. El destello de ``flash()`` es
+un tinte pintado que decae. Al intentar calcular con celdas inválidas, la
+primera pulsa dos veces en rojo. El foco y la escritura no se animan.
 """
 
 from __future__ import annotations
@@ -28,7 +34,7 @@ try:
         QSizePolicy,
         QMenu,
     )
-    from PySide6.QtCore import Qt, Signal, QRect, QPoint, QTimer
+    from PySide6.QtCore import Qt, Signal, QRect, QRectF, QPoint, QTimer
     from PySide6.QtGui import (
         QKeyEvent,
         QPainter,
@@ -51,8 +57,11 @@ from prettycalc.ui.clipboard import (
     get_matrix_from_clipboard,
     has_matrix_in_clipboard,
 )
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import draw_square_brackets, draw_split_bar
 from prettycalc.ui.theme import (
+    COLOR_FEEDBACK_ERROR,
+    COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
     COLOR_TEXT_PRIMARY,
     apply_widget_class,
@@ -282,6 +291,14 @@ class DynamicMatrixGrid(QFrame):
         self._flash_timer = QTimer(self)
         self._flash_timer.setSingleShot(True)
         self._flash_timer.timeout.connect(self._end_flash)
+        self._flash_strength = 0.0
+        self._flash_tween = None
+        # Crecimiento: rectángulo de los corchetes antes del cambio y celdas nuevas.
+        self._grow_from: Optional[QRectF] = None
+        self._grow_bar_from: Optional[float] = None
+        self._grow_cells: set = set()
+        self._grow_t = 1.0
+        self._grow_tween = None
 
         self._outer_layout = QVBoxLayout(self)
         self._outer_layout.setContentsMargins(8, 4, 8, 4)
@@ -309,34 +326,68 @@ class DynamicMatrixGrid(QFrame):
 
         self._build_grid()
 
-    def paintEvent(self, event: QPaintEvent) -> None:
-        super().paintEvent(event)
+    def _bracket_geometry(self) -> Optional[Tuple[QRect, Optional[int]]]:
+        """Rectángulo de los corchetes y x de la barra [A | b] según las celdas actuales."""
         if not self.cells:
-            return
-
+            return None
         first = self.cells[0][0]
         last = self.cells[-1][-1]
         if not first.isVisible() or not last.isVisible():
-            return
-
+            return None
         top_left = first.mapTo(self, first.rect().topLeft())
         bottom_right = last.mapTo(self, last.rect().bottomRight())
         pad = 10
-        bracket_rect = QRect(
+        rect = QRect(
             top_left.x() - pad,
             top_left.y() - pad,
             (bottom_right.x() - top_left.x()) + 2 * pad,
             (bottom_right.y() - top_left.y()) + 2 * pad,
         )
+        bar_x = None
+        if self.augmented:
+            b_cell = self.cells[0][-1]
+            bar_x = b_cell.mapTo(self, b_cell.rect().topLeft()).x() - 6
+        return rect, bar_x
+
+    def _paint_cell_washes(self, painter: QPainter) -> None:
+        """Tintes pintados detrás de las celdas (su fondo en QSS es transparente)."""
+        grow = 1.0 - motion.ease(motion.CURVE_ENTER, self._grow_t) if self._grow_cells else 0.0
+        flash = self._flash_strength
+        if grow <= 0 and flash <= 0:
+            return
+        for r, row in enumerate(self.cells):
+            for c, cell in enumerate(row):
+                alpha = 0.0
+                color = COLOR_INTERACTIVE_IDLE
+                if flash > 0:
+                    alpha = 0.30 * flash
+                if grow > 0 and (r, c) in self._grow_cells:
+                    alpha = max(alpha, 0.32 * grow)
+                    color = COLOR_FEEDBACK_SUCCESS
+                if alpha <= 0:
+                    continue
+                top_left = cell.mapTo(self, QPoint(0, 0))
+                painter.fillRect(QRect(top_left, cell.size()), motion.with_alpha(color, alpha))
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        super().paintEvent(event)
+        geometry = self._bracket_geometry()
+        if geometry is None:
+            return
+        bracket_rect, target_bar = geometry
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
+        self._paint_cell_washes(painter)
+        bar_x = target_bar
+        if self._grow_from is not None and self._grow_t < 1.0:
+            k = motion.ease(motion.CURVE_MOVE, self._grow_t)
+            bracket_rect = motion.lerp_rect(self._grow_from, QRectF(bracket_rect), k).toRect()
+            if self._grow_bar_from is not None and target_bar is not None:
+                bar_x = int(round(motion.lerp(self._grow_bar_from, target_bar, k)))
         draw_square_brackets(painter, bracket_rect, QColor(COLOR_TEXT_PRIMARY), thickness=2)
 
-        if self.augmented:
-            b_cell = self.cells[0][-1]
-            b_top = b_cell.mapTo(self, b_cell.rect().topLeft())
-            bar_x = b_top.x() - 6
+        if self.augmented and bar_x is not None:
             draw_split_bar(
                 painter,
                 bar_x,
@@ -347,6 +398,8 @@ class DynamicMatrixGrid(QFrame):
         painter.end()
 
     def _build_grid(self) -> None:
+        old_shape = (len(self.cells), len(self.cells[0])) if self.cells else None
+        old_geometry = self._bracket_geometry() if old_shape is not None else None
         while self._grid_layout.count():
             item = self._grid_layout.takeAt(0)
             widget = item.widget()
@@ -421,6 +474,49 @@ class DynamicMatrixGrid(QFrame):
         self._apply_highlight()
         self._refresh_hint()
         self.update()
+        if old_shape is not None and old_geometry is not None:
+            self._start_growth(old_shape, old_geometry)
+
+    def _start_growth(self, old_shape: Tuple[int, int], old_geometry) -> None:
+        """Los corchetes se estiran o contraen desde su tamaño anterior; lo nuevo llega teñido.
+
+        Las celdas se reconstruyen en cada cambio, así que las nuevas se
+        reconocen por índice y no por objeto.
+        """
+        if self._grow_tween is not None:
+            motion.finish(self._grow_tween)
+        old_rows, old_cols = old_shape
+        new_rows, new_cols = len(self.cells), self._total_cols()
+        if (old_rows, old_cols) == (new_rows, new_cols) or not motion.motion_enabled() or not self.isVisible():
+            self._grow_cells = set()
+            return
+        if self.augmented and new_cols > old_cols:
+            fresh_cols = set(range(old_cols - 1, new_cols - 1))
+        else:
+            fresh_cols = set(range(old_cols, new_cols))
+        self._grow_cells = {
+            (r, c) for r in range(new_rows) for c in range(new_cols) if r >= old_rows or c in fresh_cols
+        }
+        rect, bar_x = old_geometry
+        self._grow_from = QRectF(rect)
+        self._grow_bar_from = float(bar_x) if bar_x is not None else None
+        self._grow_t = 0.0
+
+        def step(t: float) -> None:
+            self._grow_t = t
+            self.update()
+
+        def done() -> None:
+            self._grow_t = 1.0
+            self._grow_from = None
+            self._grow_cells = set()
+            self._grow_tween = None
+            self.update()
+
+        self._grow_tween = motion.run(self, motion.ms(motion.BASE), step, done)
+
+    def is_growing(self) -> bool:
+        return self._grow_tween is not None
 
     def _total_cols(self) -> int:
         return self.num_vars + 1 if self.augmented else self.num_vars
@@ -476,6 +572,17 @@ class DynamicMatrixGrid(QFrame):
             return False
         cell.setFocus()
         cell.selectAll()
+        # El envío quedó bloqueado: la celda pulsa dos veces en rojo (sin sacudirla).
+        motion.pulse(
+            cell,
+            COLOR_FEEDBACK_ERROR,
+            fill=0.22,
+            ring=0.95,
+            pulses=2,
+            duration=2 * motion.PULSE_CYCLE,
+            margin=3,
+            radius=5,
+        )
         return True
 
     # ------------------------------------------------------------------
@@ -518,12 +625,37 @@ class DynamicMatrixGrid(QFrame):
                 repolish(cell)
 
     def flash(self) -> None:
-        """Destello breve en todas las celdas: confirma que el contenido cambió."""
-        for row in self.cells:
-            for cell in row:
-                cell.setProperty("flash", True)
-                repolish(cell)
-        self._flash_timer.start(_FLASH_MS)
+        """Destello breve en todas las celdas: confirma que el contenido cambió.
+
+        Es un tinte pintado detrás de las celdas que sube rápido y decae con
+        suavidad. Con «Reducir animaciones», el tinte se prende y se apaga sin
+        transición.
+        """
+        if not motion.motion_enabled():
+            for row in self.cells:
+                for cell in row:
+                    cell.setProperty("flash", True)
+                    repolish(cell)
+            self._flash_timer.start(_FLASH_MS)
+            return
+        if self._flash_tween is not None:
+            motion.finish(self._flash_tween)
+
+        def step(t: float) -> None:
+            rise = 0.15
+            self._flash_strength = t / rise if t < rise else 1.0 - motion.ease(motion.CURVE_EXIT, (t - rise) / (1 - rise)) * 1.0
+            self._flash_strength = max(0.0, min(1.0, self._flash_strength))
+            self.update()
+
+        def done() -> None:
+            self._flash_strength = 0.0
+            self._flash_tween = None
+            self.update()
+
+        self._flash_tween = motion.run(self, motion.ms(motion.EMPHASIS), step, done)
+
+    def is_flashing(self) -> bool:
+        return self._flash_tween is not None or self._flash_timer.isActive()
 
     def _end_flash(self) -> None:
         for row in self.cells:

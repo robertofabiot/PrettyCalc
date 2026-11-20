@@ -44,6 +44,7 @@ from prettycalc.core.matrix_vector_ops import (
     verify_homogeneity_property,
 )
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.mathtext import format_comparison_row_html, format_steps_to_rich_html, to_superscript
@@ -666,6 +667,7 @@ class MatrixVectorPropertiesView(QWidget):
     # ======================================================================
     # Verificación
     # ======================================================================
+    @motion.reveals("equality_banner")
     def verify_current_property(self) -> None:
         if not self.verify_btn.isEnabled():
             self._focus_first_invalid()
@@ -674,7 +676,7 @@ class MatrixVectorPropertiesView(QWidget):
             self._verify_distributive()
         else:
             self._verify_homogeneity()
-        self.scroll_area.ensureWidgetVisible(self.results_tabs)
+        motion.scroll_to_widget(self.scroll_area, self.results_tabs)
 
     def _focus_first_invalid(self) -> None:
         editors = (
@@ -846,6 +848,10 @@ class MatrixVectorPropertiesView(QWidget):
         )
 
     def _clear_results(self, *, stale: bool = False) -> None:
+        if stale and self._has_result:
+            # La comparación vieja se retira con un fundido: el estado ya cambió debajo.
+            for widget in (self.equality_banner, self.results_tabs):
+                motion.crossfade_out(widget, motion.FAST)
         self._has_result = False
         for view in (
             self.lhs_intermediate_view,

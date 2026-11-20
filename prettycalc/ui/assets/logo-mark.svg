@@ -12,10 +12,11 @@
   </defs>
 
   <!-- Contenedor Squircle -->
-  <rect width="480" height="480" x="16" y="16" rx="108" fill="url(#bgGradB)" stroke="#393446" stroke-width="4" />
+  <rect id="frame" width="480" height="480" x="16" y="16" rx="108" fill="url(#bgGradB)" stroke="#393446" stroke-width="4" />
 
   <!-- Matriz Aumentada [ A | b ], centrada: sin el texto, para iconos -->
   <g transform="translate(0, 16)">
+    <g id="brackets">
     <!-- Corchete Izquierdo [ -->
     <path d="M 136 116 L 96 116 C 84 116 80 120 80 132 L 80 348 C 80 360 84 364 96 364 L 136 364" fill="none" stroke="#D8F8F8" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
 
@@ -25,6 +26,9 @@
     <!-- Línea divisoria de Matriz Aumentada (A | b) -->
     <line x1="330" y1="130" x2="330" y2="350" stroke="#D8F8F8" stroke-width="8" stroke-dasharray="14 14" stroke-linecap="round" stroke-opacity="0.35" />
 
+    </g>
+
+    <g id="entries">
     <!-- Trazo conector de la diagonal principal (Pivotes) -->
     <line x1="150" y1="165" x2="278" y2="315" stroke="url(#pivotGlow)" stroke-width="10" stroke-linecap="round" opacity="0.45" />
 
@@ -55,5 +59,6 @@
     <rect x="256" y="293" width="44" height="44" rx="12" fill="url(#pivotGlow)" />
     <!-- Vector b3 -->
     <rect x="358" y="299" width="32" height="32" rx="8" fill="#7CE8E8" fill-opacity="0.85" />
+    </g>
   </g>
 </svg>

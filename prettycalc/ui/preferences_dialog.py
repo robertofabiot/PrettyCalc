@@ -14,6 +14,7 @@ from typing import Optional
 try:
     from PySide6.QtWidgets import (
         QApplication,
+        QCheckBox,
         QComboBox,
         QDialog,
         QFormLayout,
@@ -38,6 +39,7 @@ from prettycalc.ui.theme import (
     contrast_ratio,
     save_appearance,
 )
+from prettycalc.ui import motion
 
 
 SHORTCUTS = (
@@ -58,6 +60,7 @@ SHORTCUTS = (
     ("Procedimiento", (
         ("← / →", "Paso anterior / siguiente (con el carrusel enfocado)"),
         ("Inicio / Fin", "Primer / último paso"),
+        ("Espacio", "Reproducir / pausar el procedimiento (con el carrusel enfocado)"),
         ("Exportar", "PDF, HTML, LaTeX o texto del procedimiento completo"),
     )),
 )
@@ -137,6 +140,15 @@ class PreferencesDialog(QDialog):
         form.addRow("Tamaño de la interfaz", self.scale_combo)
         layout.addLayout(form)
 
+        self.reduce_motion_check = QCheckBox("Reducir animaciones")
+        self.reduce_motion_check.setObjectName("reduceMotion")
+        self.reduce_motion_check.setChecked(motion.reduce_motion())
+        self.reduce_motion_check.setToolTip(
+            "Sin desplazamientos, vuelos ni escalonados: cada paso muestra directamente "
+            "su estado final resaltado. La reproducción del procedimiento sigue disponible."
+        )
+        layout.addWidget(self.reduce_motion_check)
+
         self.contrast_label = QLabel("")
         self.contrast_label.setObjectName("contrastReport")
         self.contrast_label.setWordWrap(True)
@@ -145,7 +157,11 @@ class PreferencesDialog(QDialog):
         self.theme_combo.currentIndexChanged.connect(self._refresh_report)
         self._refresh_report()
 
-        note = QLabel("Los cambios se aplican al reiniciar PrettyCalc.")
+        note = QLabel(
+            "El tema y el tamaño se aplican al reiniciar PrettyCalc; "
+            "«Reducir animaciones», de inmediato."
+        )
+        note.setWordWrap(True)
         note.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px;")
         layout.addWidget(note)
 
@@ -165,7 +181,7 @@ class PreferencesDialog(QDialog):
         buttons.addWidget(restart)
         layout.addLayout(buttons)
         apply_message_box_theme(self)
-        self.resize(540, 320)
+        self.resize(540, 360)
 
     def selected_theme(self) -> str:
         return str(self.theme_combo.currentData())
@@ -181,12 +197,20 @@ class PreferencesDialog(QDialog):
             f"Contraste en tarjetas: texto {text:.1f}:1 · texto secundario {muted:.1f}:1"
         )
 
+    def reduce_motion_selected(self) -> bool:
+        return self.reduce_motion_check.isChecked()
+
+    def _apply_motion(self) -> None:
+        motion.set_reduce_motion(self.reduce_motion_selected())
+
     def _save(self) -> None:
         save_appearance(self.selected_theme(), self.selected_scale())
+        self._apply_motion()
         self.accept()
 
     def _save_and_restart(self) -> None:
         save_appearance(self.selected_theme(), self.selected_scale())
+        self._apply_motion()
         self.restart_requested = True
         self.accept()
 

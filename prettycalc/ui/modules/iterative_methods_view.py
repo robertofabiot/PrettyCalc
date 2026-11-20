@@ -63,6 +63,7 @@ from prettycalc.core.iterative_methods import (
     superscript_iter,
 )
 from prettycalc.core.types import Matrix, Vector, subscript
+from prettycalc.ui import motion
 from prettycalc.ui.convergence_plot import (
     GAUSS_SEIDEL_COLOR,
     JACOBI_COLOR,
@@ -937,6 +938,7 @@ class IterativeMethodsView(QWidget):
             timeout_ms=7000,
         )
 
+    @motion.reveals("badge")
     def iterate(self) -> None:
         """Ejecuta el método o los métodos elegidos y publica pasos, tablas y gráfica."""
         reason = self._blocking_reason()

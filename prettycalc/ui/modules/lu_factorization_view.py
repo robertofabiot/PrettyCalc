@@ -44,6 +44,7 @@ from prettycalc.core.lu_decomposition import (
 )
 from prettycalc.core.matrix_inversion import NonSquareMatrixError
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
+from prettycalc.ui import choreography, motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
@@ -595,6 +596,7 @@ class LUFactorizationView(QWidget):
         self.grid.set_matrix(_EXAMPLE3_A)
         self.decompose()
 
+    @motion.reveals("badge")
     def decompose(self) -> None:
         """Calcula P, L y U y comprueba P · A = L · U. Si P = I, eso es A = L U."""
         reason = self._blocking_reason()
@@ -609,6 +611,7 @@ class LUFactorizationView(QWidget):
         self._publish_factors(factorization)
         self._sync_controls()
 
+    @motion.reveals("badge")
     def solve(self) -> None:
         """Reutiliza L y U para resolver Ly = b y después Ux = y."""
         if self.last_factorization is None:
@@ -651,6 +654,8 @@ class LUFactorizationView(QWidget):
         swapped = factorization.permutation_count > 0
         moved = permuted_rows(factorization.P) if swapped else []
         self.grid.set_alert_rows(moved)
+        # Las filas que P cambió de lugar pulsan una vez en ocre (el ocre queda).
+        motion.defer(self, lambda: choreography.pulse_grid_rows(self.grid, moved, COLOR_ACCENT_WARNING))
         if moved:
             self.swap_legend.setText(
                 "Filas de A que P cambió de lugar: "
@@ -717,6 +722,11 @@ class LUFactorizationView(QWidget):
         self.backward_steps_label.setText(_book_step_lines(solution.backward_steps))
         self.forward_stepper.set_steps(solution.forward_tracer.get_steps())
         self.backward_stepper.set_steps(solution.backward_tracer.get_steps())
+        # Primero y (Ly = Pb) y un instante después x (Ux = y): el orden de las etapas.
+        for widget in (self.y_view, self.y_label):
+            motion.fade_in(widget, motion.BASE)
+        for widget in (self.x_view, self.x_label):
+            motion.fade_in(widget, motion.BASE, delay=motion.SLOW + 60)
         swapped = solution.factorization.permutation_count > 0
         self.forward_title.setText("Etapa 1 · Ly = Pb" if swapped else "Etapa 1 · Ly = b")
         self.stage_tabs.setTabText(0, "Etapa 1 · Ly = Pb" if swapped else "Etapa 1 · Ly = b")

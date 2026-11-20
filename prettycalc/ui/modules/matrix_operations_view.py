@@ -71,6 +71,7 @@ from prettycalc.core.matrix_properties import (
 )
 from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import DimensionMismatchError, Matrix, format_scalar, parse_scalar
+from prettycalc.ui import choreography, motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.mathtext import format_comparison_row_html, prettify_math_text, to_subscript
@@ -336,6 +337,7 @@ class MatrixOperationsView(QWidget):
         self.result_view = BookMatrixWidget()
         self.result_view.set_empty_text("Pulsa Calcular para ver C = AB (A · B)")
         self.result_view.cellClicked.connect(self._on_result_cell_clicked)
+        self.result_view.cellClicked.connect(self._animate_inspection)
         self.inspect_badge = QLabel("")
         self.inspect_badge.setObjectName("inspectBadge")
         self.inspect_badge.setVisible(False)
@@ -611,6 +613,7 @@ class MatrixOperationsView(QWidget):
         outer.addWidget(self.inverse_check_label)
 
         self.inverse_stepper = AlgorithmStepperCarousel(alert_mode=ALERT_SINGULAR, variable_headers=False)
+        self.inverse_stepper.stepArrived.connect(self._on_inverse_step_arrived)
         self.inverse_stepper.setObjectName("inverseStepper")
         self.inverse_stepper.set_export_title("Inversa por Gauss-Jordan")
         self.inverse_stepper.set_empty_hint("Calcula para recorrer la reducción de [A | Iₙ].")
@@ -1062,6 +1065,7 @@ class MatrixOperationsView(QWidget):
     # Cálculo
     # ------------------------------------------------------------------
 
+    @motion.reveals("badge")
     def compute(self) -> None:
         ok, message = self._compatibility_state()
         if not ok:
@@ -1245,6 +1249,15 @@ class MatrixOperationsView(QWidget):
         if self.grid_inverse.undo():
             self.compute()
 
+    def _on_inverse_step_arrived(self, index: int, kind: str) -> None:
+        """Al llegar avanzando a [Iₙ | A⁻¹], el bloque derecho viaja a la tarjeta de A⁻¹."""
+        steps = self.inverse_stepper.steps()
+        if kind != "forward" or not steps or index != len(steps) - 1:
+            return
+        split = steps[-1].split_col
+        if split is not None:
+            choreography.fly_right_block(self.inverse_stepper.matrix_view, split, self.inverse_result_view)
+
     def _compute_transpose(self) -> None:
         """Calcula Aᵀ, comprueba (Aᵀ)ᵀ = A y publica las propiedades estructurales."""
         primary = self.grid_transpose.get_matrix()
@@ -1257,6 +1270,11 @@ class MatrixOperationsView(QWidget):
         self._result = result
         self._details = []
         rows, cols = primary.shape
+        choreography.hold_then_fly(
+            self,
+            self.transpose_result_view,
+            lambda: choreography.fly_transpose(self.grid_transpose, self.transpose_result_view, COLOR_ACCENT_WARNING),
+        )
         self.inspector_label.setTextFormat(Qt.RichText)
         self.inspector_label.setText(
             f"<b>Transpuesta doble:</b> (Aᵀ)ᵀ = A.<br/>"
@@ -1364,6 +1382,14 @@ class MatrixOperationsView(QWidget):
 
     def inspected_cell(self) -> Optional[Tuple[int, int]]:
         return self._inspected
+
+    def _animate_inspection(self, row: int, col: int) -> None:
+        """Al pulsar cᵢⱼ, los pares (aᵢₖ, bₖⱼ) se encienden por k y cᵢⱼ pulsa al final."""
+        if not self._details or self._op != "mul":
+            return
+        motion.finish_layer(self)
+        choreography.play_product_terms(self.grid_a, self.grid_b, row, col, self.result_view, COLOR_INTERACTIVE_IDLE)
+        motion.fade_in(self.inspector_label, motion.BASE)
 
     def _on_result_cell_clicked(self, row: int, col: int) -> None:
         if not self._details:

@@ -60,9 +60,11 @@ El núcleo no importa Qt. Cada cálculo devuelve su resultado y un `StepTracer` 
 | `core.iterative_methods` | Jacobi, Gauss-Seidel, matrices de iteración, ρ(T) exacto-numérico y criterios de convergencia. |
 | `core.applied_models` | Aplicaciones de la sesión 8 (química, Leontief, dieta, tráfico). |
 | `core.tracer` | Registro de pasos: matriz, fórmula, explicación, pivote y celdas resaltadas. |
+| `core.step_diff` | Qué operación de fila hizo cada paso, confirmada con aritmética exacta. |
 | `ui.modules` | Una vista por módulo. |
 | `ui.stepper_carousel`, `matrix_grid`, `results_dashboard`, `navigation_bar` | Carrusel de pasos, cuadrícula editable, tablero de resultados y barra lateral. |
 | `ui.theme`, `platform_setup` | Paleta, hojas de estilo, fuentes empaquetadas y ajustes por plataforma. |
+| `ui.motion`, `choreography` | Tokens de movimiento, «Reducir animaciones» y los valores que viajan entre widgets. |
 
 El detalle está en [Arquitectura del sistema](Docs/architecture.md).
 
@@ -73,6 +75,7 @@ El detalle está en [Arquitectura del sistema](Docs/architecture.md).
 - **Notación de libro:** las fórmulas de los pasos se convierten de LaTeX a HTML (subíndices, exponentes, fracciones) en lugar de mostrar código. El contrato está en la [especificación de renderizado](Docs/latex-rendering-spec.md).
 - **Entrada sin fricción:** las cuadrículas crecen con celdas fantasma `+`, aceptan enteros, fracciones (`3/4`) y decimales, y explican en línea cada error («A, fila 2, columna 3: divide entre cero»). Pegar, reiniciar o cargar un ejemplo se puede deshacer.
 - **Exportación del procedimiento:** PDF, HTML, LaTeX o texto, desde el carrusel.
+- **Movimiento que explica:** al avanzar un paso, la fila pivote viaja hasta la fila que modifica con su factor `× k`, las filas de un intercambio se cruzan y solo cambian las entradas que la operación tocó. La matriz de entrada viaja al procedimiento, la transpuesta cruza la diagonal y la solución sale de la última columna de la RREF hacia el tablero. El botón ▶ del carrusel reproduce el procedimiento completo (½×, 1×, 2×). *Apariencia* tiene «Reducir animaciones», que deja cada realce quieto y se aplica sin reiniciar.
 - **Interfaz adaptable:** de 1080 × 680 a 1920 px sin desplazamiento horizontal. La barra lateral se pliega a un riel en portátiles y las vistas de tres columnas bajan los resultados cuando no caben.
 - **Accesibilidad:** temas oscuro, claro y de alto contraste con contraste WCAG AA, escala de la interfaz y navegación completa por teclado.
 - **Misma apariencia en Windows y Linux:** estilo Fusion, fuentes empaquetadas (Inter, Fira Code y DejaVu Sans), tamaños en píxeles y, en Windows, rasterizado con FreeType, barra de título oscura e icono propio en la barra de tareas.
@@ -111,6 +114,7 @@ python run.py                      # o, tras la instalación, simplemente: prett
 | Copiar / pegar la matriz completa (TSV, Excel, LaTeX) | Ctrl+C / Ctrl+V |
 | Ir a un módulo | Ctrl+1 … Ctrl+9, Ctrl+0 |
 | Recorrer el procedimiento | ← / → (con el carrusel enfocado) |
+| Reproducir / pausar el procedimiento | Espacio (con el carrusel enfocado) |
 | Apariencia: tema y escala | Ctrl+, |
 
 ## Uso del motor sin interfaz

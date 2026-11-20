@@ -37,6 +37,7 @@ from prettycalc.core.classifier import SystemType
 from prettycalc.core.matrix_equations import solve_matrix_equation
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.mathtext import format_comparison_row_html, prettify_math_text, to_subscript, to_superscript
@@ -335,6 +336,9 @@ class MatrixEquationsView(QWidget):
         if not self._has_result:
             return
         self._has_result = False
+        # El veredicto viejo se retira con un fundido: el estado ya cambió debajo.
+        for widget in (self.badge, self.x_view.parentWidget(), self.results_tabs):
+            motion.crossfade_out(widget, motion.FAST)
         self.x_view.clear()
         self.x_badge.setVisible(False)
         self.x_subtitle.setText("Datos modificados: vuelve a resolver")
@@ -397,6 +401,7 @@ class MatrixEquationsView(QWidget):
         )
 
     # ------------------------------------------------------------- resolución
+    @motion.reveals("badge")
     def solve(self) -> None:
         if not self.solve_btn.isEnabled():
             if not self.grid_a.focus_first_invalid():
@@ -494,7 +499,7 @@ class MatrixEquationsView(QWidget):
             self.product_label.setTextFormat(Qt.PlainText)
             self.product_label.setText(text)
 
-        self.scroll_area.ensureWidgetVisible(self.results_tabs)
+        motion.scroll_to_widget(self.scroll_area, self.results_tabs)
 
     # --------------------------------------------------------------- ejemplos
     def _load(self, a: Matrix, b: Vector) -> None:

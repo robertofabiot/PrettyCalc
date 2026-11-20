@@ -53,6 +53,7 @@ from prettycalc.core.linear_transformations import (
     theorem_summary,
 )
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
+from prettycalc.ui import choreography, motion
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.mathtext import plain_formula_to_html, to_html_subscripts
@@ -241,9 +242,11 @@ class _TVResultPanel(QFrame):
 
         # Desglose por fila
         self._result_area.addWidget(_section_title("Desglose fila a fila"))
+        self.row_labels = []
         for step_text in steps:
             lbl = _info_label(plain_formula_to_html(step_text))
             self._result_area.addWidget(lbl)
+            self.row_labels.append(lbl)
 
     def _clear_results(self) -> None:
         while self._result_area.count():
@@ -301,6 +304,8 @@ class _PropertiesPanel(QFrame):
         )
         self._badge.setStyleSheet(badge_style(COLOR_FEEDBACK_SUCCESS))
         self._clear_content()
+        self.kernel_labels = []
+        self.image_labels = []
 
         # ── Resumen numérico ────────────────────────────────────────────
         self._content.addWidget(_section_title("Resumen"))
@@ -328,9 +333,9 @@ class _PropertiesPanel(QFrame):
             )
         else:
             for k, vec in enumerate(result.kernel_basis, start=1):
-                self._content.addWidget(
-                    _info_label(_vector_html(vec, label=f"n{self._sub(k)}"))
-                )
+                label = _info_label(_vector_html(vec, label=f"n{self._sub(k)}"))
+                self._content.addWidget(label)
+                self.kernel_labels.append(label)
 
         self._content.addWidget(_separator())
 
@@ -340,8 +345,10 @@ class _PropertiesPanel(QFrame):
             self._content.addWidget(_info_label("<i>im(T) = {<b>0</b>}</i>"))
         else:
             for k, vec in enumerate(result.image_basis, start=1):
+                label = _info_label(_vector_html(vec, label=f"c{self._sub(k)}"))
+                self.image_labels.append(label)
                 self._content.addWidget(
-                    _info_label(_vector_html(vec, label=f"c{self._sub(k)}"))
+                    label
                 )
 
         self._content.addWidget(_separator())
@@ -636,6 +643,7 @@ class LinearTransformationsView(QWidget):
     # Lógica de cálculo
     # ------------------------------------------------------------------
 
+    @motion.reveals("_tv_result._badge")
     def compute_tv(self) -> None:
         """Pestaña 1: calcula T(v) = A · v."""
         try:
@@ -658,7 +666,23 @@ class LinearTransformationsView(QWidget):
 
         self._tv_result.show_result(Tv, steps)
         show_toast(self, "T(v) calculado.", kind="success")
+        motion.defer(self, lambda: self._animate_rows(A.rows))
 
+    def _animate_rows(self, rows: int) -> None:
+        """Fila a fila: la fila i de A y v se encienden juntas y T(v)ᵢ aparece al cerrar la fila."""
+        if not motion.motion_enabled():
+            return
+        labels = getattr(self._tv_result, "row_labels", [])
+        step = motion.ms(motion.stagger_step(rows, 140, 560))
+        start = motion.ms(motion.BASE)
+        for row in range(rows):
+            delay = start + row * step
+            choreography.pulse_grid_rows(self.grid_A, [row], COLOR_INTERACTIVE_IDLE, delay=delay)
+            choreography.pulse_grid_columns(self.grid_v, [0], COLOR_INTERACTIVE_IDLE, delay=delay)
+            if row < len(labels):
+                motion.fade_in(labels[row], motion.BASE, delay=int(delay + motion.ms(motion.FAST)))
+
+    @motion.reveals("_props_panel._badge")
     def compute_properties(self) -> None:
         """Pestaña 2: calcula núcleo, imagen, rango y nulidad de T."""
         try:
@@ -677,11 +701,34 @@ class LinearTransformationsView(QWidget):
         self._last_result = result
         self._props_panel.show_result(result)
         self.stepper.set_steps(result.tracer.get_steps())
+        motion.defer(self, lambda: self._animate_bases(A, result))
         show_toast(
             self,
             f"Rango = {result.rank},  Nulidad = {result.nullity}.",
             kind="success",
         )
+
+    def _animate_bases(self, A: Matrix, result) -> None:
+        """Las columnas pivote de A se encienden con la base de im(T); las libres, con la de nu(T).
+
+        Solo si la base de im(T) es, columna a columna, la de las columnas
+        pivote de A (lo que dice la teoría).
+        """
+        if not motion.motion_enabled():
+            return
+        image_ok = len(result.image_basis) == len(result.pivot_cols) and all(
+            [A.get(r, col) for r in range(A.rows)] == list(vec.components)
+            for col, vec in zip(result.pivot_cols, result.image_basis)
+        )
+        delay = motion.ms(motion.BASE + motion.SLOW)
+        step = motion.ms(motion.STAGGER * 2)
+        if image_ok:
+            choreography.pulse_grid_columns(self.grid_props_A, result.pivot_cols, COLOR_FEEDBACK_SUCCESS, delay=delay, step=step)
+            choreography.pulse_labels(self._props_panel.image_labels, COLOR_FEEDBACK_SUCCESS, delay=delay, step=step)
+        if result.free_cols:
+            later = delay + step * max(1, len(result.pivot_cols)) + motion.ms(motion.FAST)
+            choreography.pulse_grid_columns(self.grid_props_A, result.free_cols, COLOR_ACCENT_WARNING, delay=later, step=step)
+            choreography.pulse_labels(self._props_panel.kernel_labels, COLOR_ACCENT_WARNING, delay=later, step=step)
 
     # ------------------------------------------------------------------
     # Carga de ejemplos
