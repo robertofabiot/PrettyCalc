@@ -213,14 +213,20 @@ class MainWindow(QMainWindow):
 
     def set_module(self, index: int) -> None:
         """Conmuta el módulo visible y sincroniza la barra de navegación."""
-        self.nav_bar.set_current_index(index, emit=False)
         self._on_module_changed(index)
+        self.nav_bar.set_current_index(index, emit=False)
 
     def _on_module_changed(self, index: int) -> None:
         if index < 0 or index >= self.module_stack.count():
             return
         # Lo que vuela entre widgets pertenece al módulo que se va: salta a su final.
         motion.finish_all()
+        changing = index != self.module_stack.currentIndex()
+        if changing:
+            # La página que se va se desvanece encima de la que llega (por
+            # instantánea: nunca un efecto sobre una página con decenas de campos).
+            motion.crossfade_out(self.module_stack, motion.BASE)
+            motion.crossfade_out(self.subtitle_lbl, motion.BASE)
         self.module_stack.setCurrentIndex(index)
         if 0 <= index < len(_MODULE_SUBTITLES):
             self.subtitle_lbl.setText(_page_header_html(_MODULE_SUBTITLES[index]))

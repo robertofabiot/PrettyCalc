@@ -35,6 +35,7 @@ except ImportError:
     QPushButton = object  # type: ignore
     Signal = lambda *args: None  # type: ignore
 
+from prettycalc.ui import motion
 from prettycalc.ui.theme import (
     COLOR_BG_BASE,
     COLOR_INTERACTIVE_IDLE,
@@ -98,6 +99,10 @@ class NavItem(QPushButton):
         self.short_label = short_label or label
         self._compact = False
         self._hovered = False
+        self._hover_t = 0.0
+        self._hover_tween = None
+        #: Mientras la barra desliza el indicador, el elemento activo no pinta el suyo.
+        self.indicator_external = False
         self._keyboard_focus = False
         self.setObjectName("navItem")
         self.setCursor(Qt.PointingHandCursor)
@@ -141,15 +146,42 @@ class NavItem(QPushButton):
         return QSize(_CHIP_W + 2 * _PAD_X, _ITEM_HEIGHT)
 
     # -- estados ---------------------------------------------------------
+    def _fade_hover(self, target: float) -> None:
+        """El tinte de hover entra y sale con un fundido corto (está pintado: es barato)."""
+        if self._hover_tween is not None:
+            tween, self._hover_tween = self._hover_tween, None
+            if motion.is_alive(tween):
+                try:
+                    tween.finished.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+                tween.stop()
+            motion._forget(tween)
+        start = self._hover_t
+
+        def step(t: float) -> None:
+            self._hover_t = motion.lerp(start, target, motion.ease(motion.CURVE_ENTER, t))
+            self.update()
+
+        def done() -> None:
+            self._hover_t = target
+            self._hover_tween = None
+            self.update()
+
+        self._hover_tween = motion.run(self, motion.ms(motion.FAST), step, done)
+
     def enterEvent(self, event) -> None:  # noqa: N802
         self._hovered = True
-        self.update()
+        self._fade_hover(1.0)
         super().enterEvent(event)
 
     def leaveEvent(self, event) -> None:  # noqa: N802
         self._hovered = False
-        self.update()
+        self._fade_hover(0.0)
         super().leaveEvent(event)
+
+    def hover_strength(self) -> float:
+        return self._hover_t
 
     def focusInEvent(self, event) -> None:  # noqa: N802
         # El anillo solo aparece al llegar con el teclado, no con el foco
@@ -168,17 +200,12 @@ class NavItem(QPushButton):
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         active = self.isChecked()
 
-        if active:
+        if active and not self.indicator_external:
+            paint_nav_indicator(painter, rect, self._compact)
+        elif not active and (self._hover_t > 0 or self.isDown()):
+            strength = 1.0 if self.isDown() else self._hover_t
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(rgba_to_qcolor(COLOR_INTERACTIVE_IDLE, 0.16)))
-            painter.drawRoundedRect(rect, 8, 8)
-            # Pastilla de acento a la izquierda: dónde estoy, de un vistazo.
-            if not self._compact:
-                painter.setBrush(QColor(COLOR_INTERACTIVE_IDLE))
-                painter.drawRoundedRect(QRectF(0, 10, 3, self.height() - 20), 1.5, 1.5)
-        elif self._hovered or self.isDown():
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(rgba_to_qcolor(COLOR_TEXT_PRIMARY, 0.06)))
+            painter.setBrush(QColor(rgba_to_qcolor(COLOR_TEXT_PRIMARY, 0.06 * strength)))
             painter.drawRoundedRect(rect, 8, 8)
 
         if self.hasFocus() and self._keyboard_focus:
@@ -213,6 +240,19 @@ class NavItem(QPushButton):
             text = QFontMetrics(self.font()).elidedText(self.text(), Qt.ElideRight, int(area.width()))
             painter.drawText(area, Qt.AlignVCenter | Qt.AlignLeft, text)
         painter.end()
+
+
+def paint_nav_indicator(painter: "QPainter", rect: "QRectF", compact: bool) -> None:
+    """Tinte del módulo activo y, en la barra desplegada, su pastilla de acento."""
+    painter.save()
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(rgba_to_qcolor(COLOR_INTERACTIVE_IDLE, 0.16)))
+    painter.drawRoundedRect(rect, 8, 8)
+    # Pastilla de acento a la izquierda: dónde estoy, de un vistazo.
+    if not compact:
+        painter.setBrush(QColor(COLOR_INTERACTIVE_IDLE))
+        painter.drawRoundedRect(QRectF(rect.left() - 0.5, rect.top() + 9.5, 3, rect.height() - 19), 1.5, 1.5)
+    painter.restore()
 
 
 def rgba_to_qcolor(hex_color: str, alpha: float) -> "QColor":
@@ -304,6 +344,11 @@ class ModularNavigationBar(QFrame):
         self._setup_ui(tabs)
         self._group.idClicked.connect(self._on_id_clicked)
         self.setFixedWidth(EXPANDED_WIDTH)
+        self._shown_index = 0
+        self._slide_from: Optional[QRectF] = None
+        self._slide_item: Optional[NavItem] = None
+        self._slide_t = 1.0
+        self._slide_tween = None
 
     def _setup_ui(self, tabs: Sequence[Tuple[str, str]]) -> None:
         self._layout = QVBoxLayout(self)
@@ -372,7 +417,76 @@ class ModularNavigationBar(QFrame):
         return item
 
     def _on_id_clicked(self, index: int) -> None:
+        # Primero el cambio de módulo (que lleva lo anterior a su final), después el deslizamiento.
         self.module_changed.emit(index)
+        self._slide_to(index)
+
+    # -- indicador deslizante ------------------------------------------------
+    def _item_rect(self, item: QWidget) -> QRectF:
+        return QRectF(item.geometry()).adjusted(0.5, 0.5, -0.5, -0.5)
+
+    def _end_slide(self) -> None:
+        tween, self._slide_tween = self._slide_tween, None
+        if tween is not None and motion.is_alive(tween):
+            try:
+                tween.finished.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            tween.stop()
+        motion._forget(tween)
+        if self._slide_item is not None and motion.is_alive(self._slide_item):
+            self._slide_item.indicator_external = False
+            self._slide_item.update()
+        self._slide_item = None
+        self._slide_from = None
+        self._slide_t = 1.0
+        self.update()
+
+    def _slide_to(self, index: int) -> None:
+        """Un solo indicador se desliza del módulo anterior al nuevo (clic o Ctrl+número)."""
+        previous = self._shown_index
+        self._shown_index = index
+        from_rect = None
+        if self._slide_tween is not None and self._slide_from is not None and self._slide_item is not None:
+            # Interrumpido: parte de donde está ahora, sin encolar.
+            k = motion.ease(motion.CURVE_MOVE, self._slide_t)
+            from_rect = motion.lerp_rect(self._slide_from, self._item_rect(self._slide_item), k)
+        self._end_slide()
+        if not (0 <= previous < len(self._buttons)) or previous == index or not 0 <= index < len(self._buttons):
+            return
+        duration = motion.ms(motion.BASE)
+        if duration <= 0 or not self.isVisible():
+            return
+        item = self._buttons[index]
+        self._slide_from = from_rect or self._item_rect(self._buttons[previous])
+        self._slide_item = item
+        item.indicator_external = True
+        item.update()
+        self._slide_t = 0.0
+
+        def step(t: float) -> None:
+            self._slide_t = t
+            self.update()
+
+        def done() -> None:
+            self._slide_tween = None
+            self._end_slide()
+
+        self._slide_tween = motion.run(self, duration, step, done)
+
+    def is_sliding(self) -> bool:
+        return self._slide_tween is not None
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        if self._slide_item is None or self._slide_from is None:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        k = motion.ease(motion.CURVE_MOVE, self._slide_t)
+        rect = motion.lerp_rect(self._slide_from, self._item_rect(self._slide_item), k)
+        paint_nav_indicator(painter, rect, self._compact)
+        painter.end()
 
     def current_index(self) -> int:
         return self._group.checkedId()
@@ -386,6 +500,7 @@ class ModularNavigationBar(QFrame):
         self._buttons[index].setChecked(True)
         if emit:
             self.module_changed.emit(index)
+        self._slide_to(index)
 
     def is_compact(self) -> bool:
         return self._compact
@@ -395,6 +510,7 @@ class ModularNavigationBar(QFrame):
         if compact == self._compact:
             return
         self._compact = compact
+        self._end_slide()
         self._brand_text.setVisible(not compact)
         self._section_caption.setVisible(not compact)
         self._brand_row.setContentsMargins(0 if compact else 10, 0, 0 if compact else 6, 0)
