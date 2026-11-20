@@ -22,6 +22,7 @@ from prettycalc.core.classifier import ParametricVectorSolution, SystemAnalysis,
 from prettycalc.core.cramer import CramerResult, format_cramer_component
 from prettycalc.core.verifier import EquationVerification
 from prettycalc.core.types import Matrix, Vector, format_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import draw_square_brackets, paint_book_scalar
 from prettycalc.ui.responsive import FlowLayout
 from prettycalc.ui.mathtext import (
@@ -44,6 +45,7 @@ from prettycalc.ui.theme import (
     COLOR_SURFACE_INNER,
     COLOR_BG_BASE,
     COLOR_INTERACTIVE_DISABLED,
+    COLOR_SURFACE_ELEVATED,
     FONT_FAMILY_MONO,
     FONT_FAMILY_SANS,
     apply_widget_class,
@@ -92,6 +94,12 @@ class ResultsDashboardCard(QFrame):
         self.cramer_result: Optional[CramerResult] = None
         self.last_analysis: Optional[SystemAnalysis] = None
         self._notice_action = None
+        #: Líneas «xᵢ = …» de una solución única, en el orden de las variables.
+        self.solution_labels: List[QLabel] = []
+        #: Bloque de la forma vectorial paramétrica (si hay variables libres).
+        self.parametric_widget: Optional[QWidget] = None
+        self._verdict: Optional[tuple] = None
+        self._previous_verdict: Optional[tuple] = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -179,6 +187,9 @@ class ResultsDashboardCard(QFrame):
         self._notice_action = None
         self.notice_action_btn.setVisible(False)
         self.copy_results_btn.setEnabled(False)
+        self.solution_labels = []
+        self.parametric_widget = None
+        self._verdict = None
         self._clear_layout(self.structure_layout)
         self._clear_layout(self.var_container)
         self._clear_layout(self.checklist_container)
@@ -190,6 +201,9 @@ class ResultsDashboardCard(QFrame):
         analysis: SystemAnalysis,
         verifications: Optional[List[EquationVerification]] = None,
     ) -> None:
+        self._begin_verdict()
+        self.solution_labels = []
+        self.parametric_widget = None
         self.cramer_result = None
         self.last_analysis = analysis
         self._notice_action = None
@@ -269,9 +283,9 @@ class ResultsDashboardCard(QFrame):
             for idx, val in enumerate(analysis.unique_solution):
                 val_str = format_scalar(val, mode="fraction")
                 v_html = variable_html(idx, sub_size_px=12)
-                self.var_container.addWidget(
-                    self._equation_line(f"{v_html}  =  {val_str}", tag="básica")
-                )
+                line = self._equation_line(f"{v_html}  =  {val_str}", tag="básica")
+                self.solution_labels.append(line)
+                self.var_container.addWidget(line)
 
         elif analysis.system_type == SystemType.CONSISTENT_INDETERMINED:
             if analysis.parametric_solutions:
@@ -330,6 +344,7 @@ class ResultsDashboardCard(QFrame):
                 f"padding: 10px; background-color: {COLOR_SURFACE_INNER};"
             )
             self.checklist_container.addWidget(lbl)
+        self._end_verdict()
         self._fit_minimum_height()
         QTimer.singleShot(0, self, self._fit_minimum_height)
 
@@ -347,6 +362,7 @@ class ResultsDashboardCard(QFrame):
         Con ``action_text`` y ``action`` aparece un botón de acción directa
         (por ejemplo «Cambiar a Gauss-Jordan para clasificar»).
         """
+        self._begin_verdict()
         self.clear()
         if action_text and action is not None:
             self._notice_action = action
@@ -361,6 +377,7 @@ class ResultsDashboardCard(QFrame):
         self.status_badge.setText(title)
         self.status_badge.setStyleSheet(self._badge_style(badge_color, text_color))
         self.summary_label.setText(message)
+        self._end_verdict()
         self._fit_minimum_height()
         QTimer.singleShot(0, self, self._fit_minimum_height)
 
@@ -370,6 +387,7 @@ class ResultsDashboardCard(QFrame):
         verifications: Optional[List[EquationVerification]] = None,
     ) -> None:
         """Desglosa det(A), cada A_i(b) y x_i = det(A_i(b)) / det(A)."""
+        self._begin_verdict()
         self.clear()
         self.cramer_result = result
         self.copy_results_btn.setEnabled(True)
@@ -435,8 +453,55 @@ class ResultsDashboardCard(QFrame):
         if verifications:
             for verification in verifications:
                 self.checklist_container.addWidget(self._verification_block(verification))
+        self._end_verdict()
         self._fit_minimum_height()
         QTimer.singleShot(0, self, self._fit_minimum_height)
+
+    # ------------------------------------------------------------------
+    # Revelado
+    # ------------------------------------------------------------------
+
+    def _begin_verdict(self) -> None:
+        self._previous_verdict = self._verdict
+
+    def _end_verdict(self) -> None:
+        self._verdict = (self.status_badge.text(), self.summary_label.text(), tuple(self._section_texts()))
+
+    def _section_widgets(self) -> List[QWidget]:
+        """Widgets de cada sección en orden de lectura: estructura, solución, comprobación."""
+        found: List[QWidget] = []
+        for layout in (self.structure_layout, self.var_container, self.checklist_container):
+            for index in range(layout.count()):
+                widget = layout.itemAt(index).widget()
+                if widget is not None:
+                    found.append(widget)
+        return found
+
+    def _section_texts(self) -> List[str]:
+        texts = []
+        for widget in self._section_widgets():
+            texts.append(widget.text() if isinstance(widget, QLabel) else widget.objectName())
+            texts.extend(label.text() for label in widget.findChildren(QLabel))
+        return texts
+
+    def same_verdict_as_before(self) -> bool:
+        """El último cálculo dio exactamente el mismo resultado que el anterior."""
+        return self._previous_verdict is not None and self._previous_verdict == self._verdict
+
+    def reveal(self, delay: int = 0) -> None:
+        """El badge se asienta y las secciones entran en orden de lectura.
+
+        Si el resultado es el mismo que el anterior, el badge solo pulsa:
+        confirma que sí se recalculó (Nielsen #1). El layout ya está en su
+        estado final; esto solo pinta la transición.
+        """
+        if not motion.motion_enabled() or not self.isVisible():
+            return
+        if self.same_verdict_as_before():
+            motion.pulse(self.status_badge, COLOR_TEXT_PRIMARY, fill=0.22, duration=motion.EMPHASIS, delay=delay, radius=4)
+            return
+        motion.settle(self.status_badge, COLOR_SURFACE_ELEVATED, delay=delay)
+        motion.fade_in_sequence([self.summary_label, *self._section_widgets()], motion.BASE, start=delay + motion.BASE)
 
     def _matrix_readout(self, matrix: Matrix, object_name: str) -> QLabel:
         """Matriz en texto monoespaciado, seleccionable, para el panel de Cramer."""
@@ -520,6 +585,7 @@ class ResultsDashboardCard(QFrame):
             f"padding: 4px 0 8px 0;"
         )
         self.var_container.addWidget(equation)
+        self.parametric_widget = host
 
     def _vector_term(self, vector: Vector, caption: str) -> QWidget:
         """Vector columna dibujado con corchetes de libro y un pie de figura."""

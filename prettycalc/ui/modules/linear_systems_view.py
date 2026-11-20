@@ -33,12 +33,14 @@ try:
 except ImportError:
     QWidget = object  # type: ignore
 
-from prettycalc.core.classifier import classify_system
+from prettycalc.core.classifier import SystemType, classify_system
+from prettycalc.core.step_diff import leading_entries
 from prettycalc.core.cramer import solve_cramer
 from prettycalc.core.elimination import gauss_jordan_elimination
 from prettycalc.core.matrix_inversion import NonSquareMatrixError, SingularMatrixError
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
 from prettycalc.core.verifier import SolutionVerifier
+from prettycalc.ui import choreography, motion
 from prettycalc.ui.feedback import busy, show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.modules.applied_models_panel import AppliedModelsPanel
@@ -50,6 +52,7 @@ from prettycalc.ui.responsive import StackingSplitterHost
 from prettycalc.ui.theme import (
     apply_message_box_theme,
     COLOR_ACCENT_WARNING,
+    COLOR_FEEDBACK_SUCCESS,
     COLOR_TEXT_PRIMARY,
     apply_widget_class,
 )
@@ -75,6 +78,7 @@ class LinearSystemsView(QWidget):
         self.active_preset: str | None = None
         self._loading_preset = False
         self._user_dirty = False
+        self._solved_snapshot = None
         self._setup_ui()
         self._refresh_method_state()
 
@@ -264,6 +268,7 @@ class LinearSystemsView(QWidget):
         self.stepper_carousel = AlgorithmStepperCarousel(alert_mode=ALERT_SYSTEM)
         self.stepper_carousel.set_export_title("Sistema de ecuaciones lineales")
         self.stepper_carousel.set_empty_hint("Ingresa el sistema y pulsa Resolver.")
+        self.stepper_carousel.stepArrived.connect(self._on_step_arrived)
         center_layout.addWidget(self.stepper_carousel, stretch=1)
         body_splitter.addWidget(center_pane)
 
@@ -386,7 +391,9 @@ class LinearSystemsView(QWidget):
         self.applications_panel.setVisible(visible)
         self.applications_toggle.setChecked(visible)
         if visible:
-            QTimer.singleShot(0, self, lambda: self.left_scroll.ensureWidgetVisible(self.applications_panel, 0, 0))
+            # El layout se asienta primero; después la vista se desliza hasta el panel.
+            motion.defer(self, lambda: motion.scroll_to_widget(self.left_scroll, self.applications_panel, 0, 0))
+            motion.defer(self, lambda: motion.fade_in(self.applications_panel, motion.BASE))
 
     def _present_applied_model(self, result) -> None:
         """Carga la matriz que armó el asistente y conserva su explicación en el carrusel."""
@@ -399,8 +406,7 @@ class LinearSystemsView(QWidget):
 
     def reveal_matrix(self) -> None:
         """Lleva la vista a la matriz aumentada y la destaca con un destello."""
-        self.left_scroll.ensureWidgetVisible(self.matrix_card, 0, 0)
-        self.left_scroll.verticalScrollBar().setValue(0)
+        motion.scroll_to(self.left_scroll, v_value=0)
         self.matrix_grid.flash()
 
     # ------------------------------------------------------------------
@@ -419,9 +425,74 @@ class LinearSystemsView(QWidget):
             )
             return
 
+        snapshot = self.matrix_grid.snapshot()
+        changed = snapshot != self._solved_snapshot
         with busy(self.solve_btn, "Resolviendo…"):
             self._solve_now()
+        self._solved_snapshot = snapshot
         self._refresh_method_state()
+        self._choreograph_solution(changed)
+
+    # ------------------------------------------------------------------
+    # Movimiento: la matriz entra al procedimiento y la solución al tablero
+    # ------------------------------------------------------------------
+
+    def _choreograph_solution(self, changed: bool) -> None:
+        """Primero la matriz llega al paso inicial; después se asienta el veredicto.
+
+        Si se recalcula lo mismo, no vuela nada: el badge solo pulsa.
+        """
+        book = self.stepper_carousel.matrix_view
+        if changed and choreography.hold_book_for_grid(self.matrix_grid, book):
+            motion.defer(self, self._fly_matrix_in)
+        else:
+            motion.defer(self, self.dashboard_card.reveal)
+
+    def _fly_matrix_in(self) -> None:
+        landing = choreography.fly_grid_into_book(self.matrix_grid, self.stepper_carousel.matrix_view)
+        self.dashboard_card.reveal(delay=landing)
+
+    def _on_step_arrived(self, index: int, kind: str) -> None:
+        """Al llegar avanzando a la forma final, la solución viaja al tablero.
+
+        Con solución única, cada valor de la columna b de la forma reducida
+        viaja a su línea xᵢ = …: la última columna de la RREF es la solución.
+        Con infinitas soluciones, la forma paramétrica responde con un pulso.
+        """
+        steps = self.stepper_carousel.steps()
+        if kind != "forward" or not steps or index != len(steps) - 1 or self.last_cramer is not None:
+            return
+        analysis = self.dashboard_card.last_analysis
+        if analysis is None:
+            return
+        final = steps[-1]
+        split = final.split_col
+        start = motion.ms(motion.SIGNATURE) * 0.55
+        if (
+            analysis.system_type == SystemType.CONSISTENT_DETERMINED
+            and analysis.unique_solution is not None
+            and split is not None
+        ):
+            labels = self.dashboard_card.solution_labels
+            cells, targets = [], []
+            for row, col in leading_entries(final.matrix, split):
+                if col < len(labels) and final.matrix.get(row, split) == analysis.unique_solution[col]:
+                    cells.append((row, split))
+                    targets.append(labels[col])
+            if len(cells) == len(labels):
+                choreography.fly_book_cells_to_labels(
+                    self.stepper_carousel.matrix_view, cells, targets, COLOR_FEEDBACK_SUCCESS, start=start
+                )
+        elif analysis.system_type == SystemType.CONSISTENT_INDETERMINED and self.dashboard_card.parametric_widget:
+            motion.pulse(
+                self.dashboard_card.parametric_widget,
+                COLOR_ACCENT_WARNING,
+                fill=0.10,
+                ring=0.6,
+                delay=int(start),
+                radius=8,
+                margin=2,
+            )
 
     def _solve_now(self) -> None:
         try:

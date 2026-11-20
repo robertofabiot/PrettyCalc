@@ -219,6 +219,8 @@ class MainWindow(QMainWindow):
     def _on_module_changed(self, index: int) -> None:
         if index < 0 or index >= self.module_stack.count():
             return
+        # Lo que vuela entre widgets pertenece al módulo que se va: salta a su final.
+        motion.finish_all()
         self.module_stack.setCurrentIndex(index)
         if 0 <= index < len(_MODULE_SUBTITLES):
             self.subtitle_lbl.setText(_page_header_html(_MODULE_SUBTITLES[index]))
