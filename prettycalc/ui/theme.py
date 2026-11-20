@@ -60,6 +60,9 @@ PALETTES: Dict[str, Dict[str, str]] = {
         "feedback_success": "#81B29A",
         "success_hover": "#93C4AE",
         "accent_warning": "#E9C46A",
+        "accent_primary": "#4D8EFF",
+        "accent_primary_hover": "#6AA6FF",
+        "on_accent": "#17151A",
     },
     "high_contrast": {
         "bg_base": "#000000",
@@ -75,9 +78,12 @@ PALETTES: Dict[str, Dict[str, str]] = {
         "feedback_success": "#8EF0B8",
         "success_hover": "#B5F7D0",
         "accent_warning": "#FFD866",
+        "accent_primary": "#5AA9FF",
+        "accent_primary_hover": "#8CC4FF",
+        "on_accent": "#000000",
     },
     "light": {
-        "bg_base": "#F3F0F6",
+        "bg_base": "#E9E5EF",
         "surface_elevated": "#FFFFFF",
         "surface_inner": "#ECE7F1",
         "text_primary": "#1E1A24",
@@ -90,6 +96,9 @@ PALETTES: Dict[str, Dict[str, str]] = {
         "feedback_success": "#2D7A57",
         "success_hover": "#368F67",
         "accent_warning": "#8A6400",
+        "accent_primary": "#1D5BD8",
+        "accent_primary_hover": "#1748B0",
+        "on_accent": "#FFFFFF",
     },
 }
 
@@ -175,6 +184,11 @@ COLOR_FEEDBACK_ERROR = _P["feedback_error"]
 COLOR_FEEDBACK_SUCCESS = _P["feedback_success"]
 COLOR_SUCCESS_HOVER = _P["success_hover"]
 COLOR_ACCENT_WARNING = _P["accent_warning"]
+#: Acento de acción primaria (Calcular, Resolver…). Solo lo usan esas acciones:
+#: el verde queda para los estados de éxito.
+COLOR_ACCENT_PRIMARY = _P["accent_primary"]
+COLOR_ACCENT_PRIMARY_HOVER = _P["accent_primary_hover"]
+COLOR_ON_ACCENT = _P["on_accent"]
 
 # Familias tipográficas: primero la fuente empaquetada, después DejaVu Sans
 # (empaquetada) para los símbolos que Inter o Fira Code no traen.
@@ -204,6 +218,10 @@ def rgba(hex_color: str, alpha: float) -> str:
     """``rgba(r, g, b, a)`` a partir de un token: tintes coherentes con el tema activo."""
     r, g, b = _hex_to_rgb(hex_color)
     return f"rgba({r}, {g}, {b}, {alpha:.2f})"
+
+
+#: Separador horizontal de filas en tablas (1 px, sutil: equivale a #333 sobre el oscuro).
+COLOR_DIVIDER = rgba(COLOR_TEXT_PRIMARY, 0.10)
 
 
 def relative_luminance(hex_color: str) -> float:
@@ -239,43 +257,30 @@ def badge_style(
     padding: str = "10px 14px",
     soft: Optional[bool] = None,
 ) -> str:
-    """Estilo único de badge.
+    """Estilo único de badge: pasivo, para no competir con la acción primaria.
 
-    Los avisos de estado (éxito, error, atención, información) usan un tinte
-    suave del color con una franja izquierda sólida y el texto primario: se
-    leen de un vistazo sin convertirse en un bloque de color que compita con
-    las matrices. ``soft=False`` (o un fondo neutro) da el badge sólido, con el
-    texto legible elegido automáticamente.
+    Fondo gris oscuro (el pozo de la tarjeta), texto primario y una franja
+    izquierda del color de estado (éxito, error, atención, información). El
+    color dice el estado; el bloque nunca es un relleno que compita con el
+    botón de acento. ``soft`` se conserva por compatibilidad y no cambia el
+    resultado.
     """
-    if soft is None:
-        soft = background in (
-            COLOR_FEEDBACK_SUCCESS,
-            COLOR_FEEDBACK_ERROR,
-            COLOR_ACCENT_WARNING,
-            COLOR_INTERACTIVE_IDLE,
-        )
-    if soft:
-        compact = font_size <= 13
-        stripe = f"1px solid {background}" if compact else f"4px solid {background}"
-        return (
-            f"background-color: {rgba(background, 0.20)}; color: {COLOR_TEXT_PRIMARY}; "
-            f"border: 1px solid {rgba(background, 0.75)}; border-left: {stripe}; "
-            f"font-weight: 600; font-size: {font_size}px; padding: {padding}; "
-            f"border-radius: {4 if compact else 8}px; font-family: {FONT_FAMILY_SANS};"
-        )
-    fg = foreground if foreground is not None else readable_text_on(background)
-    if contrast_ratio(fg, background) < 4.5:
-        fg = readable_text_on(background)
+    del foreground, soft
+    compact = font_size <= 13
+    stripe = 3 if compact else 4
     return (
-        f"background-color: {background}; color: {fg}; font-weight: 600; "
-        f"font-size: {font_size}px; padding: {padding}; border-radius: 8px; "
-        f"font-family: {FONT_FAMILY_SANS};"
+        f"background-color: {COLOR_SURFACE_INNER}; color: {COLOR_TEXT_PRIMARY}; "
+        f"border: none; border-left: {stripe}px solid {background}; "
+        f"font-weight: 600; font-size: {font_size}px; padding: {padding}; "
+        f"border-radius: {4 if compact else 6}px; font-family: {FONT_FAMILY_SANS};"
     )
 
 
 def idle_badge_style(font_size: int = 16) -> str:
-    """Badge neutro de espera (antes del primer cálculo)."""
-    return badge_style(COLOR_INTERACTIVE_DISABLED, COLOR_TEXT_PRIMARY, font_size=font_size)
+    """Badge neutro de espera (antes del primer cálculo): franja gris, texto tenue."""
+    return badge_style(COLOR_INTERACTIVE_DISABLED, font_size=font_size).replace(
+        f"color: {COLOR_TEXT_PRIMARY};", f"color: {COLOR_TEXT_MUTED};", 1
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +491,7 @@ def get_global_stylesheet() -> str:
 
     QFrame[class="elevated-card"], QWidget[class="elevated-card"] {{
         background-color: {COLOR_SURFACE_ELEVATED};
-        border: 1px solid {rgba(COLOR_INTERACTIVE_IDLE, 0.12)};
+        border: none;
         border-radius: 12px;
         padding: 12px;
         color: {COLOR_TEXT_PRIMARY};
@@ -564,9 +569,9 @@ def get_global_stylesheet() -> str:
     }}
 
     QPushButton#primaryAction, QPushButton[class="primaryAction"] {{
-        background-color: {COLOR_FEEDBACK_SUCCESS};
-        color: {COLOR_BG_BASE};
-        border: 1px solid {COLOR_FEEDBACK_SUCCESS};
+        background-color: {COLOR_ACCENT_PRIMARY};
+        color: {COLOR_ON_ACCENT};
+        border: 1px solid {COLOR_ACCENT_PRIMARY};
         border-radius: 6px;
         font-size: 15px;
         font-weight: 700;
@@ -574,9 +579,9 @@ def get_global_stylesheet() -> str:
     }}
 
     QPushButton#primaryAction:hover, QPushButton[class="primaryAction"]:hover {{
-        background-color: {COLOR_SUCCESS_HOVER};
-        color: {COLOR_BG_BASE};
-        border: 1px solid {COLOR_SUCCESS_HOVER};
+        background-color: {COLOR_ACCENT_PRIMARY_HOVER};
+        color: {COLOR_ON_ACCENT};
+        border: 1px solid {COLOR_ACCENT_PRIMARY_HOVER};
     }}
     QPushButton#primaryAction:focus, QPushButton[class="primaryAction"]:focus {{
         border: 2px solid {COLOR_TEXT_PRIMARY};
@@ -971,10 +976,44 @@ def get_global_stylesheet() -> str:
     }}
 
     QTabWidget::pane {{
-        border: 1px solid {COLOR_INTERACTIVE_IDLE};
-        border-radius: 8px;
+        border: none;
+        border-top: 1px solid {COLOR_DIVIDER};
         background: {COLOR_BG_BASE};
         top: -1px;
+        padding-top: 10px;
+    }}
+
+    /* Tablas de datos: flujo horizontal. Sin bordes verticales; filas separadas
+       por una línea de 1 px. Los números se alinean a la derecha (tables.py). */
+    QTableView {{
+        background-color: transparent;
+        alternate-background-color: transparent;
+        gridline-color: transparent;
+        border: none;
+        color: {COLOR_TEXT_PRIMARY};
+        selection-background-color: {rgba(COLOR_INTERACTIVE_IDLE, 0.22)};
+        selection-color: {COLOR_TEXT_PRIMARY};
+    }}
+    QTableView::item {{
+        border: none;
+        border-bottom: 1px solid {COLOR_DIVIDER};
+        padding: 4px 6px;
+    }}
+    QHeaderView {{
+        background-color: transparent;
+        border: none;
+    }}
+    QHeaderView::section {{
+        background-color: transparent;
+        color: {COLOR_TEXT_MUTED};
+        border: none;
+        border-bottom: 1px solid {rgba(COLOR_TEXT_PRIMARY, 0.22)};
+        padding: 6px 6px;
+        font-weight: 600;
+    }}
+    QTableCornerButton::section {{
+        background-color: transparent;
+        border: none;
     }}
     QTabBar::tab {{
         background: transparent;

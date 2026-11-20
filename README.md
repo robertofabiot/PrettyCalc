@@ -76,7 +76,7 @@ El detalle está en [Arquitectura del sistema](Docs/architecture.md).
 - **Entrada sin fricción:** las cuadrículas crecen con celdas fantasma `+`, aceptan enteros, fracciones (`3/4`) y decimales, y explican en línea cada error («A, fila 2, columna 3: divide entre cero»). Pegar, reiniciar o cargar un ejemplo se puede deshacer.
 - **Exportación del procedimiento:** PDF, HTML, LaTeX o texto, desde el carrusel.
 - **Movimiento que explica:** al avanzar un paso, la fila pivote viaja hasta la fila que modifica con su factor `× k`, las filas de un intercambio se cruzan y solo cambian las entradas que la operación tocó. La matriz de entrada viaja al procedimiento, la transpuesta cruza la diagonal y la solución sale de la última columna de la RREF hacia el tablero. El botón ▶ del carrusel reproduce el procedimiento completo (½×, 1×, 2×). *Apariencia* tiene «Reducir animaciones», que deja cada realce quieto y se aplica sin reiniciar.
-- **Interfaz adaptable:** de 1080 × 680 a 1920 px sin desplazamiento horizontal. La barra lateral se pliega a un riel en portátiles y las vistas de tres columnas bajan los resultados cuando no caben.
+- **Interfaz adaptable:** de 1080 × 680 a 1920 px sin desplazamiento horizontal. La barra lateral es un riel de iconos que despliega un cajón con los nombres al pasar el cursor, y las vistas de tres columnas bajan los resultados cuando no caben.
 - **Accesibilidad:** temas oscuro, claro y de alto contraste con contraste WCAG AA, escala de la interfaz y navegación completa por teclado.
 - **Misma apariencia en Windows y Linux:** estilo Fusion, fuentes empaquetadas (Inter, Fira Code y DejaVu Sans), tamaños en píxeles y, en Windows, rasterizado con FreeType, barra de título oscura e icono propio en la barra de tareas.
 

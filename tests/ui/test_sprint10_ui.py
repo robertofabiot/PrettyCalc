@@ -173,17 +173,17 @@ def test_navigation_has_help_and_appearance_entries(qtbot):
     assert window.shortcuts_btn.toolTip().endswith("(F1)")
     assert "Ctrl+," in window.appearance_btn.toolTip()
     window.show()
+    # La barra es siempre un riel de iconos (con su rótulo corto); el nombre
+    # completo aparece en el cajón que se despliega al pasar el cursor.
     for width in (1366, 1920):
         window.resize(width, 768)
         qtbot.wait(20)
         items = window.nav_bar.buttons + window.nav_bar.footer_items
         assert len(window.nav_bar.buttons) == 10
+        assert window.nav_bar.is_compact() is True
         for item in items:
             assert item.label_fits(), (width, item.visible_label())
-    assert window.nav_bar.is_compact() is False
-    window.resize(1366, 768)
-    qtbot.wait(20)
-    assert window.nav_bar.is_compact() is True
+            assert item.drawer_label_fits(), item.text()
 
 
 # ---------------------------------------------------------------------------

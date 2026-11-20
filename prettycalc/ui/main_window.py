@@ -17,7 +17,7 @@ try:
         QTabWidget,
     )
     from PySide6.QtGui import QAction, QKeySequence, QColor, QPalette
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import QEvent, Qt
 except ImportError:
     QMainWindow = object  # type: ignore
 
@@ -32,7 +32,7 @@ from prettycalc.ui.modules.vector_spaces_view import VectorSpacesView
 from prettycalc.ui.modules.numerical_methods_view import NumericalMethodsView
 from prettycalc.ui.modules.iterative_methods_view import IterativeMethodsView
 from prettycalc.ui import motion
-from prettycalc.ui.navigation_bar import ModularNavigationBar, brand_icon
+from prettycalc.ui.navigation_bar import COMPACT_WIDTH, ModularNavigationBar, brand_icon
 from prettycalc.ui.platform_setup import (
     apply_title_bar_theme,
     configure_high_dpi,
@@ -96,9 +96,6 @@ _REVEALED_PANELS = (
     "combo_contradiction_btn",
 )
 
-#: Por debajo de este ancho de ventana la barra lateral se pliega a un riel
-#: (en una pantalla de 1366 px el contenido conserva así casi todo el ancho).
-_COMPACT_NAV_BELOW = 1600
 
 
 def _page_header_html(subtitle: str) -> str:
@@ -142,7 +139,8 @@ class MainWindow(QMainWindow):
         if event.oldSize().isValid() and event.oldSize() != event.size():
             motion.finish_all()
         super().resizeEvent(event)
-        self.nav_bar.set_compact(self.width() < _COMPACT_NAV_BELOW)
+        if self.nav_bar.is_drawer_open():
+            self.nav_bar.close_drawer()
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
@@ -160,9 +158,15 @@ class MainWindow(QMainWindow):
         shell.setContentsMargins(0, 0, 0, 0)
         shell.setSpacing(0)
 
-        self.nav_bar = ModularNavigationBar()
+        # El riel ocupa su columna; la barra se superpone encima y, al pasar el
+        # cursor, se despliega como cajón sobre el lienzo sin empujar el contenido.
+        self.nav_rail_space = QWidget()
+        self.nav_rail_space.setObjectName("navRailSpace")
+        self.nav_rail_space.setFixedWidth(COMPACT_WIDTH)
+        shell.addWidget(self.nav_rail_space)
+        self.nav_bar = ModularNavigationBar(root_widget)
         self.nav_bar.module_changed.connect(self._on_module_changed)
-        shell.addWidget(self.nav_bar)
+        root_widget.installEventFilter(self)
 
         self.shortcuts_btn = self.nav_bar.add_footer_item("?", "Atajos de teclado", "Atajos")
         self.shortcuts_btn.setToolTip("Atajos de teclado (F1)")
@@ -210,6 +214,20 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.module_stack, stretch=1)
         self.determinants_view.inverseExported.connect(self._send_inverse_to_matrices)
         self._register_reveals()
+        self.nav_bar.use_drawer()
+        self._place_nav()
+
+    def _place_nav(self) -> None:
+        root = self.centralWidget()
+        if root is None:
+            return
+        self.nav_bar.setGeometry(0, 0, self.nav_bar.width(), root.height())
+        self.nav_bar.raise_()
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        if watched is self.centralWidget() and event.type() == QEvent.Type.Resize:
+            self._place_nav()
+        return super().eventFilter(watched, event)
 
     def _register_reveals(self) -> None:
         """Paneles, avisos y pestañas que entran con un fundido al aparecer."""
