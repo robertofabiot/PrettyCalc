@@ -168,6 +168,40 @@ def label_text_end(label: "QLabel") -> QRectF:
     return motion.window_rect(label, rect)
 
 
+def label_value_rect(label: "QLabel", value: str) -> Optional[QRectF]:
+    """Zona (en la ventana) donde la etiqueta escribe ``value`` después del signo «=»."""
+    doc = QTextDocument()
+    doc.setDefaultFont(label.font())
+    doc.setDocumentMargin(0)
+    doc.setHtml(label.text())
+    contents = label.contentsRect()
+    doc.setTextWidth(contents.width())
+    doc.size()  # fuerza el layout del documento antes de pedir posiciones
+    plain = doc.toPlainText()
+    equals = plain.find("=")
+    start = plain.find(value, equals + 1 if equals >= 0 else 0)
+    if start < 0:
+        return None
+    block = doc.findBlock(start)
+    layout = block.layout()
+    if layout is None:
+        return None
+    local_start = start - block.position()
+    line = layout.lineForTextPosition(local_start)
+    if not line.isValid():
+        return None
+    def to_x(position: int) -> float:
+        found = line.cursorToX(position)
+        return float(found[0] if isinstance(found, tuple) else found)
+
+    x0, x1 = to_x(local_start), to_x(local_start + len(value))
+    top = doc.documentLayout().blockBoundingRect(block).top() + line.y()
+    # Centrado vertical como lo pinta QLabel (AlignVCenter por defecto).
+    offset_y = max(0.0, (contents.height() - doc.size().height()) / 2)
+    rect = QRect(int(contents.left() + x0), int(contents.top() + offset_y + top), max(1, int(x1 - x0)), int(line.height()))
+    return motion.window_rect(label, rect)
+
+
 def fly_book_cells_to_labels(
     book: BookMatrixWidget,
     cells: Sequence[Cell],
@@ -191,10 +225,10 @@ def fly_book_cells_to_labels(
         pixmap = book_cell_pixmap(book, *cell)
         if pixmap is None:
             continue
-        end = label_text_end(label)
         ratio = pixmap.devicePixelRatio() or 1.0
         w, h = pixmap.width() / ratio, pixmap.height() / ratio
-        dst = QRectF(end.right() - w / 2, end.center().y() - h / 2, w, h)
+        spot = label_value_rect(label, book.cell_text(*cell)) or label_text_end(label)
+        dst = QRectF(spot.center().x() - w / 2, spot.center().y() - h / 2, w, h)
         delay = start + index * step
         layer.add_flight(
             motion.Flight(
