@@ -126,3 +126,71 @@ Al alcanzar el paso final de la resolución, la UI despliega un Card lateral o M
 * **Inspectores.** Hacer clic en una entrada de un producto resalta la fila y la columna que la producen.
 * **Escalares.** Campo común con borde rojo si es inválido, pista `≈ 1.5` para fracciones y chips −1, 0, ½, 2.
 * **Responsive.** A 1366×768 ninguna vista tiene desplazamiento horizontal: las filas de tarjetas se apilan y los conjuntos de vectores saltan de línea.
+
+---
+
+## 9. Movimiento
+
+El movimiento es parte del sistema de diseño, igual que la paleta. Vive en `prettycalc/ui/motion.py` (tokens, interruptor y ayudantes), `prettycalc/ui/choreography.py` (valores que viajan entre widgets) y `prettycalc/core/step_diff.py` (qué operación hizo cada paso). Ningún módulo escribe duraciones ni curvas sueltas.
+
+### 9.1. Principios
+
+* **Cada animación responde una pregunta:** qué cambió (una fila, una celda, un veredicto), de dónde vino (la fila pivote, la columna reemplazada) o a dónde fue (la vista se desplazó, el panel apareció, el resultado quedó desactualizado). Si no responde ninguna, no se agrega.
+* **El estado cambia de inmediato; la animación decora.** Texto, señales, visibilidad, valores y resultados se actualizan de forma síncrona. Si una animación nunca corriera, la app se vería y se comportaría igual en su estado final.
+* **El fotograma final carga todo el significado.** La franja de la fila afectada, el anillo del pivote, el ocre de las filas permutadas y el término de Sarrus quedan pintados después de la animación.
+* **Nunca bloquea ni se encola.** Ningún botón se deshabilita mientras algo anima. Un disparador nuevo lleva el anterior a su estado final y empieza el suyo.
+* **Navegar rápido es tan ágil como sin animaciones.** Mantener → o pulsarla antes de que termine la secuencia usa la versión corta (fundido de lo que cambió). Lo vistoso es para quien avanza y mira.
+* **Nunca números intermedios.** Un valor cambia con fundido cruzado o resaltado, jamás interpolando el número. Un valor puede viajar porque sigue siendo el valor correcto mientras se mueve.
+* **El movimiento nunca miente.** Un valor solo viaja de A a B si el valor de A es, literalmente, el que termina en B; cada correspondencia se comprueba con aritmética exacta antes de volar. Por eso L no "sale" de A en LU (L guarda multiplicadores) y el multiplicador no viaja a L (la fila lleva −ℓ y L guarda ℓ): ahí se resalta. Ante la duda, se resalta en vez de mover.
+* **Sobrio en el adorno, ambicioso en la coreografía.** Sin rebotes, elásticos, partículas ni movimiento en reposo.
+
+### 9.2. Tokens
+
+| Token | Duración | Uso |
+| :--- | :--- | :--- |
+| `FAST` | 120 ms | Hover, fundidos pequeños, retroceder o saltar un paso, veredicto que se retira |
+| `BASE` | 180 ms | Entrada de avisos, cambio de módulo, asentamiento del badge, paneles que aparecen |
+| `SLOW` | 260 ms | Recorrido del pivote, desplazamiento suave |
+| `EMPHASIS` | 600 ms | Destellos y pulsos de una sola vez |
+| `SIGNATURE` | 680 ms | La operación de un paso, la matriz que entra al procedimiento, la transpuesta |
+| `STAGGER` | 50 ms por elemento, 300 ms en total | Revelados escalonados |
+| `PULSE_CYCLE` | 400 ms | Pulsos repetidos (2.5 por segundo) |
+
+Curvas: `OutCubic` para entrar, `InCubic` para salir, `InOutCubic` para desplazarse y viajar. No se usan `OutBounce`, `OutElastic` ni `OutBack`.
+
+`PRETTYCALC_MOTION_SCALE=4` multiplica todas las duraciones para revisarlas a ojo.
+
+### 9.3. Qué se anima
+
+* **El procedimiento.** Avanzar un paso reproduce su operación: en `Fᵢ → Fᵢ + k·Fⱼ` una copia de la fila `j` viaja con la etiqueta `× k` hasta la fila `i` y se funde con ella; en `Fᵢ ↔ Fⱼ` las filas se cruzan en arco (una por delante, realzada; otra por detrás, atenuada); en `Fᵢ → k·Fᵢ` la etiqueta aterriza y el pivote pulsa al quedar en 1. Solo las entradas que cambiaron pasan del valor viejo al nuevo, el pivote se desliza, y en `Aᵢ(b)` la columna `i` baja mientras `b` entra desde la derecha. Retroceder o saltar solo funde lo que cambió.
+* **La forma final.** Al llegar avanzando, los pivotes se encienden en orden y las cabeceras quedan en verde (básicas) u ocre (libres). En Sistemas, cada valor de la columna `b` viaja a su línea `xᵢ = …` del tablero; con infinitas soluciones responde la forma paramétrica; en `[0 … 0 | c]` los ceros se atenúan y `c` queda en el color de error.
+* **Reproducir el procedimiento.** Recorre los pasos con su coreografía y un tiempo de lectura según el texto, a ½×, 1× o 2× (Espacio con el carrusel enfocado). Se detiene al final, ante cualquier interacción con el carrusel, al cambiar de módulo y si cambian los pasos.
+* **Valores que viajan.** La matriz de entrada viaja a su lugar en el paso inicial (solo si cambió desde el último cálculo); en Aᵀ cada entrada va de `(i, j)` a `(j, i)` y la diagonal pulsa sin cruzar; el bloque derecho de `[Iₙ | A⁻¹]` viaja a la tarjeta de A⁻¹. Solo vuelan si origen y destino se ven enteros.
+* **Resultados.** El badge se asienta (fundido y 6 px) y las secciones entran en orden de lectura; si el resultado no cambió, el badge pulsa. Al editar después de calcular, el veredicto viejo se desvanece encima del estado nuevo.
+* **Orientación.** Avisos que entran, salen y cuentan el tiempo para deshacer (pausa con el cursor encima); desplazamiento suave hasta los resultados; indicador del módulo activo que se desliza; fundido entre módulos y pestañas; paneles que entran con un fundido.
+* **Entrada.** Los corchetes crecen o se contraen desde su tamaño anterior y las celdas nuevas llegan teñidas; el destello de pegar o deshacer es un tinte que decae; al intentar calcular con celdas inválidas, la primera pulsa dos veces en rojo.
+* **Momentos por módulo.** Sarrus traza su diagonal y escribe el término; el inspector de A·B enciende los pares `(aᵢₖ, bₖⱼ)` por `k`; LU pulsa las filas que P permutó y muestra `y` antes que `x`; T(v) se arma fila por fila; las columnas pivote se encienden con la base de im(T) y las libres con la de nu(T); en un conjunto dependiente cada coeficiente aparece junto a su vector.
+
+### 9.4. Qué no se anima
+
+* Hover, presión y `:checked` de botones con QSS (solo lo pintado a mano, como la barra lateral).
+* El cambio a riel de la barra al redimensionar, ni nada durante un redimensionamiento: lo pendiente salta al final.
+* El foco entre celdas, la escritura y la aparición del error en una celda.
+* Diálogos, combos y tooltips (quedan nativos de Qt por paridad entre plataformas).
+* La geometría de widgets dentro de layouts: la geometría final se aplica de inmediato y se anima la pintura o la opacidad.
+* El cambio de tema (requiere reiniciar).
+* Nada en bucle ni en reposo.
+
+### 9.5. Reglas técnicas
+
+* Se anima lo pintado (`paintEvent`) o una capa encima; nunca `setStyleSheet` ni `repolish` por fotograma.
+* Lo que viaja entre widgets se pinta en una sola capa por ventana, oculta mientras no hay nada en vuelo y transparente al ratón. Se cancela ante un redimensionamiento, un desplazamiento de las áreas de origen o destino y un cambio de módulo.
+* Un solo efecto gráfico por widget y nunca anidado; los efectos temporales se quitan al terminar. Las páginas grandes se funden por instantánea, no con efecto.
+* Cada animación es hija del widget que anima y sus callbacks toleran objetos ya borrados.
+* `finish_all()` lleva todo a su estado final (las pruebas lo usan al terminar).
+
+### 9.6. Reducir animaciones
+
+*Apariencia* (Ctrl+,) tiene «Reducir animaciones», guardada en `appearance/reduce_motion` y aplicada sin reiniciar; `PRETTYCALC_REDUCE_MOTION=1` la fuerza. En Windows, si el usuario nunca la eligió, se toma la preferencia del sistema. Con ella activa no hay desplazamientos, vuelos, escalas, trazos progresivos ni escalonados: cada realce se muestra como estado final estático, el desplazamiento a un widget es instantáneo y la reproducción del procedimiento sigue disponible, sin movimiento.
+
+Ningún destello se repite más de 3 veces por segundo (WCAG 2.3.1) y las animaciones no tocan los tokens ni el contraste del estado final. Los tintes animados usan un alfa más alto en el tema claro para seguir viéndose.
