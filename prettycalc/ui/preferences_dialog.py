@@ -60,6 +60,7 @@ SHORTCUTS = (
     ("Procedimiento", (
         ("← / →", "Paso anterior / siguiente (con el carrusel enfocado)"),
         ("Inicio / Fin", "Primer / último paso"),
+        ("Espacio", "Reproducir / pausar el procedimiento (con el carrusel enfocado)"),
         ("Exportar", "PDF, HTML, LaTeX o texto del procedimiento completo"),
     )),
 )
