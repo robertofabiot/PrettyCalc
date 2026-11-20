@@ -147,7 +147,8 @@ def test_changing_module_mid_flight_lands_everything(qtbot):
     view.load_sample_case1()
     qtbot.waitUntil(lambda: _layer(view).is_active(), timeout=1000)
     window.set_module(1)
-    assert not _layer(view).isVisible()
+    # Los vuelos aterrizaron; en la capa solo queda el fundido de la página que se fue.
+    assert not _layer(view)._flights
     assert not view.stepper_carousel.matrix_view.is_animating()
 
 
@@ -225,12 +226,15 @@ def test_explicit_action_reveals_and_same_result_pulses(qtbot):
     window.set_module(4)
     view = window.determinants_view
     view.load_session11_example()
+    qtbot.wait(20)
+    motion.finish_all()
+    view.grid.cells[0][0].setText("7")  # otros datos: otro veredicto
     view.compute()
-    qtbot.waitUntil(lambda: _layer(view).is_active(), timeout=1000)
+    qtbot.wait(20)
     assert _layer(view)._sprites  # el veredicto nuevo se asienta
     motion.finish_all()
     view.compute()
-    qtbot.waitUntil(lambda: _layer(view).is_active(), timeout=1000)
+    qtbot.wait(20)
     assert _layer(view)._marks and not _layer(view)._sprites  # mismo veredicto: pulso
 
 
