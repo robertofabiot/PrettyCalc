@@ -54,7 +54,7 @@ from prettycalc.core.vector_ops import (
     trace_vector_sum,
     vector_sub,
 )
-from prettycalc.ui import motion
+from prettycalc.ui import choreography, motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.clipboard import get_matrix_from_clipboard
 from prettycalc.ui.feedback import show_toast
@@ -521,6 +521,7 @@ class VectorsView(QWidget):
         self.metric_result.setMinimumHeight(180)
         self.metric_result.set_empty_text("Elige una operación y pulsa Calcular")
         self.metric_result.cellClicked.connect(self._on_outer_cell_clicked)
+        self.metric_result.cellClicked.connect(self._animate_outer_inspection)
         layout.addWidget(self.metric_result)
 
         self.metric_stepper = AlgorithmStepperCarousel(variable_headers=False)
@@ -694,6 +695,27 @@ class VectorsView(QWidget):
 
     def inspected_cell(self) -> Optional[Tuple[int, int]]:
         return self._inspected
+
+    def _animate_outer_inspection(self, row: int, col: int) -> None:
+        """uᵢ y vⱼ se encienden juntos y Mᵢⱼ pulsa al recibir su producto."""
+        if self._outer_matrix is None:
+            return
+        motion.finish_layer(self)
+        try:
+            u_cell = self.metric_u.grid.cells[row][0]
+            v_cell = self.metric_v.grid.cells[col][0]
+        except IndexError:
+            return
+        span = motion.SLOW + 80
+        for cell in (u_cell, v_cell):
+            motion.pulse(cell, COLOR_INTERACTIVE_IDLE, fill=0.20, ring=0.9, duration=span, margin=3, radius=7)
+        target = self.metric_result.cell_rect(row, col)
+        if target is not None:
+            motion.pulse(
+                self.metric_result, COLOR_INTERACTIVE_IDLE, fill=0.24, ring=1.0,
+                duration=span + 40, delay=int(span * 0.6), rect=target.adjusted(2, 4, -2, -4),
+            )
+        motion.fade_in(self.metric_inspector, motion.BASE)
 
     def _on_outer_cell_clicked(self, row: int, col: int) -> None:
         """Inspector de u vᵀ: resalta uᵢ en u y vⱼ en v (como A · B en el Módulo 2)."""
@@ -1248,6 +1270,13 @@ class VectorsView(QWidget):
                 for i, w in enumerate(res.nontrivial_weights)
                 if w != Fraction(0, 1)
             ]
+            weights = list(res.nontrivial_weights)
+            motion.defer(self, lambda: choreography.show_dependence(
+                self.indep_set.editors,
+                weights,
+                [f"c{to_subscript(i + 1)}" for i in range(len(weights))],
+                COLOR_ACCENT_WARNING,
+            ))
             eq_lbl = QLabel(f"   {' + '.join(terms)} = 0")
             eq_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
             eq_lbl.setWordWrap(True)
