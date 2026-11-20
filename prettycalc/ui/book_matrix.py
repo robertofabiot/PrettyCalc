@@ -209,6 +209,7 @@ class _Transition:
     lead_cells: Tuple[Cell, ...] = ()
     lead_step: float = 0.0
     lead_start: float = 0.0
+    lead_color: str = COLOR_FEEDBACK_SUCCESS
     replaced_col: Optional[int] = None
     replaced_old: Dict[int, str] = field(default_factory=dict)
     arrival: Dict[Cell, float] = field(default_factory=dict)
@@ -606,6 +607,11 @@ class BookMatrixWidget(QWidget):
             transition.alert_window = (start, float(motion.ms(motion.EMPHASIS)))
             transition.total = max(transition.total, sum(transition.alert_window))
 
+        if not lead_cells and transition.replaced_col is None and self._highlight_cells:
+            # Las celdas que el paso señala (la diagonal de U, la columna nueva de
+            # Aᵀ, la entrada cᵢⱼ) se encienden en orden de lectura.
+            lead_cells = tuple(sorted(self._highlight_cells))
+            transition.lead_color = COLOR_ACCENT_WARNING
         if lead_cells:
             transition.lead_cells = tuple(lead_cells)
             transition.lead_step = float(motion.ms(motion.stagger_step(len(lead_cells), 70, 420)))
@@ -976,8 +982,8 @@ class BookMatrixWidget(QWidget):
             cell = QRectF(g.cells[r][c].adjusted(3, 5, -3, -5))
             grow = 3.0 * k
             painter.save()
-            painter.setPen(QPen(motion.with_alpha(COLOR_FEEDBACK_SUCCESS, 0.95 * motion.bell(k)), 2.2))
-            painter.setBrush(motion.with_alpha(COLOR_FEEDBACK_SUCCESS, 0.18 * motion.bell(k)))
+            painter.setPen(QPen(motion.with_alpha(tx.lead_color, 0.95 * motion.bell(k)), 2.2))
+            painter.setBrush(motion.with_alpha(tx.lead_color, 0.18 * motion.bell(k)))
             painter.drawRoundedRect(cell.adjusted(-grow, -grow, grow, grow), 6, 6)
             painter.restore()
 
