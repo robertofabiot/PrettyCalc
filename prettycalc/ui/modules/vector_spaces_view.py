@@ -51,7 +51,7 @@ from prettycalc.core.vector_spaces import (
     subspace_summary,
 )
 from prettycalc.core.types import Matrix, Vector, format_scalar
-from prettycalc.ui import motion
+from prettycalc.ui import choreography, motion
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.mathtext import plain_formula_to_html
@@ -665,6 +665,11 @@ class VectorSpacesView(QWidget):
 
         self._last_gen_result = result
         self._gen_panel.show_result(result)
+        # Las columnas pivote (los vectores que forman una base del espacio generado) se encienden.
+        motion.defer(self, lambda: choreography.pulse_grid_columns(
+            self.grid_gen, result.pivot_cols, COLOR_FEEDBACK_SUCCESS,
+            delay=motion.ms(motion.BASE + motion.SLOW), step=motion.ms(motion.STAGGER * 2),
+        ))
         self.stepper.set_steps(result.tracer.get_steps())
         self.stepper.set_export_title("RREF — Conjunto Generador")
 
@@ -693,6 +698,11 @@ class VectorSpacesView(QWidget):
 
         self._last_sub_result = result
         self._sub_panel.show_result(result)
+        # Cada variable libre aporta un vector de la base de Ker A: sus columnas se encienden en ocre.
+        motion.defer(self, lambda: choreography.pulse_grid_columns(
+            self.grid_sub, result.free_cols, COLOR_ACCENT_WARNING,
+            delay=motion.ms(motion.BASE + motion.SLOW), step=motion.ms(motion.STAGGER * 2),
+        ))
         self.stepper.set_steps(result.tracer.get_steps())
         self.stepper.set_export_title("RREF — Base del Subespacio")
 
