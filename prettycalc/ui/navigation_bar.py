@@ -281,19 +281,81 @@ def paint_brand_mark(painter: "QPainter", rect: "QRectF") -> None:
     _renderer().render(painter, rect)
 
 
+def _element_rect(element: str, rect: "QRectF") -> "QRectF":
+    """Dónde cae un elemento del SVG al dibujar el logotipo en ``rect``."""
+    renderer = _renderer()
+    box = renderer.viewBoxF()
+    bounds = renderer.transformForElement(element).mapRect(renderer.boundsOnElement(element))
+    sx, sy = rect.width() / box.width(), rect.height() / box.height()
+    return QRectF(rect.x() + bounds.x() * sx, rect.y() + bounds.y() * sy, bounds.width() * sx, bounds.height() * sy)
+
+
 class BrandMark(QWidget):
-    """Logotipo de PrettyCalc: la matriz aumentada [A | b] con sus pivotes."""
+    """Logotipo de PrettyCalc: la matriz aumentada [A | b] con sus pivotes.
+
+    Al abrir la app, los corchetes se dibujan desde el centro y después
+    aparecen las entradas con la diagonal de pivotes (una sola vez). La
+    ventana es usable desde el primer instante.
+    """
 
     def __init__(self, size: int = 34, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._size = size
+        self._intro_t = 1.0
+        self._intro_played = False
+        self._intro_tween = None
         self.setFixedSize(size, size)
         self.setAccessibleName("PrettyCalc")
+
+    def play_intro(self) -> bool:
+        """Dibuja el logotipo por partes (≤ 600 ms). No se repite."""
+        if self._intro_played:
+            return False
+        self._intro_played = True
+        duration = motion.ms(560)
+        if duration <= 0 or not _renderer().elementExists("brackets"):
+            return False
+        self._intro_t = 0.0
+
+        def step(t: float) -> None:
+            self._intro_t = t
+            self.update()
+
+        def done() -> None:
+            self._intro_t = 1.0
+            self._intro_tween = None
+            self.update()
+
+        self._intro_tween = motion.run(self, duration, step, done)
+        return True
+
+    def is_playing_intro(self) -> bool:
+        return self._intro_tween is not None
 
     def paintEvent(self, _event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
-        paint_brand_mark(painter, QRectF(0, 0, self._size, self._size))
+        rect = QRectF(0, 0, self._size, self._size)
+        if self._intro_t >= 1.0:
+            paint_brand_mark(painter, rect)
+            painter.end()
+            return
+        renderer = _renderer()
+        renderer.render(painter, "frame", _element_rect("frame", rect))
+        # Corchetes: se trazan desde el centro hacia los extremos.
+        k = motion.ease(motion.CURVE_MOVE, motion.local(self._intro_t, 0.0, 0.6))
+        target = _element_rect("brackets", rect)
+        if k > 0:
+            painter.save()
+            half = target.height() * k / 2 + 1
+            painter.setClipRect(QRectF(target.left() - 2, target.center().y() - half, target.width() + 4, 2 * half))
+            renderer.render(painter, "brackets", target)
+            painter.restore()
+        alpha = motion.ease(motion.CURVE_ENTER, motion.local(self._intro_t, 0.45, 0.55))
+        if alpha > 0:
+            painter.setOpacity(alpha)
+            renderer.render(painter, "entries", _element_rect("entries", rect))
+            painter.setOpacity(1.0)
         painter.end()
 
 
