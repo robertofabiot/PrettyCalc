@@ -6,3 +6,9 @@ pytest-qt>=4.4.0
 # «none_dealloc». En 3.12+ None es inmortal y no ocurre.
 PySide6>=6.6.0,!=6.12.0; python_version < "3.12"
 PySide6>=6.6.0; python_version >= "3.12"
+# Metodos Numericos (Programa 7): sympy parsea las funciones sin eval();
+# numpy y matplotlib grafican; scipy contrasta la biseccion.
+sympy>=1.12
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.8

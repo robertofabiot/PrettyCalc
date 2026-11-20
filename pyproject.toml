@@ -14,6 +14,11 @@ dependencies = [
     # 6.12.0 aborta con «none_dealloc» en Python < 3.12 (ver requirements.txt).
     "PySide6>=6.6.0,!=6.12.0; python_version < '3.12'",
     "PySide6>=6.6.0; python_version >= '3.12'",
+    # Metodos Numericos: parseo seguro de funciones, graficas y contraste de la biseccion.
+    "sympy>=1.12",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.8",
 ]
 
 [project.scripts]
