@@ -497,6 +497,8 @@ class ResultsDashboardCard(QFrame):
         """
         if not motion.motion_enabled() or not self.isVisible():
             return
+        # Las instantáneas se toman con la geometría ya final del tablero.
+        self.layout().activate()
         if self.same_verdict_as_before():
             motion.pulse(self.status_badge, COLOR_TEXT_PRIMARY, fill=0.22, duration=motion.EMPHASIS, delay=delay, radius=4)
             return

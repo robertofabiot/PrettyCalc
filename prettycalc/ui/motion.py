@@ -665,25 +665,35 @@ class Mark:
 
 @dataclass
 class Sprite:
-    """Instantánea fija que se desvanece (o aparece y se asienta) sobre su lugar."""
+    """Instantánea fija que se desvanece (o aparece y se asienta) sobre su lugar.
 
-    pixmap: "QPixmap"
+    Con ``source`` y sin ``pixmap``, la instantánea se toma cuando empieza su
+    tramo: así refleja la geometría final aunque el layout termine de
+    asentarse después de programarla.
+    """
+
+    pixmap: Optional["QPixmap"]
     rect: "QRectF"
     start: float
     duration: float
     fade: str = "out"  # "out": 1 → 0;  "in": 0 → 1 con desplazamiento dy → 0
     dy: float = 0.0
     cover: Optional[str] = None
+    source: Optional["QWidget"] = None
 
 
 @dataclass
 class Cover:
-    """Tapa una zona con un color hasta ``until`` (el destino ya tiene el valor final)."""
+    """Tapa una zona con un color hasta ``until`` (el destino ya tiene el valor final).
+
+    Con ``source``, la zona sigue al widget mientras espera.
+    """
 
     rect: "QRectF"
     color: str
     until: float
     radius: float = 0.0
+    source: Optional["QWidget"] = None
 
 
 class ChoreographyLayer(QWidget):
@@ -857,6 +867,17 @@ class ChoreographyLayer(QWidget):
 
     def _step(self, t: float) -> None:
         self._now = self._base + t * (self._total - self._base)
+        for cover in self._covers:
+            if cover.source is not None and is_alive(cover.source) and self._now < cover.until:
+                cover.rect = window_rect(cover.source).adjusted(-1, -1, 1, 1)
+        for sprite in self._sprites:
+            if sprite.pixmap is None and self._now >= sprite.start:
+                source = sprite.source
+                if source is None or not is_alive(source) or not source.isVisible():
+                    sprite.duration = 0.0
+                    continue
+                sprite.rect = window_rect(source)
+                sprite.pixmap = source.grab()
         self.update()
 
     def eventFilter(self, watched, event) -> bool:  # noqa: N802
@@ -882,6 +903,8 @@ class ChoreographyLayer(QWidget):
                 painter.drawRoundedRect(cover.rect, cover.radius, cover.radius)
 
         for sprite in self._sprites:
+            if sprite.pixmap is None:
+                continue
             t = local(now, sprite.start, sprite.duration)
             if sprite.fade == "out":
                 if t >= 1.0:
@@ -1039,8 +1062,8 @@ def settle(widget: Optional["QWidget"], cover: str, *, dy: float = 6.0, duration
     if rect.isEmpty():
         return False
     start = float(ms(delay)) if delay else 0.0
-    layer.add_cover(Cover(rect.adjusted(-1, -1, 1, 1), cover, start))
-    layer.add_sprite(Sprite(widget.grab(), rect, start, float(total), fade="in", dy=dy, cover=cover))
+    layer.add_cover(Cover(rect.adjusted(-1, -1, 1, 1), cover, start + 1.0, source=widget))
+    layer.add_sprite(Sprite(None, rect, start, float(total), fade="in", dy=dy, cover=cover, source=widget))
     layer.watch([widget])
     return layer.play()
 
@@ -1130,6 +1153,9 @@ def reveal_verdict(
     def play() -> None:
         if not badge.isVisible():
             return
+        host = badge.parentWidget()
+        if host is not None and host.layout() is not None:
+            host.layout().activate()  # geometría final antes de la instantánea
         if same:
             pulse(badge, COLOR_TEXT_PRIMARY, fill=0.22, duration=EMPHASIS, delay=delay, radius=4)
             return
