@@ -29,6 +29,7 @@ from prettycalc.ui.modules.lu_factorization_view import LUFactorizationView
 from prettycalc.ui.modules.linear_transformations_view import LinearTransformationsView
 from prettycalc.ui.modules.vector_spaces_view import VectorSpacesView
 from prettycalc.ui.modules.numerical_methods_view import NumericalMethodsView
+from prettycalc.ui.modules.iterative_methods_view import IterativeMethodsView
 from prettycalc.ui.navigation_bar import ModularNavigationBar, brand_icon
 from prettycalc.ui.platform_setup import (
     apply_title_bar_theme,
@@ -63,6 +64,7 @@ _MODULE_SUBTITLES = (
     "Transformaciones Lineales  ·  T(v) = A·v, nu T, im T y rango",
     "Espacios Vectoriales  ·  Conjuntos Generadores, Bases y Dimensión",
     "Métodos Numéricos  ·  Bisección, Graficador, Posicional y Errores",
+    "Métodos Iterativos  ·  Jacobi, Gauss-Seidel y convergencia",
 )
 
 #: Por debajo de este ancho de ventana la barra lateral se pliega a un riel
@@ -86,7 +88,7 @@ def _page_header_html(subtitle: str) -> str:
 
 
 class MainWindow(QMainWindow):
-    """Shell multi-módulo: barra lateral de navegación y ocho vistas persistentes."""
+    """Shell multi-módulo: barra lateral de navegación y diez vistas persistentes."""
 
     def __init__(self):
         super().__init__()
@@ -169,6 +171,8 @@ class MainWindow(QMainWindow):
         self.module_stack.addWidget(self.vector_spaces_view)
         self.numerical_methods_view = NumericalMethodsView()
         self.module_stack.addWidget(self.numerical_methods_view)
+        self.iterative_view = IterativeMethodsView()
+        self.module_stack.addWidget(self.iterative_view)
         main_layout.addWidget(self.module_stack, stretch=1)
         self.determinants_view.inverseExported.connect(self._send_inverse_to_matrices)
 
@@ -178,9 +182,9 @@ class MainWindow(QMainWindow):
         self.matrix_operations_view.receive_inverse(matrix)
 
     def _setup_shortcuts(self) -> None:
-        for index in range(9):  # Ctrl+1 … Ctrl+9 (incluyendo Métodos Numéricos)
+        for index in range(10):  # Ctrl+1 … Ctrl+9 y Ctrl+0 para el décimo (Métodos Iterativos)
             action = QAction(self)
-            action.setShortcut(QKeySequence(f"Ctrl+{index + 1}"))
+            action.setShortcut(QKeySequence(f"Ctrl+{(index + 1) % 10}"))
             action.triggered.connect(lambda _checked=False, i=index: self.set_module(i))
             self.addAction(action)
         help_action = QAction(self)

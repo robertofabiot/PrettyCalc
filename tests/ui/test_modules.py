@@ -6,11 +6,11 @@ from prettycalc.ui.theme import COLOR_FEEDBACK_ERROR, COLOR_FEEDBACK_SUCCESS
 from prettycalc.core.types import Matrix
 
 
-def test_navigation_bar_has_eight_modules(qtbot):
+def test_navigation_bar_has_ten_modules(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
-    assert len(window.nav_bar.buttons) == 8
-    assert window.module_stack.count() == 8
+    assert len(window.nav_bar.buttons) == 10
+    assert window.module_stack.count() == 10
     assert "Sistemas Lineales" in window.nav_bar.buttons[0].text()
     assert "Álgebra Matricial" in window.nav_bar.buttons[1].text()
     assert "Vectores" in window.nav_bar.buttons[2].text()
@@ -19,6 +19,8 @@ def test_navigation_bar_has_eight_modules(qtbot):
     assert "Factorización LU" in window.nav_bar.buttons[5].text()
     assert "Transformaciones Lineales" in window.nav_bar.buttons[6].text()
     assert "Espacios Vectoriales" in window.nav_bar.buttons[7].text()
+    assert "Métodos Numéricos" in window.nav_bar.buttons[8].text()
+    assert "Métodos Iterativos" in window.nav_bar.buttons[9].text()
 
 
 def test_set_module_switches_stacked_widget_and_subtitle(qtbot):

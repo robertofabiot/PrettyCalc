@@ -1,6 +1,6 @@
 """Navegación lateral entre los módulos de PrettyCalc.
 
-Con ocho módulos, la barra segmentada superior recortaba los rótulos
+Con diez módulos, la barra segmentada superior recortaba los rótulos
 («eterminant», «Ecuacione»). La barra lateral muestra cada módulo con su
 marca tipográfica y su nombre completo; en ventanas de portátil se pliega a
 un riel con la marca y el rótulo corto debajo (el nombre completo queda en
@@ -58,10 +58,11 @@ MODULE_TABS: Sequence[Tuple[str, str]] = (
     ("T(v)", "Transformaciones Lineales"),
     ("EV", "Espacios Vectoriales"),
     ("Num", "Métodos Numéricos"),
+    ("x⁽ᵏ⁾", "Métodos Iterativos"),
 )
 
 #: Rótulos cortos para ventanas angostas (el rótulo completo queda en el tooltip).
-SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU", "Transform.", "Espacios", "Numéricos")
+SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones", "Determinantes", "LU", "Transform.", "Espacios", "Numéricos", "Iterativos")
 
 #: Ancho de la barra desplegada y del riel plegado (px).
 EXPANDED_WIDTH = 276
