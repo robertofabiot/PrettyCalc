@@ -83,6 +83,14 @@ def _cells_on_screen(grid, book: BookMatrixWidget, rows: int, cols: int) -> bool
     return motion.on_screen(book, first) and motion.on_screen(book, last)
 
 
+def can_fly_grid_into_book(grid, book: BookMatrixWidget) -> bool:
+    """La cuadrícula y el visor muestran la misma matriz y ambos se ven enteros."""
+    if not motion.motion_enabled() or not grid_matches_book(grid, book):
+        return False
+    matrix = book.matrix()
+    return _cells_on_screen(grid, book, matrix.rows, matrix.cols)
+
+
 def arrival_delays(rows: int, cols: int) -> Tuple[Dict[Cell, float], float]:
     flight, step = flight_timing(cols)
     return {(r, c): c * step for r in range(rows) for c in range(cols)}, flight

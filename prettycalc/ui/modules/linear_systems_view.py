@@ -448,8 +448,14 @@ class LinearSystemsView(QWidget):
         else:
             motion.defer(self, self.dashboard_card.reveal)
 
-    def _fly_matrix_in(self) -> None:
-        landing = choreography.fly_grid_into_book(self.matrix_grid, self.stepper_carousel.matrix_view)
+    def _fly_matrix_in(self, retries: int = 3) -> None:
+        book = self.stepper_carousel.matrix_view
+        if retries > 0 and not choreography.can_fly_grid_into_book(self.matrix_grid, book):
+            # Al cargar otra forma, la cuadrícula y el carrusel cambian de tamaño:
+            # se espera a que el layout se asiente (mucho antes del primer aterrizaje).
+            motion.defer(self, lambda: self._fly_matrix_in(retries - 1), 40)
+            return
+        landing = choreography.fly_grid_into_book(self.matrix_grid, book)
         self.dashboard_card.reveal(delay=landing)
 
     def _on_step_arrived(self, index: int, kind: str) -> None:
