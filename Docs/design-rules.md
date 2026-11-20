@@ -22,7 +22,9 @@ La aplicación prioriza la elegancia, la claridad cognitiva y la eliminación to
 | `color-interactive-hover` | **Sky Wash** | `#B3D4E6` | Hover de botones secundarios. |
 | `color-accent-warning` | **Saffron** | `#E9C46A` | SCI, filas permutadas, avisos pedagógicos (k > n, c = 0). |
 
-**Escala de superficies.** Fondo, pozo y tarjeta suben en saltos suaves (`#17151A` → `#1F1C24` → `#2F2A37`): la elevación se lee por el tono y por un borde tenue (`interactive-idle` al 12 %), no por un bloque de color. Las tarjetas redondean a 12 px.
+**Escala de superficies.** Fondo, pozo y tarjeta suben en saltos suaves (`#17151A` → `#1F1C24` → `#2F2A37`): la elevación se lee solo por el tono y por un relleno uniforme (16 px), sin bordes dibujados. Las tarjetas redondean a 12 px. En el tema claro el lienzo baja a `#E9E5EF` para que la tarjeta blanca se distinga sin borde.
+
+**Acento de acción primaria.** `accent-primary` (azul tecnológico: `#4D8EFF` con texto oscuro en el tema oscuro, `#1D5BD8` con texto blanco en el claro) es exclusivo de la acción primaria de cada vista: Calcular, Resolver, Iterar. Ningún aviso, badge ni resumen lo usa; el verde (`feedback-success`) queda solo para estados de éxito. Texto sobre el acento ≥ 4.5:1 y el botón contra la tarjeta ≥ 3:1 en los tres temas.
 
 **Sprint 10.** Los tokens viven en `prettycalc/ui/theme.py` (`PALETTES`) con tres temas: oscuro (predeterminado), alto contraste y claro, elegibles en *Apariencia* (Ctrl+,). El texto de cada badge se elige con `readable_text_on()` para cumplir 4.5:1. Ningún módulo escribe colores sueltos: todos importan los tokens.
 
@@ -30,8 +32,7 @@ La aplicación prioriza la elegancia, la claridad cognitiva y la eliminación to
 
 ## 2.1. Navegación y estructura de la ventana
 
-* **Barra lateral.** Logotipo arriba, los ocho módulos con su marca tipográfica (`[A|b]`, `A·B`, `ℝⁿ`, `Ax`, `det`, `LU`, `T(v)`, `EV`) y, en el pie, Atajos y Apariencia. El módulo activo lleva tinte y una pastilla de acento a la izquierda.
-* **Riel en portátiles.** Bajo 1600 px de ancho la barra se pliega a un riel de 96 px con la marca y el rótulo corto debajo; el nombre completo queda en el tooltip. Ningún rótulo se recorta en ninguno de los dos modos.
+* **Riel de iconos con cajón.** La barra es siempre un riel de 96 px: logotipo arriba, la marca tipográfica de cada módulo (`[A|b]`, `A·B`, `ℝⁿ`, `Ax`, `det`, `LU`, `T(v)`, `EV`, …) con su rótulo corto debajo y, en el pie, Atajos y Apariencia. Cada elemento tiene su tooltip con el nombre y el atajo. Al pasar el cursor (o al llegar con Tab) se despliega un cajón de 300 px **superpuesto al lienzo**, con sombra, que no empuja el contenido; las marcas no se mueven al abrirlo: solo aparece el nombre completo a la derecha. Se cierra al salir el cursor, al salir el foco del teclado o con Esc. El módulo activo lleva tinte y una pastilla de acento.
 * **Encabezado de página.** Una sola línea: nombre del módulo destacado y su descripción en tono tenue.
 * **Anillo de foco** solo al llegar con el teclado (Tab), nunca por el foco inicial ni por un clic.
 * **Icono de la ventana**: el mismo logotipo (corchetes de matriz sobre el degradado de los dos acentos), dibujado por la app.
@@ -39,7 +40,8 @@ La aplicación prioriza la elegancia, la claridad cognitiva y la eliminación to
 ## 2.2. Avisos de estado
 
 * **Avisos** (éxito, error, atención, información): tinte del color al 20 %, borde y franja izquierda del mismo color y texto primario. Se leen de un vistazo sin competir con las matrices.
-* **Veredictos** (el badge del tablero de resultados): sólidos, porque son la conclusión.
+* **Veredictos y resúmenes** (el badge del tablero, «Resumen» de bisección…): pasivos, con fondo gris oscuro (`surface-inner`) y una franja izquierda del color de estado. Nunca un relleno de color que compita con el botón de acción primaria.
+* **Tablas de datos** (iteraciones de bisección, Jacobi, Gauss-Seidel, comparación): flujo horizontal, sin bordes verticales ni filas alternas; solo una línea de 1 px (`text-primary` al 10 %, equivalente a `#333` sobre el oscuro) separa las filas. Los números van a la derecha y se alinean por el punto decimal (relleno con espacios en fuente monoespaciada, sin agregar ceros). El ancho se reparte según lo que ocupa cada columna; si en la ventana mínima una columna no cabe alineada, se muestra entera sin relleno (nunca mezcla dentro de una columna) y nunca hay desplazamiento horizontal (`prettycalc/ui/tables.py`).
 * **Paneles laterales** dentro de un divisor nunca quedan más angostos que su contenido (`track_content_width`): el ancho se le quita a la columna del procedimiento.
 * **Tres columnas que no caben** (Sistemas, Determinantes, LU): el panel de resultados baja a todo el ancho debajo de las otras dos (`StackingSplitterHost`) y vuelve a su columna al ensanchar la ventana. La cabecera de Ecuaciones pasa sus botones a una segunda línea.
 * **Sin desplazamiento horizontal** en ninguna vista desde la ventana mínima (1080 × 680) hasta 1920 px; `tests/ui/test_responsive_layout.py` lo comprueba con los ejemplos cargados.
@@ -174,7 +176,7 @@ Curvas: `OutCubic` para entrar, `InCubic` para salir, `InOutCubic` para desplaza
 ### 9.4. Qué no se anima
 
 * Hover, presión y `:checked` de botones con QSS (solo lo pintado a mano, como la barra lateral).
-* El cambio a riel de la barra al redimensionar, ni nada durante un redimensionamiento: lo pendiente salta al final.
+* Nada durante un redimensionamiento: lo pendiente salta al final y el cajón de la barra se cierra.
 * El foco entre celdas, la escritura y la aparición del error en una celda.
 * Diálogos, combos y tooltips (quedan nativos de Qt por paridad entre plataformas).
 * La geometría de widgets dentro de layouts: la geometría final se aplica de inmediato y se anima la pintura o la opacidad.
