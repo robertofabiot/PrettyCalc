@@ -36,6 +36,8 @@ from prettycalc.ui.mathtext import (
     plain_formula_to_html,
 )
 from prettycalc.ui.theme import (
+    badge_style,
+    idle_badge_style,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_FEEDBACK_ERROR,
     COLOR_ACCENT_WARNING,
@@ -49,8 +51,6 @@ from prettycalc.ui.theme import (
     FONT_FAMILY_MONO,
     FONT_FAMILY_SANS,
     apply_widget_class,
-    contrast_ratio,
-    readable_text_on,
     ui_font,
 )
 
@@ -753,18 +753,12 @@ class ResultsDashboardCard(QFrame):
         return True
 
     @staticmethod
-    def _badge_style(bg: str, fg: str) -> str:
-        if contrast_ratio(fg, bg) < 4.5:
-            fg = readable_text_on(bg)
-        return f"""
-            background-color: {bg};
-            color: {fg};
-            font-weight: 600;
-            font-size: 17px;
-            letter-spacing: 0.02em;
-            padding: 12px 14px;
-            border-radius: 4px;
-        """
+    def _badge_style(bg: str, fg: str = "") -> str:
+        """Veredicto pasivo: franja del color de estado sobre gris; nunca compite con «Resolver»."""
+        del fg
+        if bg == COLOR_INTERACTIVE_DISABLED:
+            return idle_badge_style(17)
+        return badge_style(bg, font_size=17, padding="12px 14px")
 
     @staticmethod
     def _clear_layout(layout: QVBoxLayout) -> None:

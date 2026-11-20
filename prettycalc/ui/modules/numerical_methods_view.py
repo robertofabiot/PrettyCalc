@@ -18,7 +18,7 @@ RESTRICCIONES:
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import Optional, Tuple
 
 try:
     from PySide6.QtWidgets import (
@@ -71,11 +71,13 @@ from prettycalc.core.numerical_methods import (
     BisectionResult,
 )
 from prettycalc.ui.feedback import show_toast
+from prettycalc.ui.tables import MONO_TABLE_STYLE, fill_numeric_rows, style_data_table
 from prettycalc.ui.theme import (
     COLOR_ACCENT_WARNING,
     COLOR_FEEDBACK_ERROR,
     COLOR_FEEDBACK_SUCCESS,
     COLOR_INTERACTIVE_IDLE,
+    COLOR_SURFACE_ELEVATED,
     COLOR_SURFACE_INNER,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
@@ -146,6 +148,27 @@ def _make_line_edit(placeholder: str = "", text: str = "") -> QLineEdit:
     return le
 
 
+def _card(padding: int = 16) -> Tuple[QFrame, QVBoxLayout]:
+    """Tarjeta sin borde: se distingue del lienzo por su tono (elevación) y su relleno."""
+    card = QFrame()
+    apply_widget_class(card, "elevated-card")
+    layout = QVBoxLayout(card)
+    layout.setContentsMargins(padding, padding - 6, padding, padding)
+    layout.setSpacing(8)
+    return card, layout
+
+
+def _group_card_style() -> str:
+    """``QGroupBox`` como tarjeta: sin borde, tono elevado y relleno uniforme."""
+    return (
+        f"QGroupBox {{ font-weight: 600; font-size: 15px; color: {COLOR_TEXT_PRIMARY}; "
+        f"background-color: {COLOR_SURFACE_ELEVATED}; border: none; border-radius: 12px; "
+        f"margin-top: 0px; padding: 40px 20px 20px 20px; }}"
+        f"QGroupBox::title {{ subcontrol-origin: padding; subcontrol-position: top left; "
+        f"left: 20px; top: 16px; color: {COLOR_TEXT_PRIMARY}; }}"
+    )
+
+
 def _result_badge(text: str, color: str = "") -> QLabel:
     lbl = QLabel(text)
     lbl.setAlignment(Qt.AlignCenter)
@@ -176,13 +199,11 @@ class _BisectionTab(QWidget):
         root.setSpacing(10)
 
         splitter = QSplitter(Qt.Horizontal)
+        splitter.setChildrenCollapsible(False)
 
-        # ── Panel izquierdo: inputs ──────────────────────────────────────────
-        left = QWidget()
-        left.setMaximumWidth(380)
-        lv = QVBoxLayout(left)
-        lv.setContentsMargins(0, 0, 8, 0)
-        lv.setSpacing(8)
+        # ── Panel izquierdo: parámetros y resumen (tarjeta sin borde) ────────
+        left, lv = _card()
+        left.setMaximumWidth(400)
 
         lv.addWidget(_section_title("Parámetros"))
 
@@ -206,9 +227,9 @@ class _BisectionTab(QWidget):
         self._calc_btn.setCursor(Qt.PointingHandCursor)
         self._calc_btn.clicked.connect(self._calculate)
         lv.addWidget(self._calc_btn)
-        lv.addWidget(_separator())
+        lv.addSpacing(6)
 
-        # Resultados resumen
+        # Resumen: pasivo (franja de estado sobre gris), no compite con «Calcular».
         lv.addWidget(_section_title("Resumen"))
         self._badge = _result_badge("Esperando cálculo")
         lv.addWidget(self._badge)
@@ -222,27 +243,18 @@ class _BisectionTab(QWidget):
         lv.addStretch(1)
         splitter.addWidget(left)
 
-        # ── Panel derecho: tabla ─────────────────────────────────────────────
-        right = QWidget()
-        rv = QVBoxLayout(right)
-        rv.setContentsMargins(0, 0, 0, 0)
-        rv.setSpacing(6)
+        # ── Panel derecho: historial (tarjeta sin borde) ─────────────────────
+        right, rv = _card()
         rv.addWidget(_section_title("Historial de iteraciones"))
 
         self._table = QTableWidget(0, len(self._HEADERS))
+        self._table.setObjectName("bisectionTable")
         self._table.setHorizontalHeaderLabels(self._HEADERS)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._table.setAlternatingRowColors(True)
-        # Las columnas se reparten el ancho de la tabla: con anchos por contenido
-        # (o los 100 px por defecto) las nueve columnas no caben a 1080-1366 px y
-        # aparece un desplazamiento horizontal. «k» toma solo lo que necesita.
-        header = self._table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self._table.verticalHeader().setVisible(False)  # la columna k ya numera
-        self._table.setStyleSheet(
-            f"font-family: {FONT_FAMILY_MONO}; font-size: 13px;"
-        )
+        style_data_table(self._table)
+        # Cada columna recibe ancho según lo que ocupan sus valores alineados
+        # (``tables.fit_columns``): nunca hay desplazamiento horizontal.
+        self._table.setStyleSheet(MONO_TABLE_STYLE)
         rv.addWidget(self._table, stretch=1)
         splitter.addWidget(right)
 
@@ -283,12 +295,9 @@ class _BisectionTab(QWidget):
             show_toast(self, f"Error inesperado: {exc}", kind="error")
             return
 
-        # Mostrar en tabla
-        self._table.setRowCount(0)
-        for row in result.history:
-            r = self._table.rowCount()
-            self._table.insertRow(r)
-            vals = [
+        # Mostrar en tabla: números a la derecha, alineados por el punto decimal.
+        rows = [
+            [
                 str(row.k),
                 f"{row.a:.8g}", f"{row.b:.8g}",
                 f"{row.xr:.10g}",
@@ -296,11 +305,9 @@ class _BisectionTab(QWidget):
                 f"{row.eb:.6f}",
                 self._format_ea(row.ea),
             ]
-            for c, v in enumerate(vals):
-                item = QTableWidgetItem(v)
-                item.setTextAlignment(Qt.AlignCenter)
-                item.setToolTip(v)  # valor completo si la columna lo recorta
-                self._table.setItem(r, c, item)
+            for row in result.history
+        ]
+        fill_numeric_rows(self._table, rows)
 
 
         # Badge y resumen
@@ -606,13 +613,7 @@ class _NumericalErrorsTab(QWidget):
 
         # ── Bloque 1: Tipos de error (panel informativo) ──────────────────────
         info_box = QGroupBox("Fundamentos: Tipos de Error Numérico")
-        info_box.setStyleSheet(
-            f"QGroupBox {{ font-weight: 600; font-size: 15px; "
-            f"color: {COLOR_TEXT_PRIMARY}; "
-            f"border: 1px solid {COLOR_SURFACE_INNER}; "
-            f"border-radius: 6px; padding-top: 14px; }}"
-            f"QGroupBox::title {{ subcontrol-origin: margin; left: 10px; }}"
-        )
+        info_box.setStyleSheet(_group_card_style())
         ib = QVBoxLayout(info_box)
         ib.setSpacing(6)
 

@@ -311,7 +311,14 @@ def test_linear_systems_view_no_white_rectangle(qtbot):
 
 
 def test_linear_systems_solve_button_is_styled_and_visible(qtbot):
-    """Verifica que el botón 'Resolver sistema' tenga fondo verde de acción principal y texto legible."""
+    """'Resolver sistema' usa el acento de acción primaria (no el verde de éxito) con texto legible.
+
+    El acento azul es exclusivo de las acciones primarias: el verde quedó para
+    los estados de éxito, así el resumen nunca compite con el botón.
+    """
+    from PySide6.QtGui import QColor
+    from prettycalc.ui.theme import COLOR_ACCENT_PRIMARY, COLOR_ON_ACCENT, contrast_ratio
+
     window = MainWindow()
     qtbot.addWidget(window)
     window.show()
@@ -321,7 +328,11 @@ def test_linear_systems_solve_button_is_styled_and_visible(qtbot):
     assert btn.isVisible()
     assert btn.text() == "Resolver sistema"
     img = btn.grab().toImage()
-    center_color = img.pixelColor(btn.width() // 2, btn.height() // 2).name()
-    assert center_color in ("#7ba993", "#81b29a", "#7dad96"), f"Fondo de botón inesperado: {center_color}"
+    center = img.pixelColor(btn.width() // 2, 4)
+    expected = QColor(COLOR_ACCENT_PRIMARY)
+    assert max(
+        abs(center.red() - expected.red()), abs(center.green() - expected.green()), abs(center.blue() - expected.blue())
+    ) <= 8, f"Fondo de botón inesperado: {center.name()}"
+    assert contrast_ratio(COLOR_ON_ACCENT, COLOR_ACCENT_PRIMARY) >= 4.5
 
 
