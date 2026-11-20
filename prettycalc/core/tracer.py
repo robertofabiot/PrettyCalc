@@ -60,6 +60,7 @@ class StepTracer:
         matrix: Matrix,
         description: str = "Matriz aumentada inicial del sistema",
         latex_title: str = "\\text{Sistema Inicial } [A \\mid b]",
+        highlight_cells: Optional[Tuple[Tuple[int, int], ...]] = None,
     ) -> CalculationStep:
         """Registra el paso 0 correspondiente al estado inicial."""
         self.clear()
@@ -70,6 +71,7 @@ class StepTracer:
             latex_formula=latex_title,
             heuristic_text=description,
             split_col=self._split_col,
+            highlight_cells=highlight_cells or (),
         )
         self._steps.append(step)
         return step

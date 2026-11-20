@@ -28,7 +28,7 @@ h2 { font-size: 16px; margin: 18px 0 6px 0; color: #24658C; }
 p.meta { color: #4F4859; font-size: 12px; margin: 0 0 16px 0; }
 div.step { border-left: 3px solid #2D7A57; padding: 6px 12px; margin: 10px 0 14px 0; }
 div.formula { font-size: 16px; margin: 4px 0; }
-div.note { font-style: italic; color: #2F2A36; margin: 4px 0 8px 0; }
+div.note { font-style: italic; color: #2F2A36; margin: 4px 0 8px 0; white-space: pre-line; }
 table.matrix { border-collapse: collapse; margin: 6px 0; font-family: 'Fira Code', 'DejaVu Sans', monospace; }
 table.matrix td { padding: 3px 10px; text-align: center; }
 table.matrix td.split { border-left: 2px solid #24658C; }

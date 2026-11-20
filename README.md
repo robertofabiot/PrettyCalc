@@ -21,7 +21,7 @@
 
 PrettyCalc es una aplicación de escritorio en PySide6 para estudiantes de álgebra lineal que necesitan ver *cómo* se llega al resultado, no solo el resultado. Cada cálculo llena un carrusel con sus pasos: la matriz de ese momento, la operación en notación de libro (F₂ → F₂ − 3F₁, A⁻¹, ‖v‖²) y una explicación en lenguaje natural, con el pivote y las filas involucradas resaltados.
 
-El motor matemático (`prettycalc.core`) trabaja con `fractions.Fraction` y no depende de NumPy, SciPy ni SymPy: no hay redondeos y el mismo código se prueba y se reutiliza sin la interfaz. Nació como proyecto del curso Álgebra Lineal (MTM0120) de la Universidad Americana (UAM).
+El motor de álgebra lineal (`prettycalc.core`) trabaja con `fractions.Fraction` y no depende de NumPy, SciPy ni SymPy: no hay redondeos y el mismo código se prueba y se reutiliza sin la interfaz. Nació como proyecto del curso Álgebra Lineal (MTM0120) de la Universidad Americana (UAM).
 
 ## Módulos
 
@@ -35,6 +35,8 @@ El motor matemático (`prettycalc.core`) trabaja con `fractions.Fraction` y no d
 | Factorización LU | Ctrl+6 | PA = LU con permutación cuando hace falta, y Ly = Pb, Ux = y reutilizando los factores. |
 | Transformaciones lineales | Ctrl+7 | T(v) = A·v, núcleo, imagen, rango, nulidad y Teorema de la Dimensión. |
 | Espacios vectoriales | Ctrl+8 | Conjuntos generadores de ℝᵐ, y base y dimensión de Ker A. |
+| Métodos numéricos | Ctrl+9 | Bisección, graficador de funciones, notación posicional en base 10 y base 2, y errores numéricos. |
+| Métodos iterativos | Ctrl+0 | Jacobi y Gauss-Seidel con tolerancia, criterio de paro y x⁽⁰⁾; dominancia diagonal, ρ(T) y definida positiva en vivo; tabla de iteraciones, gráfica de convergencia de ambos y reordenamiento de ecuaciones cuando no convergen. |
 
 ## Arquitectura
 
@@ -55,6 +57,7 @@ El núcleo no importa Qt. Cada cálculo devuelve su resultado y un `StepTracer` 
 | `core.lu_decomposition` | Factorización LU / PLU y las dos sustituciones. |
 | `core.vector_ops`, `linear_combination`, `linear_independence` | Operaciones y métricas de vectores, combinación e independencia lineal. |
 | `core.linear_transformations`, `vector_spaces`, `basis_steps` | Núcleo, imagen, conjuntos generadores, bases y los pasos que se leen de la RREF. |
+| `core.iterative_methods` | Jacobi, Gauss-Seidel, matrices de iteración, ρ(T) exacto-numérico y criterios de convergencia. |
 | `core.applied_models` | Aplicaciones de la sesión 8 (química, Leontief, dieta, tráfico). |
 | `core.tracer` | Registro de pasos: matriz, fórmula, explicación, pivote y celdas resaltadas. |
 | `ui.modules` | Una vista por módulo. |
@@ -80,7 +83,7 @@ El detalle está en [Arquitectura del sistema](Docs/architecture.md).
 | --- | --- |
 | `tests.yml` | En cada push y PR corre la suite completa en Ubuntu y Windows, con Python 3.10 y 3.13. |
 
-Las pruebas de `tests/ui/test_cross_platform.py` comprueban que la geometría de la ventana es idéntica con 96 y 144 ppp y sin ninguna fuente del sistema. `tests/ui/test_responsive_layout.py` recorre los ocho módulos con sus ejemplos cargados y exige que ninguno se desplace en horizontal.
+Las pruebas de `tests/ui/test_cross_platform.py` comprueban que la geometría de la ventana es idéntica con 96 y 144 ppp y sin ninguna fuente del sistema. `tests/ui/test_responsive_layout.py` recorre los diez módulos con sus ejemplos cargados y exige que ninguno se desplace en horizontal.
 
 ## Ejecución local
 
@@ -96,7 +99,7 @@ pip install -e .
 python run.py                      # o, tras la instalación, simplemente: prettycalc
 ```
 
-`requirements.txt` instala PySide6 y las herramientas de prueba. Con Python 3.10 y 3.11 se excluye PySide6 6.12.0, que en esas versiones aborta con `none_dealloc`.
+`requirements.txt` instala PySide6, las herramientas de prueba y SymPy, NumPy, SciPy y Matplotlib, que usa solo el módulo de Métodos Numéricos. Con Python 3.10 y 3.11 se excluye PySide6 6.12.0, que en esas versiones aborta con `none_dealloc`.
 
 **Atajos comunes** (F1 abre la hoja completa)
 
@@ -106,7 +109,7 @@ python run.py                      # o, tras la instalación, simplemente: prett
 | Deshacer / rehacer un cambio de la cuadrícula | Ctrl+Z / Ctrl+Y |
 | Eliminar la fila / la columna de la celda activa | Ctrl+Supr / Ctrl+Mayús+Supr |
 | Copiar / pegar la matriz completa (TSV, Excel, LaTeX) | Ctrl+C / Ctrl+V |
-| Ir a un módulo | Ctrl+1 … Ctrl+8 |
+| Ir a un módulo | Ctrl+1 … Ctrl+9, Ctrl+0 |
 | Recorrer el procedimiento | ← / → (con el carrusel enfocado) |
 | Apariencia: tema y escala | Ctrl+, |
 
@@ -125,6 +128,12 @@ for paso in tracer:
 A = Matrix([[1, 3, -3], [2, 0, 1], [-1, 4, -2]])
 laplace = matrix_determinant(A, DeterminantMethod.LAPLACE_ROW, expansion_index=1)
 print(laplace.value)                                              # -19, con cada menor desarrollado en laplace.tracer
+
+from prettycalc.core import Vector, compare_methods
+comparacion = compare_methods(Matrix([[10, -1, 2, 0], [-1, 11, -1, 3], [2, -1, 10, -1], [0, 3, -1, 8]]),
+                              Vector([6, 25, -11, 15]))
+print(comparacion.gauss_seidel.iteration_count, comparacion.jacobi.iteration_count)  # 6 13
+print(comparacion.summary)                                        # ρ(T_J), ρ(T_GS) y cuál conviene
 ```
 
 ## Pruebas

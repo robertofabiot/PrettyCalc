@@ -177,7 +177,7 @@ def test_navigation_has_help_and_appearance_entries(qtbot):
         window.resize(width, 768)
         qtbot.wait(20)
         items = window.nav_bar.buttons + window.nav_bar.footer_items
-        assert len(window.nav_bar.buttons) == 8
+        assert len(window.nav_bar.buttons) == 10
         for item in items:
             assert item.label_fits(), (width, item.visible_label())
     assert window.nav_bar.is_compact() is False

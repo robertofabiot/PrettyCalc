@@ -26,6 +26,7 @@ def _load_examples(window):
     window.linear_transformations_view.compute_tv()
     window.vector_spaces_view.load_example_gen1()
     window.vector_spaces_view.compute_generating_set()
+    window.iterative_view.load_example("dominant")
 
 
 def _horizontal_overflow(window, qtbot):
