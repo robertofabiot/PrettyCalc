@@ -33,6 +33,7 @@ try:
         QSizePolicy,
         QSpinBox,
         QSplitter,
+        QHeaderView,
         QTableWidget,
         QTableWidgetItem,
         QTabWidget,
@@ -232,7 +233,13 @@ class _BisectionTab(QWidget):
         self._table.setHorizontalHeaderLabels(self._HEADERS)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
-        self._table.horizontalHeader().setStretchLastSection(True)
+        # Las columnas se reparten el ancho de la tabla: con anchos por contenido
+        # (o los 100 px por defecto) las nueve columnas no caben a 1080-1366 px y
+        # aparece un desplazamiento horizontal. «k» toma solo lo que necesita.
+        header = self._table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self._table.verticalHeader().setVisible(False)  # la columna k ya numera
         self._table.setStyleSheet(
             f"font-family: {FONT_FAMILY_MONO}; font-size: 13px;"
         )
@@ -292,9 +299,9 @@ class _BisectionTab(QWidget):
             for c, v in enumerate(vals):
                 item = QTableWidgetItem(v)
                 item.setTextAlignment(Qt.AlignCenter)
+                item.setToolTip(v)  # valor completo si la columna lo recorta
                 self._table.setItem(r, c, item)
 
-        self._table.resizeColumnsToContents()
 
         # Badge y resumen
         color = COLOR_FEEDBACK_SUCCESS if result.converged else COLOR_ACCENT_WARNING
