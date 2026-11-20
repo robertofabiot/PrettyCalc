@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Informe Técnico - Programa 8 (Álgebra Lineal UAM)</title>
+  <style>
+    @page {
+      size: letter;
+      margin: 15mm;
+    }
+    body {
+      font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      color: #1e293b;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 10px 25px;
+    }
+    .header-box {
+      border-bottom: 3px solid #1e3a8a;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .header-box h1 {
+      margin: 0;
+      color: #1e3a8a;
+      font-size: 22px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .header-box h2 {
+      margin: 4px 0;
+      color: #2563eb;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .header-box h3 {
+      margin: 4px 0;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 400;
+    }
+    .title-banner {
+      background: #f1f5f9;
+      border-left: 6px solid #2563eb;
+      padding: 14px 18px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    .title-banner h2 {
+      margin: 0 0 6px 0;
+      color: #0f172a;
+      font-size: 18px;
+    }
+    .title-banner p {
+      margin: 0;
+      font-size: 13px;
+      color: #334155;
+    }
+    .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0 20px 0;
+    }
+    .metadata-table td {
+      padding: 6px 10px;
+      font-size: 13px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .metadata-table td.label {
+      font-weight: bold;
+      color: #1e3a8a;
+      width: 25%;
+    }
+    h2.section-title {
+      color: #1e3a8a;
+      border-bottom: 2px solid #cbd5e1;
+      padding-bottom: 4px;
+      margin-top: 25px;
+      font-size: 16px;
+      text-transform: uppercase;
+    }
+    h3.subsection-title {
+      color: #2563eb;
+      margin-top: 15px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    p, li {
+      font-size: 13px;
+      text-align: justify;
+      color: #334155;
+    }
+    ul, ol {
+      margin-top: 4px;
+      margin-bottom: 10px;
+      padding-left: 20px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 11px;
+      color: #ffffff;
+    }
+    .badge-success { background-color: #16a34a; }
+    .badge-warning { background-color: #d97706; }
+    .badge-danger { background-color: #dc2626; }
+    .badge-info { background-color: #0284c7; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 12px;
+    }
+    .data-table th {
+      background-color: #1e3a8a;
+      color: #ffffff;
+      padding: 6px 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .data-table td {
+      padding: 5px 8px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+    }
+    .data-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    .case-box {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 15px 0;
+    }
+    .case-box h4 {
+      margin: 0 0 6px 0;
+      color: #0f172a;
+      font-size: 14px;
+    }
+
+    .screenshot-container {
+      text-align: center;
+      margin: 14px 0;
+    }
+    .screenshot-container img {
+      max-width: 95%;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .screenshot-caption {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .callout {
+      background-color: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 10px 14px;
+      margin: 12px 0;
+      border-radius: 0 4px 4px 0;
+      font-size: 12.5px;
+    }
+
+    .code-snippet {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.4;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-box">
+    <h1>Universidad Americana (UAM)</h1>
+    <h2>Facultad de Ingeniería y Arquitectura (FIA)</h2>
+    <h3>Asignatura: Álgebra Lineal (MTM0120) — Tercer Corte Evaluativo</h3>
+  </div>
+
+  <div class="title-banner">
+    <h2>INFORME TÉCNICO OFICIAL: PROGRAMA 8</h2>
+    <p><b>Métodos Numéricos Integrador: Jacobi y Gauss-Seidel en la Calculadora de Álgebra Lineal</b></p>
+    <p>Integración de algoritmos iterativos, análisis riguroso de convergencia, desmitificación de Stein-Rosenberg y defensa individual.</p>
+  </div>
+
+  <table class="metadata-table">
+    <tr>
+      <td class="label">Equipo de Trabajo:</td>
+      <td><b>Grupo 4</b></td>
+    </tr>
+    <tr>
+      <td class="label">Integrantes:</td>
+      <td>
+        • Roberto Fabio Tercero Morán (<code>rftercerom@uamv.edu.ni</code>)<br>
+        • Steven Alexander Flores Obregón (<code>safloreso@uamv.edu.ni</code>)<br>
+        • Kellys Bellanger (<code>kbbellanger@uamv.edu.ni</code>)<br>
+        • Raúl Valverde Ruiz (<code>raulvruiz@uamv.edu.ni</code>)
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Carrera y Semestre:</td>
+      <td>Ingeniería en Sistemas de Información / Software — 4.° Semestre</td>
+    </tr>
+    <tr>
+      <td class="label">Fecha de Entrega:</td>
+      <td>Noviembre de 2026</td>
+    </tr>
+  </table>
+
+  <!-- SECCIÓN 1 -->
+  <h2 class="section-title">1. Propósito y Objetivos de la Actividad</h2>
+  <p>
+    El propósito central de esta práctica evaluativa consiste en integrar de manera robusta, transparente y didáctica los métodos iterativos de <b>Jacobi</b> y <b>Gauss-Seidel</b> a la calculadora de Álgebra Lineal que el Grupo 4 ha venido desarrollando a lo largo del semestre en lenguaje Python.
+  </p>
+  <p>
+    A través de esta implementación, el equipo demuestra computacionalmente cómo ambos métodos permiten aproximar la solución de sistemas lineales <i>A · x = b</i>, compara sus tasas de convergencia mediante métricas de error rigurosas, y expone de forma analítica los escenarios donde los métodos divergen o donde un reordenamiento de filas rescata la solución.
+  </p>
+
+  <!-- SECCIÓN 2 -->
+  <h2 class="section-title">2. Fundamentación Teórica y Algorítmica</h2>
+
+  <h3 class="subsection-title">2.1. Descomposición Matricial Canónica</h3>
+  <p>
+    Dada una matriz cuadrada de coeficientes <i>A ∈ ℝⁿˣⁿ</i> con entradas diagonales no nulas (<i>aᵢᵢ ≠ 0</i>), se descompone aditivamente en:
+    <br><b>A = D + L + U</b>
+    <br>donde <b>D</b> es la matriz diagonal principal, <b>L</b> es triangular inferior estricta y <b>U</b> es triangular superior estricta.
+  </p>
+
+  <h3 class="subsection-title">2.2. Método de Jacobi (Desplazamiento Simultáneo)</h3>
+  <p>
+    Despejando cada incógnita <i>xᵢ</i> utilizando <b>únicamente los valores de la iteración inmediatamente anterior</b> <i>x⁽ᵏ⁾</i>:
+  </p>
+  <div class="callout">
+    <b>Fórmula Escalar:</b> xᵢ⁽ᵏ⁺¹⁾ = ( bᵢ - ∑_{j ≠ i} aᵢⱼ · xⱼ⁽ᵏ⁾ ) / aᵢᵢ<br>
+    <b>Formulación Matricial:</b> x⁽ᵏ⁺¹⁾ = T_J · x⁽ᵏ⁾ + c_J &nbsp;&nbsp;|&nbsp;&nbsp; con T_J = -D⁻¹(L + U) &nbsp;y&nbsp; c_J = D⁻¹·b
+  </div>
+
+  <h3 class="subsection-title">2.3. Método de Gauss-Seidel (Desplazamiento Sucesivo)</h3>
+  <p>
+    Actualiza de forma <b>inmediata</b> cada incógnita calculada <i>x₁⁽ᵏ⁺¹⁾, ..., x_{i-1}⁽ᵏ⁺¹⁾</i> en la misma iteración para obtener <i>xᵢ⁽ᵏ⁺¹⁾</i>:
+  </p>
+  <div class="callout">
+    <b>Fórmula Escalar:</b> xᵢ⁽ᵏ⁺¹⁾ = ( bᵢ - ∑_{j &lt; i} aᵢⱼ · xⱼ⁽ᵏ⁺¹⁾ - ∑_{j &gt; i} aᵢⱼ · xⱼ⁽ᵏ⁾ ) / aᵢᵢ<br>
+    <b>Formulación Matricial:</b> x⁽ᵏ⁺¹⁾ = T_GS · x⁽ᵏ⁾ + c_GS &nbsp;&nbsp;|&nbsp;&nbsp; con T_GS = -(D + L)⁻¹·U &nbsp;y&nbsp; c_GS = (D + L)⁻¹·b
+  </div>
+
+  <h3 class="subsection-title">2.4. Teoremas Fundamentales de Convergencia</h3>
+  <ul>
+    <li>
+      <b>Condición Suficiente (Dominancia Diagonal Estricta):</b> Si |aᵢᵢ| &gt; ∑_{j ≠ i} |aᵢⱼ| para toda fila <i>i</i>, ambos métodos <b>convergen garantizados</b> para cualquier vector inicial <i>x⁽⁰⁾</i>. Es condición suficiente, <b>no necesaria</b>.
+    </li>
+    <li>
+      <b>Condición Necesaria y Suficiente (Radio Espectral ρ(T)):</b> Un método iterativo converge para todo <i>x⁽⁰⁾</i> si y solo si <b>ρ(T) = máx |λᵢ| &lt; 1</b>, donde λᵢ son los autovalores de la matriz de iteración.
+    </li>
+    <li>
+      <b>Matrices Simétricas Definidas Positivas (Ostrowski-Reich):</b> Si <i>A = Aᵀ</i> y todos sus menores principales son estrictamente positivos (det &gt; 0), Gauss-Seidel converge siempre para cualquier <i>x⁽⁰⁾</i>.
+    </li>
+    <li>
+      <b>Teorema de Stein-Rosenberg y Desmitificación:</b> Si <i>aᵢⱼ ≤ 0</i> para todo <i>i ≠ j</i> y <i>aᵢᵢ &gt; 0</i>, Gauss-Seidel converge más rápido que Jacobi. <b>Sin embargo</b>, en matrices con coeficientes de signos mixtos, Gauss-Seidel <b>NO</b> siempre es mejor; existen sistemas donde Jacobi converge y Gauss-Seidel diverge.
+    </li>
+  </ul>
+
+  <!-- SECCIÓN 3 -->
+  <h2 class="section-title">3. Decisiones de Implementación y Validaciones</h2>
+  <ul>
+    <li><b>Aritmética Exacta con <code>fractions.Fraction</code>:</b> Evita la contaminación de redondeo flotante de IEEE-754. Cada iteración refleja fielmente el error de truncamiento del método.</li>
+    <li><b>Polinomio Característico Exacto sin NumPy:</b> Implementado mediante el algoritmo clásico de <b>Faddeev-LeVerrier</b>, hallando los autovalores analíticamente y extrayendo <i>ρ(T)</i> mediante el método de <b>Durand-Kerner</b> en los complejos.</li>
+    <li><b>Detección de Cero en la Diagonal:</b> Si <i>aᵢᵢ = 0</i>, el software impide divisiones por cero y activa el algoritmo <code>reorder_for_dominance()</code> para permutar filas y buscar una diagonal no nula y dominante.</li>
+    <li><b>Criterios de Parada y Salvaguarda de Divergencia:</b> Monitoreo de ‖x⁽ᵏ⁾ - x⁽ᵏ⁻¹⁾‖_∞ &lt; ε, cota máxima <i>k_max</i> y detección temprana de divergencia cuando la norma explota (‖x⁽ᵏ⁾‖_∞ &gt; 10⁸).</li>
+  </ul>
+
+  <!-- SECCIÓN 4 -->
+  <h2 class="section-title">4. Casos de Prueba Obligatorios y Evidencias Visuales</h2>
+
+  <!-- CASO 1 -->
+  <div class="case-box">
+    <h4>CASO 1: CONVERGENCIA EN MATRIZ ESTRICTAMENTE DIAGONAL DOMINANTE (4 × 4)</h4>
+    <p><b>Objetivo:</b> Demostrar la convergencia de ambos métodos, la reducción de iteraciones de Gauss-Seidel y contrastar con la solución de referencia.</p>
+    <p><b>Sistema (Burden & Faires):</b></p>
+    <div class="code-snippet">
+[  10   -1    2    0  |   6  ]
+[  -1   11   -1    3  |  25  ]   --> Solución exacta: x* = (1, 2, -1, 1)
+[   2   -1   10   -1  | -11  ]
+[   0    3   -1    8  |  15  ]
+    </div>
+    <p>
+      <b>Diagnóstico Teórico:</b> Fila 1: 10 &gt; 3 | Fila 2: 11 &gt; 5 | Fila 3: 10 &gt; 4 | Fila 4: 8 &gt; 4. <span class="badge badge-success">Estrictamente Diagonal Dominante</span>.
+      <br>Radios espectrales: <b>ρ(T_J) ≈ 0.4449 &lt; 1</b> | <b>ρ(T_GS) ≈ 0.1251 &lt; 1</b>.
+    </p>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Método</th>
+          <th>Iteraciones (ε = 10⁻⁴)</th>
+          <th>Solución Obtenida (x₁, x₂, x₃, x₄)</th>
+          <th>Residuo ‖Ax - b‖_∞</th>
+          <th>Diferencia vs NumPy</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Jacobi</b></td>
+          <td>13</td>
+          <td>(0.999990, 2.000016, -1.000013, 1.000019)</td>
+          <td>2.55 × 10⁻⁴</td>
+          <td>1.92 × 10⁻⁵</td>
+          <td><span class="badge badge-success">CONVERGIÓ</span></td>
+        </tr>
+        <tr>
+          <td><b>Gauss-Seidel</b></td>
+          <td>6</td>
+          <td>(1.000008, 2.000001, -1.000003, 0.999999)</td>
+          <td>7.70 × 10⁻⁵</td>
+          <td>8.36 × 10⁻⁶</td>
+          <td><span class="badge badge-success">CONVERGIÓ</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="screenshot-container">
+      <img src="screenshots/gui_caso1_diagonal_dominante.png" alt="Captura PrettyCalc Caso 1">
+      <div class="screenshot-caption">Figura 1: Ejecución del Caso 1 en PrettyCalc mostrando el panel de control, tabla de iteraciones y medidor espectral.</div>
+    </div>
+
+    <div class="screenshot-container">
+      <img src="screenshots/grafica_error_jacobi_vs_gauss_seidel.png" alt="Gráfica Matplotlib Caso 1">
+      <div class="screenshot-caption">Figura 2: Gráfica comparativa semilogarítmica del error entre iteraciones ||x⁽ᵏ⁾ - x⁽ᵏ⁻¹⁾||_∞ vs iteración (k) para Jacobi y Gauss-Seidel.</div>
+    </div>
+  </div>
+
+  <!-- CASO 2 -->
+  <div class="case-box">
+    <h4>CASO 2: REORDENAMIENTO DE ECUACIONES Y ESTRUCTURA DE LA DIAGONAL</h4>
+    <p><b>Objetivo:</b> Demostrar cómo un sistema no dominante y divergente se transforma en convergente mediante permutación de filas (pivoteo).</p>
+    <p><b>Sistema Original (No Dominante / Divergente):</b></p>
+    <div class="code-snippet">
+E1:   1·x₁ - 5·x₂ = -4    --> |1| < |-5|  (Fila 1 no domina)
+E2:   7·x₁ - 1·x₂ =  6    --> |-1| < |7|  (Fila 2 no domina)
+--> Ambos divergen (ρ(T_J) ≈ 5.916, ρ(T_GS) = 35).
+    </div>
+
+    <div class="screenshot-container">
+      <img src="screenshots/gui_caso2_antes_reordenamiento.png" alt="Caso 2 Antes de Reordenar">
+      <div class="screenshot-caption">Figura 3: PrettyCalc detecta que el sistema original no es diagonal dominante y ofrece el reordenamiento de filas.</div>
+    </div>
+
+    <p><b>Sistema Reordenado (Permutación E₁ ↔ E₂):</b></p>
+    <div class="code-snippet">
+E1':  7·x₁ - 1·x₂ =  6    --> |7| > |-1|  (Fila 1 domina estrictamente)
+E2':  1·x₁ - 5·x₂ = -4    --> |-5| > |1|  (Fila 2 domina estrictamente)
+--> ¡Ambos convergen! (ρ(T_J) ≈ 0.1690, ρ(T_GS) ≈ 0.0286).
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Método</th>
+          <th>Iteraciones (Reordenado)</th>
+          <th>Solución Obtenida (x₁, x₂)</th>
+          <th>Residuo ‖Ax - b‖_∞</th>
+          <th>Diferencia vs NumPy</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Jacobi</b></td>
+          <td>7</td>
+          <td>(0.999997, 0.999995)</td>
+          <td>2.00 × 10⁻⁵</td>
+          <td>4.66 × 10⁻⁶</td>
+          <td><span class="badge badge-success">CONVERGIÓ</span></td>
+        </tr>
+        <tr>
+          <td><b>Gauss-Seidel</b></td>
+          <td>5</td>
+          <td>(1.000000, 1.000000)</td>
+          <td>6.47 × 10⁻⁷</td>
+          <td>9.52 × 10⁻⁸</td>
+          <td><span class="badge badge-success">CONVERGIÓ</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="screenshot-container">
+      <img src="screenshots/gui_caso2_reordenamiento_exitoso.png" alt="Caso 2 Reordenamiento Exitoso">
+      <div class="screenshot-caption">Figura 4: Resultado tras reordenar ecuaciones: el sistema alcanza dominancia diagonal y ambos métodos convergen a (1, 1).</div>
+    </div>
+  </div>
+
+  <!-- CASO 3 -->
+  <div class="case-box">
+    <h4>CASO 3: ADVERTENCIA / NO CONVERGENCIA (DOMINANCIA NO ES NECESARIA Y DIVERGENCIA)</h4>
+    <p><b>Objetivo:</b> Demostrar un sistema donde la falta de dominancia diagonal provoca divergencia en Jacobi pero Gauss-Seidel converge, comprobando que la dominancia no es condición necesaria.</p>
+    <p><b>Sistema 3 × 3:</b></p>
+    <div class="code-snippet">
+[  2   -1    1  |  -1  ]
+[  2    2    2  |   4  ]   --> Solución exacta: x* = (1, 2, -1)
+[ -1   -1    2  |  -5  ]
+    </div>
+    <p>
+      <b>Análisis Espectral:</b> Fila 2 no cumple dominancia (|2| &lt; 2 + 2 = 4).
+      <br>• Matriz de Jacobi: <b>ρ(T_J) = √5 / 2 ≈ 1.1180 &gt; 1</b>  --> <span class="badge badge-danger">DIVERGE</span>
+      <br>• Matriz de Gauss-Seidel: <b>ρ(T_GS) = 0.5000 &lt; 1</b>  --> <span class="badge badge-success">CONVERGE</span>
+    </p>
+
+    <div class="screenshot-container">
+      <img src="screenshots/gui_caso3_no_convergencia_jacobi.png" alt="Caso 3 No Convergencia">
+      <div class="screenshot-caption">Figura 5: Advertencia clara de PrettyCalc: Jacobi diverge al superar ρ(T) ≥ 1, mientras Gauss-Seidel converge en 19 iteraciones.</div>
+    </div>
+
+    <div class="screenshot-container">
+      <img src="screenshots/gui_validacion_cero_diagonal.png" alt="Validación Cero Diagonal">
+      <div class="screenshot-caption">Figura 6: Validación preventiva en PrettyCalc ante un coeficiente diagonal nulo (a₁₁ = 0), impidiendo divisiones inválidas.</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 5 -->
+  <h2 class="section-title">5. Validación Numérica con NumPy (Sección 5 de la Guía)</h2>
+  <p>
+    Conforme a las directrices de la cátedra, cada solución iterativa aproximada fue contrastada formalmente contra la solución de referencia exacta obtenida mediante <code>numpy.linalg.solve(A, b)</code>:
+  </p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Caso</th>
+        <th>Solución NumPy</th>
+        <th>Método</th>
+        <th>Aproximación Numérica</th>
+        <th>Error Máximo vs NumPy</th>
+        <th>Residuo ‖Ax - b‖_∞</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td rowspan="2"><b>Caso 1</b></td>
+        <td rowspan="2">(1, 2, -1, 1)</td>
+        <td>Jacobi</td>
+        <td>(0.999990, 2.000016, -1.000013, 1.000019)</td>
+        <td>1.92 × 10⁻⁵</td>
+        <td>2.55 × 10⁻⁴</td>
+      </tr>
+      <tr>
+        <td>Gauss-Seidel</td>
+        <td>(1.000008, 2.000001, -1.000003, 0.999999)</td>
+        <td>8.36 × 10⁻⁶</td>
+        <td>7.70 × 10⁻⁵</td>
+      </tr>
+      <tr>
+        <td rowspan="2"><b>Caso 2 (Reord.)</b></td>
+        <td rowspan="2">(1, 1)</td>
+        <td>Jacobi</td>
+        <td>(0.999997, 0.999995)</td>
+        <td>4.66 × 10⁻⁶</td>
+        <td>2.00 × 10⁻⁵</td>
+      </tr>
+      <tr>
+        <td>Gauss-Seidel</td>
+        <td>(1.000000, 1.000000)</td>
+        <td>9.52 × 10⁻⁸</td>
+        <td>6.47 × 10⁻⁷</td>
+      </tr>
+      <tr>
+        <td><b>Caso 3</b></td>
+        <td>(1, 2, -1)</td>
+        <td>Gauss-Seidel</td>
+        <td>(1.000029, 1.999968, -1.000002)</td>
+        <td>3.24 × 10⁻⁵</td>
+        <td>8.77 × 10⁻⁵</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECCIÓN 6 -->
+  <h2 class="section-title">6. Evidencias de Ejecución en Consola (Script Autónomo)</h2>
+  <div class="screenshot-container">
+    <img src="screenshots/terminal_programa8_ejecucion.png" alt="Ejecución de Consola Programa 8">
+    <div class="screenshot-caption">Figura 7: Salida de terminal del script autónomo <code>Programa 8_Grupo4.py</code> con arte ASCII y diagnóstico analítico previo.</div>
+  </div>
+
+  <!-- SECCIÓN 7 -->
+  <h2 class="section-title">7. Guía de Preparación para la Defensa Individual</h2>
+  <div class="callout">
+    <b>Preguntas Clave para el Grupo:</b>
+    <ol>
+      <li><b>¿Por qué Jacobi requiere dos vectores en memoria y Gauss-Seidel no?</b><br>Jacobi necesita los datos del paso <i>k</i> intactos para todas las componentes. Gauss-Seidel actualiza <i>in-place</i> porque usa las componentes nuevas de inmediato.</li>
+      <li><b>¿Por qué la dominancia diagonal es suficiente pero no necesaria?</b><br>Es suficiente porque por Gershgorin encierra los autovalores en |λ| &lt; 1. No es necesaria porque existen matrices no dominantes con radio espectral ρ(T) &lt; 1 (como probó el Caso 3 con GS).</li>
+      <li><b>¿Es Gauss-Seidel siempre mejor que Jacobi?</b><br>No. Solo cuando se cumple Stein-Rosenberg (entradas no diagonales ≤ 0). En matrices con signos mixtos, Jacobi puede converger mientras Gauss-Seidel diverge (demostrado en el Caso didáctico 3).</li>
+      <li><b>¿Por qué se eligió <code>Fraction</code>?</b><br>Para garantizar que el único error analizado sea el truncamiento de la serie iterativa, aislando las iteraciones del error de redondeo de IEEE-754.</li>
+    </ol>
+  </div>
+
+  <!-- SECCIÓN 8 -->
+  <h2 class="section-title">8. Estructura del Archivo Comprimido (.ZIP)</h2>
+  <p>El paquete de entrega para la plataforma UAM Virtual se ha generado bajo la nomenclatura estricta:</p>
+  <div class="code-snippet">
+Programa 8_Grupo 4_Tercero_Flores.zip
+├── Programa 8_Grupo4.py                         # Script interactivo autónomo de consola (100% Python estándar)
+├── Calculadora_Algebra_Lineal/                  # Suite modular profesional con Módulo 5 de Métodos Iterativos
+│   ├── main.py
+│   ├── modulos/modulo_iterativos.py
+│   └── teoremas/resumen_teoremas.py
+├── prettycalc/                                  # Núcleo de cálculo y aplicación gráfica PySide6
+├── Docs/
+│   ├── Informe_Programa 8_Grupo4.pdf            # Informe técnico en formato PDF oficial
+│   ├── Informe_Programa 8_Grupo4.md             # Informe técnico en Markdown
+│   └── screenshots/                             # Todas las capturas de pantalla y gráficas generadas
+├── tests/core/test_programa8_standalone.py      # Pruebas automatizadas (36/36 tests aprobados)
+├── run.py
+├── pyproject.toml
+└── requirements.txt
+  </div>
+
+</body>
+</html>
