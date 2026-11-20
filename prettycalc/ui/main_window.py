@@ -30,6 +30,7 @@ from prettycalc.ui.modules.linear_transformations_view import LinearTransformati
 from prettycalc.ui.modules.vector_spaces_view import VectorSpacesView
 from prettycalc.ui.modules.numerical_methods_view import NumericalMethodsView
 from prettycalc.ui.modules.iterative_methods_view import IterativeMethodsView
+from prettycalc.ui import motion
 from prettycalc.ui.navigation_bar import ModularNavigationBar, brand_icon
 from prettycalc.ui.platform_setup import (
     apply_title_bar_theme,
@@ -109,6 +110,9 @@ class MainWindow(QMainWindow):
         self._setup_shortcuts()
 
     def resizeEvent(self, event) -> None:  # noqa: N802
+        # Nada se anima mientras se redimensiona la ventana: lo pendiente salta al final.
+        if event.oldSize().isValid() and event.oldSize() != event.size():
+            motion.finish_all()
         super().resizeEvent(event)
         self.nav_bar.set_compact(self.width() < _COMPACT_NAV_BELOW)
 
