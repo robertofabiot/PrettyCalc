@@ -44,6 +44,7 @@ from prettycalc.core.lu_decomposition import (
 )
 from prettycalc.core.matrix_inversion import NonSquareMatrixError
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
@@ -595,6 +596,7 @@ class LUFactorizationView(QWidget):
         self.grid.set_matrix(_EXAMPLE3_A)
         self.decompose()
 
+    @motion.reveals("badge")
     def decompose(self) -> None:
         """Calcula P, L y U y comprueba P · A = L · U. Si P = I, eso es A = L U."""
         reason = self._blocking_reason()
@@ -609,6 +611,7 @@ class LUFactorizationView(QWidget):
         self._publish_factors(factorization)
         self._sync_controls()
 
+    @motion.reveals("badge")
     def solve(self) -> None:
         """Reutiliza L y U para resolver Ly = b y después Ux = y."""
         if self.last_factorization is None:

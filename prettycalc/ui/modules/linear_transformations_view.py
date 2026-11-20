@@ -53,6 +53,7 @@ from prettycalc.core.linear_transformations import (
     theorem_summary,
 )
 from prettycalc.core.types import DimensionMismatchError, Matrix, Vector, format_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.mathtext import plain_formula_to_html, to_html_subscripts
@@ -636,6 +637,7 @@ class LinearTransformationsView(QWidget):
     # Lógica de cálculo
     # ------------------------------------------------------------------
 
+    @motion.reveals("_tv_result._badge")
     def compute_tv(self) -> None:
         """Pestaña 1: calcula T(v) = A · v."""
         try:
@@ -659,6 +661,7 @@ class LinearTransformationsView(QWidget):
         self._tv_result.show_result(Tv, steps)
         show_toast(self, "T(v) calculado.", kind="success")
 
+    @motion.reveals("_props_panel._badge")
     def compute_properties(self) -> None:
         """Pestaña 2: calcula núcleo, imagen, rango y nulidad de T."""
         try:

@@ -71,6 +71,7 @@ from prettycalc.core.matrix_properties import (
 )
 from prettycalc.core.tracer import StepTracer
 from prettycalc.core.types import DimensionMismatchError, Matrix, format_scalar, parse_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.mathtext import format_comparison_row_html, prettify_math_text, to_subscript
@@ -1062,6 +1063,7 @@ class MatrixOperationsView(QWidget):
     # Cálculo
     # ------------------------------------------------------------------
 
+    @motion.reveals("badge")
     def compute(self) -> None:
         ok, message = self._compatibility_state()
         if not ok:

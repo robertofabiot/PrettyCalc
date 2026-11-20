@@ -1083,3 +1083,94 @@ def defer(owner: "QObject", callback: Callable[[], None], delay: int = 0) -> Non
                 pass
 
     QTimer.singleShot(delay, owner, safe)
+
+
+# ---------------------------------------------------------------------------
+# Revelado del veredicto tras una acción explícita
+# ---------------------------------------------------------------------------
+
+
+def _resolve(owner: object, path: str):
+    node = owner
+    for part in path.split("."):
+        node = getattr(node, part, None)
+        if node is None:
+            return None
+    return node
+
+
+def verdict_signature(badge) -> Optional[Tuple[str, str]]:
+    if badge is None or not is_alive(badge):
+        return None
+    return (badge.text(), badge.styleSheet())
+
+
+def reveal_verdict(
+    badge,
+    before: Optional[Tuple[str, str]],
+    *,
+    sections: Sequence["QWidget"] = (),
+    cover: Optional[str] = None,
+    delay: int = 0,
+) -> None:
+    """El badge se asienta y las secciones entran; si nada cambió, el badge pulsa.
+
+    Sin pulso, recalcular lo mismo parecería no haber hecho nada (Nielsen #1).
+    """
+    if badge is None or not is_alive(badge) or not motion_enabled():
+        return
+    from prettycalc.ui.theme import COLOR_SURFACE_ELEVATED, COLOR_TEXT_PRIMARY
+
+    same = before is not None and before == verdict_signature(badge)
+    live = [w for w in sections if w is not None and is_alive(w)]
+
+    def play() -> None:
+        if not badge.isVisible():
+            return
+        if same:
+            pulse(badge, COLOR_TEXT_PRIMARY, fill=0.22, duration=EMPHASIS, delay=delay, radius=4)
+            return
+        settle(badge, cover or COLOR_SURFACE_ELEVATED, delay=delay)
+        fade_in_sequence(live, BASE, start=delay + BASE)
+
+    defer(badge, play)
+
+
+def reveals(badge_path: str, sections_path: Optional[str] = None):
+    """Decora una acción explícita (Calcular, Resolver…) para revelar su veredicto.
+
+    ``badge_path`` y ``sections_path`` son atributos (con puntos) de la vista:
+    el badge del veredicto y, opcionalmente, el layout cuyas filas entran
+    escalonadas (una marca ✓ / ✗ por widget).
+    """
+    import functools
+    import inspect
+
+    def decorate(fn):
+        try:
+            params = [
+                p for p in inspect.signature(fn).parameters.values()
+                if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+            ]
+            positional = max(0, len(params) - 1)
+        except (TypeError, ValueError):
+            positional = 0
+
+        @functools.wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            before = verdict_signature(_resolve(self, badge_path))
+            # Las señales de Qt pueden pasar argumentos (``checked``) que la acción no usa.
+            result = fn(self, *args[:positional], **kwargs)
+            sections: List["QWidget"] = []
+            layout = _resolve(self, sections_path) if sections_path else None
+            if layout is not None:
+                for index in range(layout.count()):
+                    widget = layout.itemAt(index).widget()
+                    if widget is not None:
+                        sections.append(widget)
+            reveal_verdict(_resolve(self, badge_path), before, sections=sections)
+            return result
+
+        return wrapper
+
+    return decorate

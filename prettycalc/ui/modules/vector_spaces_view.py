@@ -51,6 +51,7 @@ from prettycalc.core.vector_spaces import (
     subspace_summary,
 )
 from prettycalc.core.types import Matrix, Vector, format_scalar
+from prettycalc.ui import motion
 from prettycalc.ui.feedback import show_toast
 from prettycalc.ui.matrix_grid import DynamicMatrixGrid
 from prettycalc.ui.mathtext import plain_formula_to_html
@@ -646,6 +647,7 @@ class VectorSpacesView(QWidget):
     # Lógica de cálculo
     # ------------------------------------------------------------------
 
+    @motion.reveals("_gen_panel._badge")
     def compute_generating_set(self) -> None:
         """Pestaña 1: verifica si el conjunto de vectores genera ℝᵐ."""
         try:
@@ -673,6 +675,7 @@ class VectorSpacesView(QWidget):
             kind="success" if result.generates else "error",
         )
 
+    @motion.reveals("_sub_panel._badge")
     def compute_subspace_basis(self) -> None:
         """Pestaña 2: calcula la base del subespacio Ax = 0."""
         try:

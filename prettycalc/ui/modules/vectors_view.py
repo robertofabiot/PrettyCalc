@@ -54,6 +54,7 @@ from prettycalc.core.vector_ops import (
     trace_vector_sum,
     vector_sub,
 )
+from prettycalc.ui import motion
 from prettycalc.ui.book_matrix import BookMatrixWidget
 from prettycalc.ui.clipboard import get_matrix_from_clipboard
 from prettycalc.ui.feedback import show_toast
@@ -364,6 +365,7 @@ class VectorsView(QWidget):
         self.basic_badge.setStyleSheet(_ok_badge())
         self.basic_compute_btn.setEnabled(True)
 
+    @motion.reveals("basic_badge")
     def _compute_basic(self) -> None:
         if not self.basic_compute_btn.isEnabled():
             for editor in (self.vec_u, self.vec_v):
@@ -612,6 +614,7 @@ class VectorsView(QWidget):
         self.metric_badge.setStyleSheet(_ok_badge())
         self.metric_compute_btn.setEnabled(True)
 
+    @motion.reveals("metric_badge")
     def compute_metric(self) -> None:
         if not self.metric_compute_btn.isEnabled():
             for editor in (self.metric_u, self.metric_v):
@@ -872,6 +875,8 @@ class VectorsView(QWidget):
         if not getattr(self, f"_{which}_has_result", False):
             return
         setattr(self, f"_{which}_has_result", False)
+        # El veredicto viejo se retira con un fundido: el estado ya cambió debajo.
+        motion.crossfade_out(badge.parentWidget() or badge, motion.FAST)
         badge.setText("Datos modificados: vuelve a evaluar para actualizar el resultado.")
         badge.setStyleSheet(idle_badge_style())
         if which == "combo":
@@ -953,6 +958,7 @@ class VectorsView(QWidget):
         )
         return row
 
+    @motion.reveals("combo_badge", "combo_checklist")
     def _evaluate_combination(self) -> None:
         problem = self._combo_problem()
         if problem:
@@ -1178,6 +1184,7 @@ class VectorsView(QWidget):
     def _names(indices: List[int]) -> str:
         return ", ".join(f"c{to_subscript(c + 1)}" for c in indices)
 
+    @motion.reveals("indep_badge", "indep_checklist")
     def _evaluate_independence(self) -> None:
         if not self.indep_set.is_valid():
             self._refresh_indep_inputs()
