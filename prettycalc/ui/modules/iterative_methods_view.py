@@ -77,6 +77,7 @@ from prettycalc.ui.module_scroll import make_module_scroll, track_content_width
 from prettycalc.ui.responsive import ResponsiveRow, StackingSplitterHost
 from prettycalc.ui.size_control import MatrixSizeControl
 from prettycalc.ui.stepper_carousel import AlgorithmStepperCarousel
+from prettycalc.ui.tables import align_headers, is_number, numeric_item, text_item
 from prettycalc.ui.theme import (
     COLOR_ACCENT_WARNING,
     COLOR_FEEDBACK_ERROR,
@@ -206,7 +207,8 @@ class IterationTable(QTableWidget):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.verticalHeader().setVisible(False)
-        self.setAlternatingRowColors(True)
+        # Flujo horizontal: sin cuadrícula ni filas alternas; solo separadores de 1 px.
+        self.setAlternatingRowColors(False)
         self.setShowGrid(False)
         self.setWordWrap(False)
         self.horizontalHeader().setHighlightSections(False)
@@ -215,26 +217,11 @@ class IterationTable(QTableWidget):
         self.setStyleSheet(
             f"""
             QTableWidget#iterationTable {{
-                background-color: {COLOR_SURFACE_INNER};
-                alternate-background-color: {rgba(COLOR_INTERACTIVE_IDLE, 0.06)};
-                color: {COLOR_TEXT_PRIMARY};
-                border: none;
-                border-radius: 6px;
-                selection-background-color: {rgba(COLOR_INTERACTIVE_IDLE, 0.30)};
-                selection-color: {COLOR_TEXT_PRIMARY};
                 font-family: {FONT_FAMILY_MONO};
                 font-size: 14px;
             }}
             QTableWidget#iterationTable::item {{ padding: 4px 10px; }}
-            QHeaderView::section {{
-                background-color: {COLOR_SURFACE_ELEVATED};
-                color: {COLOR_TEXT_PRIMARY};
-                border: none;
-                border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
-                padding: 6px 10px;
-                font-weight: 600;
-                font-size: 14px;
-            }}
+            QHeaderView::section {{ padding: 6px 10px; font-size: 14px; }}
             """
         )
 
@@ -266,7 +253,7 @@ class IterationTable(QTableWidget):
                 cells.append("—" if record.error_norm is None else format_decimal(record.error_norm, 6, fixed=True))
             for col, text in enumerate(cells):
                 item = QTableWidgetItem(text)
-                item.setTextAlignment(Qt.AlignCenter if col == 0 else right)
+                item.setTextAlignment(right)
                 self.setItem(row, col, item)
         last = len(result.iterations) - 1
         color = QColor(_status_color(result.status))
@@ -276,6 +263,7 @@ class IterationTable(QTableWidget):
             font.setBold(True)
             item.setFont(font)
             item.setForeground(color)
+        align_headers(self)
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
@@ -663,24 +651,10 @@ class IterativeMethodsView(QWidget):
 
     @staticmethod
     def _compare_table_style() -> str:
-        return f"""
-            QTableWidget#compareTable {{
-                background-color: {COLOR_SURFACE_INNER};
-                color: {COLOR_TEXT_PRIMARY};
-                border: none;
-                border-radius: 6px;
-                font-size: 14px;
-            }}
-            QTableWidget#compareTable::item {{ padding: 4px 12px; }}
-            QHeaderView::section {{
-                background-color: {COLOR_SURFACE_ELEVATED};
-                color: {COLOR_TEXT_PRIMARY};
-                border: none;
-                border-bottom: 2px solid {COLOR_INTERACTIVE_IDLE};
-                padding: 6px 12px;
-                font-weight: 600;
-                font-size: 14px;
-            }}
+        return """
+            QTableWidget#compareTable { font-size: 14px; }
+            QTableWidget#compareTable::item { padding: 4px 12px; }
+            QHeaderView::section { padding: 6px 12px; font-size: 14px; }
         """
 
     # ------------------------------------------------------------------
@@ -1114,6 +1088,7 @@ class IterativeMethodsView(QWidget):
         ]
         table.setColumnCount(1 + len(methods))
         table.setHorizontalHeaderLabels(["Medida"] + [m.label for m in methods])
+        align_headers(table, text_columns=range(table.columnCount()))
         table.setRowCount(len(rows))
         for row, (name, getter) in enumerate(rows):
             head = QTableWidgetItem(name)
@@ -1123,8 +1098,8 @@ class IterativeMethodsView(QWidget):
             table.setItem(row, 0, head)
             for col, method in enumerate(methods, start=1):
                 result = self.results[method]
-                item = QTableWidgetItem(getter(result))
-                item.setTextAlignment(Qt.AlignCenter)
+                value = getter(result)
+                item = numeric_item(value) if is_number(value) else text_item(value)
                 if name == "Estado":
                     item.setForeground(QColor(_status_color(result.status)))
                     bold = item.font()
