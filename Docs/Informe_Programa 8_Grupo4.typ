@@ -786,7 +786,7 @@ Cada integrante del equipo (Roberto Fabio Tercero Morán, Steven Alexander Flore
 = 7. Estructura de Entregables e Instrucciones de Ejecución
 
 == 7.1. Organización del Paquete Comprimido (.ZIP)
-Conforme a la normativa de la Facultad de Ingeniería y Arquitectura (FIA), el proyecto se entrega en el archivo comprimido oficial `Programa 8_Grupo 4_Tercero_Flores.zip`, estructurado como se detalla a continuación:
+Conforme a la normativa de la Facultad de Ingeniería y Arquitectura (FIA), el proyecto se entrega en el archivo comprimido oficial `Programa 8_Grupo 4.zip`, estructurado como se detalla a continuación:
 
 #rect(
   width: 100%,
@@ -795,7 +795,7 @@ Conforme a la normativa de la Facultad de Ingeniería y Arquitectura (FIA), el p
   inset: (x: 7pt, y: 5pt)
 )[
   #text(fill: rgb("#f8fafc"), font: "JetBrainsMono NF", size: 6.8pt)[
-    Programa 8_Grupo 4_Tercero_Flores.zip\
+    Programa 8_Grupo 4.zip\
     ├── Programa 8_Grupo4.py                         \# Script interactivo autónomo de consola (100% Python estándar)\
     ├── Calculadora_Algebra_Lineal/                  \# Suite modular profesional con Módulo 5 de Métodos Iterativos\
     │   ├── main.py                                  \# Menú principal de la suite CLI\
