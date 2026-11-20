@@ -18,8 +18,10 @@ from typing import List, Optional, Sequence, Tuple
 
 try:
     from PySide6.QtWidgets import (
+        QApplication,
         QButtonGroup,
         QFrame,
+        QGraphicsDropShadowEffect,
         QHBoxLayout,
         QLabel,
         QPushButton,
@@ -27,7 +29,7 @@ try:
         QVBoxLayout,
         QWidget,
     )
-    from PySide6.QtCore import QRectF, QSize, Qt, Signal
+    from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
     from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPen, QPixmap
     from PySide6.QtSvg import QSvgRenderer
 except ImportError:
@@ -68,6 +70,11 @@ SHORT_LABELS: Sequence[str] = ("Sistemas", "Matrices", "Vectores", "Ecuaciones",
 #: Ancho de la barra desplegada y del riel plegado (px).
 EXPANDED_WIDTH = 276
 COMPACT_WIDTH = 96
+#: Ancho del cajón que se despliega sobre el lienzo al pasar el cursor por el riel.
+DRAWER_WIDTH = 300
+#: Espera antes de abrir o cerrar el cajón (evita parpadeos al cruzar el riel).
+DRAWER_OPEN_DELAY_MS = 140
+DRAWER_CLOSE_DELAY_MS = 220
 
 _ITEM_HEIGHT = 40
 _RAIL_ITEM_HEIGHT = 54
@@ -103,6 +110,8 @@ class NavItem(QPushButton):
         self._hover_tween = None
         #: Mientras la barra desliza el indicador, el elemento activo no pinta el suyo.
         self.indicator_external = False
+        #: 0 en el riel; 1 con el cajón abierto (el nombre completo a la derecha).
+        self._drawer_reveal = 0.0
         self._keyboard_focus = False
         self.setObjectName("navItem")
         self.setCursor(Qt.PointingHandCursor)
@@ -134,6 +143,17 @@ class NavItem(QPushButton):
         self._compact = compact
         self.setFixedHeight(_RAIL_ITEM_HEIGHT if compact else _ITEM_HEIGHT)
         self.update()
+
+    def set_drawer_reveal(self, reveal: float) -> None:
+        """Cuánto se ve el nombre completo junto a la marca (el riel no se mueve)."""
+        self._drawer_reveal = max(0.0, min(1.0, reveal))
+        self.update()
+
+    def drawer_label_fits(self) -> bool:
+        """El nombre completo cabe en el cajón abierto."""
+        rail = COMPACT_WIDTH - 10
+        available = DRAWER_WIDTH - 10 - rail - 12
+        return QFontMetrics(self.font()).horizontalAdvance(self.text()) <= available
 
     def sizeHint(self) -> "QSize":  # noqa: N802
         if self._compact:
@@ -213,8 +233,10 @@ class NavItem(QPushButton):
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 7, 7)
 
+        rail = COMPACT_WIDTH - 10  # ancho del elemento en el riel
         if self._compact:
-            chip = QRectF((self.width() - _CHIP_W) / 2, 7, _CHIP_W, _CHIP_H)
+            # La marca queda fija en la columna del riel aunque el cajón se abra.
+            chip = QRectF((rail - _CHIP_W) / 2, 7, _CHIP_W, _CHIP_H)
         else:
             chip = QRectF(_PAD_X, (self.height() - _CHIP_H) / 2, _CHIP_W, _CHIP_H)
         painter.setPen(Qt.NoPen)
@@ -229,11 +251,21 @@ class NavItem(QPushButton):
 
         painter.setPen(QColor(COLOR_TEXT_PRIMARY if (active or self._hovered) else COLOR_TEXT_MUTED))
         if self._compact:
-            font = ui_font(_RAIL_LABEL_PX, weight=600 if active else 500)
-            painter.setFont(font)
-            area = QRectF(2, chip.bottom() + 3, self.width() - 4, self.height() - chip.bottom() - 6)
-            text = QFontMetrics(font).elidedText(self.short_label, Qt.ElideRight, int(area.width()))
-            painter.drawText(area, Qt.AlignHCenter | Qt.AlignTop, text)
+            reveal = self._drawer_reveal
+            if reveal < 1.0:
+                font = ui_font(_RAIL_LABEL_PX, weight=600 if active else 500)
+                painter.setFont(font)
+                painter.setOpacity(1.0 - reveal)
+                area = QRectF(2, chip.bottom() + 3, rail - 4, self.height() - chip.bottom() - 6)
+                text = QFontMetrics(font).elidedText(self.short_label, Qt.ElideRight, int(area.width()))
+                painter.drawText(area, Qt.AlignHCenter | Qt.AlignTop, text)
+            if reveal > 0.0:
+                painter.setOpacity(reveal)
+                painter.setFont(self.font())
+                area = QRectF(rail + 2, 0, max(0.0, self.width() - rail - 12), self.height())
+                text = QFontMetrics(self.font()).elidedText(self.text(), Qt.ElideRight, int(area.width()))
+                painter.drawText(area, Qt.AlignVCenter | Qt.AlignLeft, text)
+            painter.setOpacity(1.0)
         else:
             painter.setFont(self.font())
             area = self.label_rect()
@@ -406,6 +438,13 @@ class ModularNavigationBar(QFrame):
         self._setup_ui(tabs)
         self._group.idClicked.connect(self._on_id_clicked)
         self.setFixedWidth(EXPANDED_WIDTH)
+        self._drawer_open = False
+        self._drawer_t = 0.0
+        self._drawer_tween = None
+        self._drawer_timer = QTimer(self)
+        self._drawer_timer.setSingleShot(True)
+        self._drawer_timer.timeout.connect(self._apply_drawer_intent)
+        self._drawer_intent = False
         self._shown_index = 0
         self._slide_from: Optional[QRectF] = None
         self._slide_item: Optional[NavItem] = None
@@ -582,6 +621,129 @@ class ModularNavigationBar(QFrame):
         for item in self._buttons + self._footer_items:
             item.set_compact(compact)
         self.setFixedWidth(COMPACT_WIDTH if compact else EXPANDED_WIDTH)
+
+    # -- cajón sobre el riel ----------------------------------------------------
+    def use_drawer(self) -> None:
+        """Riel de iconos fijo; el nombre de cada módulo aparece en un cajón al pasar el cursor.
+
+        El cajón se superpone al lienzo (no empuja el contenido) y la marca de
+        cada módulo no se mueve al abrirse: solo aparece su nombre a la derecha.
+        Con el teclado (Tab) se abre igual y se cierra al salir del riel.
+        """
+        self.set_compact(True)
+        self._brand_row.setAlignment(self.brand_mark, Qt.AlignLeft | Qt.AlignVCenter)
+        rail_left = (COMPACT_WIDTH - 10 - self.brand_mark.width()) // 2
+        self._brand_row.setContentsMargins(rail_left, 0, 6, 0)
+        app = QApplication.instance()
+        if app is not None:
+            app.focusChanged.connect(self._on_focus_changed)
+
+    def is_drawer_open(self) -> bool:
+        return self._drawer_open
+
+    def drawer_progress(self) -> float:
+        return self._drawer_t
+
+    def open_drawer(self) -> None:
+        self._set_drawer(True)
+
+    def close_drawer(self) -> None:
+        self._set_drawer(False)
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        self._request_drawer(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        # Solo el foco que llegó con el teclado mantiene el cajón abierto; el
+        # foco inicial de la ventana o el de un clic, no.
+        if not self._keyboard_focus_inside():
+            self._request_drawer(False)
+        super().leaveEvent(event)
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if event.key() == Qt.Key_Escape and self._drawer_open:
+            self.close_drawer()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def _keyboard_focus_inside(self) -> bool:
+        focus = QApplication.focusWidget()
+        inside = focus is not None and (focus is self or self.isAncestorOf(focus))
+        return inside and bool(getattr(focus, "_keyboard_focus", False))
+
+    def _on_focus_changed(self, _old, new) -> None:
+        if not motion.is_alive(self) or not self._compact:
+            return
+        inside = new is not None and (new is self or self.isAncestorOf(new))
+        if inside and getattr(new, "_keyboard_focus", False):
+            self._request_drawer(True, delay=0)
+        elif not inside and not self.underMouse():
+            self._request_drawer(False, delay=0)
+
+    def _request_drawer(self, open_: bool, delay: Optional[int] = None) -> None:
+        """Intención de abrir o cerrar, con una espera corta para no parpadear."""
+        self._drawer_intent = open_
+        if delay is None:
+            delay = DRAWER_OPEN_DELAY_MS if open_ else DRAWER_CLOSE_DELAY_MS
+        if delay <= 0:
+            self._drawer_timer.stop()
+            self._apply_drawer_intent()
+        else:
+            self._drawer_timer.start(delay)
+
+    def _apply_drawer_intent(self) -> None:
+        self._set_drawer(self._drawer_intent)
+
+    def _set_drawer(self, open_: bool) -> None:
+        if open_ == self._drawer_open:
+            return
+        self._drawer_open = open_
+        if not open_:
+            self._brand_text.setVisible(False)
+        if open_:
+            self.raise_()
+            # Sombra solo mientras el cajón está sobre el lienzo; el riel en reposo no la lleva.
+            if self.graphicsEffect() is None:
+                shadow = QGraphicsDropShadowEffect(self)
+                shadow.setBlurRadius(28)
+                shadow.setOffset(6, 0)
+                shadow.setColor(QColor(0, 0, 0, 110))
+                self.setGraphicsEffect(shadow)
+        start = self._drawer_t
+        target = 1.0 if open_ else 0.0
+        if self._drawer_tween is not None:
+            tween, self._drawer_tween = self._drawer_tween, None
+            if motion.is_alive(tween):
+                try:
+                    tween.finished.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+                tween.stop()
+            motion._forget(tween)
+
+        def step(t: float) -> None:
+            curve = motion.CURVE_ENTER if open_ else motion.CURVE_EXIT
+            self._apply_drawer_progress(motion.lerp(start, target, motion.ease(curve, t)))
+
+        def done() -> None:
+            self._drawer_tween = None
+            self._apply_drawer_progress(target)
+            if not self._drawer_open and self.graphicsEffect() is not None:
+                self.setGraphicsEffect(None)
+
+        duration = motion.ms(motion.BASE if open_ else motion.FAST)
+        self._drawer_tween = motion.run(self, duration, step, done)
+
+    def _apply_drawer_progress(self, t: float) -> None:
+        self._drawer_t = t
+        self.setFixedWidth(int(round(motion.lerp(COMPACT_WIDTH, DRAWER_WIDTH, t))))
+        # El nombre de la app aparece cuando ya hay espacio para él (nunca recortado).
+        self._brand_text.setVisible(self._drawer_open and t >= 0.85)
+        for item in self._buttons + self._footer_items:
+            item.set_drawer_reveal(t)
+        self._end_slide()
 
     @property
     def buttons(self) -> List[QPushButton]:
